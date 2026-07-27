@@ -8,7 +8,8 @@
 # 有意不做的（不是遗漏）：
 #   - 多 Python 版本矩阵：生产代码只用标准库，3.9+ 行为一致，跑一个 3.11 足够。
 #   - 覆盖率门：CLAUDE.md·开发流程明文「不追覆盖率」。
-#   - lint / 格式化门：仓库无统一格式化配置，加了只会制造噪声。
+#   - lint / 格式化门：`.markdownlint.json` 只供编辑器提示用，没打算做成门——
+#     中文文档做格式化门，收益低于噪声。
 #   - eval / 量化门槛：不在 CLAUDE.md 的发布门三条内，按需手工补跑。
 #
 # 排除 tests/datasources/smoke_real_api.py：它打真实 API（Crossref / OpenAlex 等），

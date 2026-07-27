@@ -17,7 +17,26 @@
 
 ## [Unreleased]
 
-暂无。
+### 新增（Added）
+
+- **Claude Code 插件分发**——仓库根 `.claude-plugin/`（`plugin.json` + `marketplace.json`）
+  使仓库自身成为插件市场：`/plugin marketplace add cabbage2000-lab/paper-tutor-skills` 后
+  安装，25 个命令以 `paper-tutor:` 前缀成组显示。这是增量增强——散装 `skills/` 主体原样
+  保留，Codex / WorkBuddy 等宿主的装载方式完全不受影响。
+- **Release 自动化**——推 `v*` tag 触发 [`release.yml`](.github/workflows/release.yml)：
+  跑测试 → 用 `scripts/extract_changelog_notes.py` 摘取本文件对应版本段 → 创建或更新
+  GitHub Release。Release notes 自此由本文件推导，不手工抄第二份；对应版本段缺失会让
+  发布直接失败，宁可不发也不发空白 Release。
+- **plugin 清单守卫** [`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py)
+  （15 项）——锁住 `plugin.json` ↔ `marketplace.json` ↔ 本文件三处的版本号与描述一致，
+  并校验 `.claude-plugin/` 只放清单文件（skill 内容塞进去会导致一个都加载不到）。
+
+### 变更（Changed）
+
+- 两个 README 的安装章节增加插件安装方式，与 skills 目录安装方式并列。
+- CLAUDE.md 补「插件分发」「发版」两节，结构守卫测试表由三个更新为四个。
+- 移除 `docs/examples/phase2-plugin-样板/`——其 `.template` 文件已被 `.claude-plugin/`
+  的实际配置取代，留着即第二份真相。
 
 ---
 
