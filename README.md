@@ -52,7 +52,16 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 
 ### 安装
 
-把下面这句话复制给你的编程智能体（Claude Code、Codex、WorkBuddy 等），它会自动完成安装：
+**Claude Code：装插件**（本仓库自身就是插件市场）——在 Claude Code 里依次执行：
+
+```text
+/plugin marketplace add cabbage2000-lab/paper-tutor-skills
+/plugin install paper-tutor@paper-tutor-marketplace
+```
+
+装完 25 个命令以 `paper-tutor:` 前缀成组出现（`/paper-tutor:paper-init`、`/paper-tutor:paper-verify`……），更新用 `/plugin update paper-tutor`。
+
+**其他宿主（Codex / WorkBuddy 等）：装 skills 目录**——把下面这句话复制给你的编程智能体，它会自动完成安装：
 
 ```text
 帮我安装 Paper-Tutor-Skills：
@@ -62,6 +71,8 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 ```
 
 > 想先试一个？把第 2 步换成「只安装 skills/paper-init」即可。
+>
+> 两种方式装的是同一套 skill，插件形态只是让 Claude Code 里的命令成组显示；`skills/` 散装主体原样保留，跨宿主装载不受影响。
 
 ### 30 秒试一下
 

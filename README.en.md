@@ -49,7 +49,16 @@ Paper-Tutor-Skills positions AI as a **tutor and coach**, not an executor of res
 
 ### Installation
 
-Copy the following prompt to your coding agent (Claude Code, Codex, WorkBuddy, etc.) and it will handle the installation automatically:
+**Claude Code — install as a plugin** (this repo is itself a plugin marketplace). Run these in Claude Code:
+
+```text
+/plugin marketplace add cabbage2000-lab/paper-tutor-skills
+/plugin install paper-tutor@paper-tutor-marketplace
+```
+
+All 25 commands then appear grouped under the `paper-tutor:` prefix (`/paper-tutor:paper-init`, `/paper-tutor:paper-verify`, …). Update with `/plugin update paper-tutor`.
+
+**Other hosts (Codex / WorkBuddy, etc.) — install the skills directory.** Copy the following prompt to your coding agent and it will handle the installation automatically:
 
 ```text
 Install Paper-Tutor-Skills:
@@ -59,6 +68,8 @@ Install Paper-Tutor-Skills:
 ```
 
 > Want to try just one? Replace step 2 with "only install skills/paper-init".
+>
+> Both routes install the same skills. The plugin form only makes the commands appear grouped inside Claude Code — the plain `skills/` layout is untouched, so loading on other hosts is unaffected.
 
 ### Try it in 30 seconds
 

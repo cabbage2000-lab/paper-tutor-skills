@@ -1,0 +1,67 @@
+# 打 v* tag 时自动创建/更新 GitHub Release，正文取自 CHANGELOG 对应版本段。
+#
+# 为什么值得有：Release notes 与 CHANGELOG 是同一份内容的两处呈现，手工抄必然漂移——
+# 与 commands.yaml 单一事实来源同理，让 CHANGELOG 当唯一真相、Release 从它推导。
+#
+# 发布一个版本：先在 CHANGELOG.md 写好 `## [x.y.z] — 日期` 段落并合入 main，
+# 再 `git tag -a vx.y.z && git push origin vx.y.z`，本 workflow 自动接手。
+# 忘了写 CHANGELOG 段落会直接失败（extract_changelog_notes.py 非 0 退出），
+# 这是有意的——宁可不发，也不发空白 Release。
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要（重新）创建 Release 的 tag，例如 v0.1.0'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 解析 tag
+        id: vars
+        run: |
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then TAG="${{ github.ref_name }}"; fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      # 有意不指定 ref：push tag 时默认 checkout 该 tag 本身；workflow_dispatch 时默认
+      # checkout 主分支。后者是必要的——回填一个早于本 workflow 存在的历史 tag 时，
+      # 那个 tag 上没有 scripts/extract_changelog_notes.py，checkout 到 tag 会必现
+      # "No such file or directory"。CHANGELOG 的历史版本段落是累积保留的，从主分支
+      # 读取同一版本的内容不变，所以走主分支既安全又正确。
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 装测试依赖
+        run: python -m pip install --upgrade pip pytest pyyaml
+
+      - name: 跑测试（不通过则不发布 Release）
+        run: python -m pytest tests/ -q --ignore=tests/datasources/smoke_real_api.py
+
+      - name: 提取 CHANGELOG 对应版本段
+        run: python3 scripts/extract_changelog_notes.py "${{ steps.vars.outputs.version }}" > /tmp/release-notes.md
+
+      - name: 创建或更新 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.vars.outputs.tag }}"
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release edit "$TAG" --repo "${{ github.repository }}" --title "$TAG" --notes-file /tmp/release-notes.md
+          else
+            gh release create "$TAG" --repo "${{ github.repository }}" --title "$TAG" --notes-file /tmp/release-notes.md --verify-tag
+          fi

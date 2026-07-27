@@ -55,9 +55,23 @@ skills/
 
 数据源层已接入 arXiv、OpenAlex、Semantic Scholar、Crossref、PubMed、ERIC，DOI 按注册机构分流（Crossref / DataCite / ISTIC；ISTIC 即中文 DOI，径直落「待人工核对」）。
 
-其余目录：`tests/` 与 skills 平行（每个 skill 一个子目录 + `fixtures/` 共享语料）；`evals/` 放裸模型对比记录；入库的文档只有 `docs/prd/`（产品定位与设计理念，权威）与 `docs/examples/`。
+其余目录：`tests/` 与 skills 平行（每个 skill 一个子目录 + `fixtures/` 共享语料）；`evals/` 放裸模型对比记录；`scripts/` 放仓库级工具（`extract_changelog_notes.py`）；入库的文档只有 `docs/prd/`（产品定位与设计理念，权威）与 `docs/examples/`。
 
-### 三个结构守卫测试（改动前先知道它们守什么）
+### 插件分发（Claude Code）
+
+仓库根的 `.claude-plugin/`（`plugin.json` + `marketplace.json`）让**仓库自身成为一个插件市场**，Claude Code 用户可 `/plugin marketplace add cabbage2000-lab/paper-tutor-skills` 后安装。这是**增量增强、不替换任何东西**：`skills/` 散装主体原样保留，其他宿主照常按 SKILL.md 装载——与硬规则 3 的跨宿主中立不冲突。
+
+- **plugin 根 = 仓库根**，所以 `skills/` 天然在正确位置。`.claude-plugin/` 里**只放两个清单文件**，skill 内容绝不能塞进去（官方明确的坑，放错则一个 skill 都加载不到）。
+- **plugin name 取 `paper-tutor`**，命令因此呈现为 `/paper-tutor:paper-init`——前缀与命令名都带 paper，确实啰嗦。更简洁的 `/paper:init` 需要把 23 个 skill 目录改名为 `init`/`verify` 等，牵动硬规则 2（`name` = 目录名 = 命令名）、主清单、两个 README 与全部内部引用。**权衡结论：不值得，保持 `paper-tutor`。** 要推翻这个结论，得连同上述几处一起改。
+
+### 发版
+
+1. 在 `CHANGELOG.md` 写 `## [x.y.z] — 日期` 段落（Release notes 由它推导，段落缺失会让发布流程直接失败——宁可不发，也不发空白 Release）；
+2. 同步 `.claude-plugin/` 两份清单的 `version`（[`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 守着三处一致）；
+3. 合入 main 后 `git tag -a vx.y.z -m "..." && git push origin vx.y.z`；
+4. [`release.yml`](.github/workflows/release.yml) 自动跑测试并创建 Release。测试不过则不发布。
+
+### 四个结构守卫测试（改动前先知道它们守什么）
 
 它们抓的是「改了 A 忘了同步 B」这类无声漂移，失败诊断路径各不相同：
 
@@ -66,6 +80,7 @@ skills/
 | [`test_manifest_consistency.py`](tests/test_manifest_consistency.py) | `commands.yaml` ↔ skill 目录 ↔ SKILL.md 的 `name` ↔ 两个根 README 的命令表，四处一致；`skills/README.md` 不得另存命令清单表格 |
 | [`test_shared_conventions.py`](tests/test_shared_conventions.py) | 四层内容标注符号、学科三梯队、留痕契约字段在全仓库不漂移，其中的产品立场不被改写 |
 | [`test_boundary_registry.py`](tests/test_boundary_registry.py) | 边界拒绝清单 ↔ README 不做表 ↔ PRD 边界条目三处不背离，同步锚点真实存在 |
+| [`test_plugin_manifest.py`](tests/test_plugin_manifest.py) | `plugin.json` ↔ `marketplace.json` ↔ CHANGELOG 最新版本，三处版本号与描述一致；`.claude-plugin/` 里只放清单文件 |
 
 ## 硬规则
 
