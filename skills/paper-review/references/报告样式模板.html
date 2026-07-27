@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-review 产物「模拟评审报告.html」的样式权威）
+  ====================================================================
+  宿主 agent 生成产物时：把本文件整段复制为产物，再把 <body> 里的
+  <尖括号占位> 替换为真实实例内容。<style> 段原样保留、勿改配色。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+     参照学术期刊内页与档案馆检索卡。禁营销页/仪表盘语汇。
+  2. 四层语义色是「摆事实非推荐」死线，四色须一眼可辨：
+     👤 用户正文原话=靛蓝(#2b4a6f, 最重) / 📋 模拟常见审稿维度/意见=赭石(#7a6230) /
+     🪞 系统归纳（可追溯）=青灰(#4a6b5c) / ❓ 待用户决定=砖红(#9a3b2e)。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）
+     所有模板必备；按需层（ECharts CDN + _shared/echarts-theme.js）仅图表模板引入
+     ——本模板是 13 个 skill 中唯一引入 ECharts 的（5 维评分雷达图）。宿主 agent
+     生成产物时须原样保留外部引用、不得内联替代、不得删减。断网时产物降级为
+     无样式 HTML（内容可读、雷达图不渲染、表格仍可读）——这是可接受的折衷。
+  4. 陈列型可视化边界（雷达图与「不下结论」死线的共存规则，本模板强制执行）：
+     - 雷达图只客观投影 .score-table 已有的 5 维评分，不得引入派生指标
+       （均值线、达标线、基准线、排名）。
+     - 禁视觉倾斜：不用面积大小暗示优劣、不用颜色深浅暗示高低、不用动画放大某点、
+       不用 split area 分区暗示达标带（echarts-theme.js 已统一 splitArea.show=false）。
+     - 图表配色限定：四层语义色 + 两档墨色，即 echarts-theme.js 注册的 paper 主题色板。
+       禁红绿灯色板延伸到雷达图数据。
+     - 雷达图必须带说明性 caption（.chart-caption）：写明"陈列什么、不下什么结论"。
+       强制文案：📋 模拟评分剖面陈列 · 投影表格 5 维 X/10 · 不下"均衡/失衡"结论。
+  5. review 专属元素：分项评分表（.score-table 5 维 X/10 + 总分 N/50）、
+     三视角意见区块（.viewpoint + .vp-stamp：期刊审稿 / 学位论文盲审 / 答辩委员）、
+     修订建议汇总节（.revise-list + .rl-label + .rl-note，不替用户写回复信）、
+     模拟视角声明徽章（.mock-badge 顶部固定"模拟视角 · 非 AI 判断"）、
+     评分剖面雷达图（#reviewRadar 5 维多边形、SVG 矢量、echarts paper 主题）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>模拟评审报告</title>
+<!-- 基础层 -->
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<!-- 按需层（review 有雷达图） -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script src="../../_shared/echarts-theme.js"></script>
+<style>
+  /* === 页面骨架（通用组件，保留 <style> 因伪元素/多层背景 Tailwind 难以表达） === */
+  body {
+    background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page::before {
+    content: "paper-review · 模拟评审档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 四层语义徽章族（.tag-inline.t1-t4）：bg + text + border 组合 shorthand === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === review 专属：模拟视角声明徽章（.mock-badge 顶部固定） === */
+  /* Task 9 lesson：brief 列明的专属组件保留具名 CSS 规则（不转 utility-only） */
+  .mock-badge {
+    display: inline-block; padding: 0.5rem 1rem; border-radius: 3px;
+    font-size: 0.85rem; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600; margin-top: .8rem;
+    background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e;
+    line-height: 1.5;
+  }
+
+  /* === review 专属：分项评分表（.score-table 5 维 X/10 + 总分 N/50） === */
+  .score-table {
+    width: 100%; border-collapse: collapse; margin: 1rem 0;
+    font-size: .94rem;
+  }
+  .score-table th, .score-table td {
+    border: 1px solid #c9bfa8; padding: .6rem .8rem; text-align: left;
+    vertical-align: top; line-height: 1.7;
+  }
+  .score-table th {
+    background: #f0e9d8; color: #7a6230; font-weight: 700;
+    font-family: "PingFang SC", sans-serif; font-size: .88rem;
+  }
+  .score-table td:first-child { font-weight: 600; color: #1f1b16; width: 7rem; }
+  .score-table td.score {
+    text-align: center; font-family: Georgia, serif; font-weight: 700;
+    color: #7a6230; width: 4rem; font-size: 1rem;
+  }
+  .score-table td a { color: #2b4a6f; text-decoration: underline; text-underline-offset: 2px; }
+  .score-table tr.total { background: #e4ece8; font-weight: 700; }
+  .score-table tr.total td { color: #4a6b5c; border-color: #4a6b5c; }
+  .score-table tr.total td.score { font-size: 1.1rem; }
+
+  /* === review 专属：三视角意见区块（.viewpoint + .vp-stamp） === */
+  .viewpoint {
+    border-left: 3px solid #7a6230;
+    padding-left: 1.2rem;
+    margin-bottom: 1.8rem;
+  }
+  .viewpoint h3 {
+    margin: 0 0 0.5rem 0;
+    font-family: "PingFang SC", sans-serif;
+    font-size: 1rem; font-weight: 700; color: #7a6230;
+    display: flex; align-items: baseline; gap: .5rem;
+  }
+  .viewpoint .vp-stamp {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+    color: #8a8071; font-weight: 600;
+  }
+  .viewpoint ul {
+    margin: .3rem 0; padding-left: 1.2rem; color: #5a5247;
+    font-size: .94rem; line-height: 1.75;
+  }
+  .viewpoint ul li { margin: .35rem 0; }
+  .viewpoint ul li a { color: #2b4a6f; text-decoration: underline; text-underline-offset: 2px; }
+
+  /* === review 专属：修订建议汇总节（.revise-list + .rl-label + .rl-note） === */
+  .revise-list {
+    background: #f3e3df; border-left: 3px solid #9a3b2e;
+    padding: 1rem 1.2rem; margin: 1rem 0;
+  }
+  .revise-list .rl-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: #9a3b2e; margin-bottom: .5rem; font-weight: 700;
+  }
+  .revise-list .rl-note {
+    color: #5a5247; font-size: .88rem; font-style: italic; margin-top: .4rem;
+  }
+
+  /* === review 专属：评分剖面雷达图容器（.chart-block + .chart-caption） === */
+  /* 陈列边界：图只投影表格 5 维评分、不引入派生指标；caption 强制说明不下结论 */
+  .chart-block {
+    margin: 1.5rem 0; padding: 1rem 1.2rem;
+    background: rgba(255,255,255,.4); border: 1px dashed #c9bfa8;
+  }
+  .chart-caption {
+    margin-top: .6rem; text-align: center;
+    font-family: "PingFang SC", sans-serif;
+    font-size: .82rem; color: #5a5247; line-height: 1.6;
+  }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(n+7) { animation-delay: .47s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body class="font-serif text-ink text-base leading-[1.85] antialiased">
+<article class="page max-w-[880px] mx-auto mt-12 mb-20 bg-paper border border-rule border-t-[6px] border-t-ink px-16 py-14 relative shadow-[0_1px_0_#ece5d6,0_30px_60px_-30px_rgba(60,45,20,0.25)]">
+
+  <header class="doc-head mb-10">
+    <div class="font-sans text-[11px] tracking-[0.28em] uppercase text-ink-faint mb-[0.6rem]">
+      Paper-Review · 模拟评审报告档案
+    </div>
+    <h1 class="font-serif text-[2.1rem] font-bold leading-[1.25] mt-0 mb-4 tracking-[0.01em]">
+      模拟评审报告 <em class="italic font-medium text-ink-soft" style="font-family:Georgia,'Songti SC',serif">Mock Peer Review</em>
+    </h1>
+    <div class="flex flex-wrap gap-x-6 gap-y-2 pt-4 border-t border-rule text-ink-soft text-[0.9rem]">
+      <span><b class="text-ink-faint font-medium mr-1.5">日期</b><日期></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">稿件来源</b><用户本人 / 指导学生 · 非他在审稿件></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">学科梯队</b><实证 / 理论型 / 规范文本型 / 诠释型></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">评审视角</b><期刊审稿 / 学位论文盲审 / 答辩委员></span>
+    </div>
+    <!-- 模拟视角声明徽章：如实披露、评分非 AI 判断 -->
+    <div class="mock-badge">⚠️ 模拟审稿视角陈列 · 非 AI 对论文的价值判断 · 评分是模拟练习产物、不代表论文真实水平 · 真实评审以导师 / 期刊审稿人 / 答辩委员会为准</div>
+  </header>
+
+  <section class="legend my-7 px-5 py-4 bg-white/40 border border-dashed border-rule text-[0.85rem]">
+    <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-ink-faint mb-2">
+      内容标注 · Content Provenance
+    </div>
+    <ul class="m-0 p-0 list-none flex flex-wrap gap-x-6 gap-y-2">
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l1"></span>👤 用户正文原话</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l2"></span>📋 模拟常见审稿维度/意见（非推荐）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l3"></span>🪞 系统归纳（可追溯）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l4"></span>❓ 待用户决定</li>
+    </ul>
+    <div class="mt-2 text-[0.78rem] text-ink-faint">本评审不含"AI 的新判断"层 —— 评分与意见都是模拟常见审稿套路陈列、非定论；禁"行/不行""值得发表/应拒稿"等总判断词。</div>
+  </section>
+
+  <section class="scores">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      一、分项评分 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Scores · 📋 模拟常见审稿维度（非 AI 判断）</span>
+    </h2>
+
+    <!-- 评分剖面雷达图：陈列边界——只投影下表 5 维评分、不下"均衡/失衡"结论 -->
+    <figure class="chart-block">
+      <div id="reviewRadar" style="width:100%;height:340px;"></div>
+      <figcaption class="chart-caption">
+        📋 模拟评分剖面陈列 · 投影表格 5 维 X/10 · 不下"均衡/失衡"结论
+      </figcaption>
+    </figure>
+
+    <table class="score-table">
+      <thead><tr><th>维度</th><th>评分</th><th>扣分依据（配段落锚点）</th></tr></thead>
+      <tbody>
+        <tr><td>新颖性</td><td class="score">X/10</td><td><依据，如"引言 <a href="正文.md#引言" class="text-l1 bg-l1-bg px-1 rounded-sm">[引言段]</a> 与 Smith 2023 重叠较高"></td></tr>
+        <tr><td>方法严谨性</td><td class="score">Y/10</td><td><依据></td></tr>
+        <tr><td>结果可靠性</td><td class="score">Z/10</td><td><依据></td></tr>
+        <tr><td>写作清晰度</td><td class="score">W/10</td><td><依据></td></tr>
+        <tr><td>贡献度</td><td class="score">V/10</td><td><依据></td></tr>
+        <tr class="total"><td>总分</td><td class="score">N/50</td><td>模拟练习加总、不代表论文真实水平（真实评审以导师 / 期刊审稿人 / 答辩委员会为准）</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="viewpoints">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      二、逐条审稿意见 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Viewpoints · 📋 模拟常见套路（非 AI 判断）</span>
+    </h2>
+
+    <article class="viewpoint">
+      <h3>视角 1：期刊审稿人 <span class="vp-stamp">📋 模拟视角</span></h3>
+      <ul>
+        <li><span class="t2 tag-inline">📋</span><意见 1，如"与 X 文献相比、本文新贡献需澄清" · 链接 <a href="正文.md#引言">引言段</a>></li>
+        <li><span class="t2 tag-inline">📋</span><意见 2，如"方法节 Y 部分需补细节" · 链接 <a href="正文.md#方法章">方法章</a>></li>
+        <li><span class="t4 tag-inline">❓</span><审稿人可能的追问，如"为什么用问卷不用实验"></li>
+      </ul>
+    </article>
+
+    <article class="viewpoint">
+      <h3>视角 2：学位论文盲审专家（§385 预设） <span class="vp-stamp">📋 模拟盲审挑刺套路</span></h3>
+      <ul>
+        <li><span class="t2 tag-inline">📋</span><盲审套路意见，如"文献综述覆盖不足" · 链接 <a href="正文.md#文献综述">文献综述章</a>></li>
+        <li><span class="t2 tag-inline">📋</span><套路意见，如"工作量与硕士要求是否匹配"></li>
+        <li><span class="t2 tag-inline">📋</span><套路意见，如"格式规范问题——参考文献著录、图表编号需校对"></li>
+      </ul>
+    </article>
+
+    <article class="viewpoint">
+      <h3>视角 3：答辩委员 <span class="vp-stamp">📋 模拟答辩追问套路</span></h3>
+      <ul>
+        <li><span class="t4 tag-inline">❓</span><追问，如"你的核心贡献是什么？请用一两句话讲清楚" · 链接 <a href="正文.md#结论">结论章</a>></li>
+        <li><span class="t4 tag-inline">❓</span><追问，如"为什么用这个方法、不用 X 替代方法？"></li>
+        <li><span class="t4 tag-inline">❓</span><追问，如"结果能否外推到其他群体？局限如何回应？"></li>
+      </ul>
+    </article>
+
+  </section>
+
+  <section class="revise">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      三、修订建议汇总 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ To Revise · ❓ 待用户决定（不替用户写回复信）</span>
+    </h2>
+    <div class="revise-list">
+      <div class="rl-label">❓ 每条意见如何处理——交用户逐条决定</div>
+      <ul style="margin:.3rem 0 0 0; padding-left:1.2rem; color:#5a5247; font-size:.94rem; line-height:1.75;">
+        <li><意见 1 如何处理——交用户决定></li>
+        <li><意见 2 如何处理——交用户决定></li>
+      </ul>
+      <div class="rl-note">↑ 修订取舍、逐点回复由用户逐条决定；写回复信请用 /paper-revise。review 只摆模拟意见、不替用户写回复。</div>
+    </div>
+  </section>
+
+  <footer class="mt-14 pt-5 border-t-2 border-double border-rule text-ink-soft text-[0.85rem] leading-[1.7]">
+    <div class="font-sans text-[10px] tracking-[0.22em] uppercase text-ink-faint mb-2">Human–AI Division of Labor</div>
+    <p>本评审由 AI 模拟多视角审稿、分项陈列评分与常见套路意见；<strong>评分是模拟视角陈列、非 AI 对论文的价值判断</strong>，意见是模拟常见套路非定论。修订取舍、逐点回复、是否回 draft 修订——全部由用户决定（回复信归 /paper-revise）。真实评审以导师 / 期刊审稿人 / 答辩委员会为准。</p>
+  </footer>
+
+</article>
+
+<script>
+  // 评分剖面雷达图初始化
+  // theme.js 已统一 axisName / splitLine / splitArea / lineStyle / itemStyle 配色（paper 主题），
+  // setOption 只设主题未提供的：indicator 名、data 值、areaStyle α。
+  (function() {
+    var chart = echarts.init(document.getElementById('reviewRadar'), 'paper', { renderer: 'svg' });
+    chart.setOption({
+      radar: {
+        indicator: [
+          { name: '新颖性', max: 10 },
+          { name: '方法严谨性', max: 10 },
+          { name: '结果可靠性', max: 10 },
+          { name: '写作清晰度', max: 10 },
+          { name: '贡献度', max: 10 }
+        ],
+        shape: 'polygon',
+        splitNumber: 5,
+      },
+      series: [{
+        type: 'radar',
+        data: [{
+          // 宿主 agent 生成产物时把 <X>-<V> 替换为表格 5 维实际评分
+          value: [<X>, <Y>, <Z>, <W>, <V>],
+          name: '模拟评分剖面',
+          symbol: 'circle',
+          symbolSize: 6,
+          areaStyle: { color: 'rgba(122, 98, 48, 0.08)' }
+        }]
+      }]
+    });
+    window.addEventListener('resize', function() { chart.resize(); });
+  })();
+</script>
+</body>
+</html>

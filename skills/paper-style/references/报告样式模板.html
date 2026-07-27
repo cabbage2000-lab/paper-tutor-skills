@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-style 产物「风格校准报告.html」的样式权威）
+  ====================================================================
+  宿主 agent 生成产物时：把本文件整段复制为产物，再把 <body> 里的
+  <尖括号占位> 替换为真实实例内容（未涉及的要素标 ⚠️、不删整段）。
+  <style> 段原样保留、勿改配色（四层语义色是产品死线）。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+     与其余 15 个报告模板同一套 token，禁营销页 / 仪表盘语汇。
+  2. 四层语义色是「摆事实非推荐」死线，四色须一眼可辨：
+     👤 用户原话=靛蓝(#2b4a6f, 最重) / 📋 常见事实=赭石(#7a6230) /
+     🪞 系统归纳（可追溯）=青灰(#4a6b5c) / ❓ 待用户决定=砖红(#9a3b2e)。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）
+     所有模板必备；本模板**不引 ECharts**——特征表与偏移条用静态表格 + 纯 CSS 横条
+     即可，引图表库会让一份只有几行数字的报告背上一个 1MB 依赖。宿主 agent 生成
+     产物时须原样保留外部引用、不得内联替代、不得删减。断网时产物降级为无样式
+     HTML（内容可读、排版失效）——与仓库其余 15 个报告模板一致（依据
+     _shared/references/报告组件库.md §0.2）。
+  4. 本模板任何位置都不得出现硬编码的特征数字——哪怕示意用的假数字也不行：
+     下游实现者会把模板里出现的任何数字误当成「照抄格式」，进而在真实产物里
+     留下与 style_metrics.py 输出对不上的死数字。数字槽位一律 `<数>`，由
+     `--json` 输出逐个转录（表头里的「每百字」「每千字」是单位、不是数字）。
+  5. 近似值死线（本模板与其余 15 个的最大不同）：术语密度与四字格密度是近似值
+     （零第三方依赖、不引 jieba 分词的直接后果）。这两项出现的每一处都必须带
+     `.approx-tag` 角标，且报告末尾保留 `.approx-block` 整段声明——**不得省略、
+     不得把近似值当精确值陈列**。这是 CLAUDE.md 唯一保留的代码层约束在本命令
+     的落点：降级必须明确标注，不静默。
+  6. 三条不变在模板里的落点：
+     - 不变①（不替用户改写定稿）：「着力点」区块每条**必须以疑问句收尾**，
+       禁「建议改成」「应当改为」；`.focus-item` 的 ❓ 徽章不得去掉。
+     - 不变②（特征是算出来的）：特征表与偏移表的每个数字都来自脚本；
+       `.mech-block` 机械计算声明不得删。**模板里不留任何「读起来像 / 不像」
+       「文风偏 AI」的句式槽位**——没有槽位，就写不出来。
+     - 不变③（硬拒躲检测）：模式 c 的 `.appeal-block` 顶部两句固定声明
+       （服务申诉、不服务规避检测）不得改写、不得删。
+  7. 按模式取用：模式 a 全文一致性校准 → 用一 / 二 / 三节，省略四、五；
+     模式 b 建立基线 → 用一、四节（二、三节因只有一个「全局基线」节而无偏移
+     可算，整段省略），省略五；模式 c 误判申诉 → 用一、五节，省略二、三、四。
+     省略即整段删除该 <section>，**不产一张字段全空的表**。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>风格校准报告</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 设计 token（与 _shared/tailwind.config.js 逐一同值；该文件已在上方
+         引入，此处的 CSS 变量供下方命名语义组件使用，不是第二套平行配色） === */
+  :root {
+    /* 纸面与墨色（学术档案基底） */
+    --paper: #f6f2ea;
+    --paper-edge: #ece5d6;
+    --rule: #c9bfa8;
+    --ink: #1f1b16;
+    --ink-soft: #5a5247;
+    --ink-faint: #8a8071;
+    /* 四层语义色 —— 产品死线，色值不得改 */
+    --l1: #2b4a6f; --l1-bg: #e6edf4; /* 👤 用户原话（最重） */
+    --l2: #7a6230; --l2-bg: #f0e9d8; /* 📋 常见事实（非推荐） */
+    --l3: #4a6b5c; --l3-bg: #e4ece8; /* 🪞 系统归纳（可追溯） */
+    --l4: #9a3b2e; --l4-bg: #f3e3df; /* ❓ 待用户决定 */
+    /* 字体栈——全部本机已装字体，零 web 字体请求 */
+    --font-serif: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong",
+                  "PingFang SC", "Microsoft YaHei", Georgia, serif;
+    --font-sans: "PingFang SC", "Source Han Sans SC", "Microsoft YaHei",
+                 "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Consolas, Menlo, monospace;
+  }
+
+  /* === 全局重置（与 Tailwind preflight 同向，显式写出以免依赖加载顺序） === */
+  *, *::before, *::after { box-sizing: border-box; }
+  body, h1, h2, h3, p, ul, ol, dl, dd, figure, table, th, td { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+  a { color: inherit; }
+
+  /* === 页面骨架 === */
+  body {
+    font-family: var(--font-serif);
+    color: var(--ink);
+    font-size: 1rem;
+    line-height: 1.85;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--paper-edge) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper-edge) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page {
+    max-width: 880px;
+    margin: 3rem auto 5rem;
+    position: relative;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-top: 6px solid var(--ink);
+    padding: 3.5rem 4rem;
+    box-shadow: 0 1px 0 var(--paper-edge), 0 30px 60px -30px rgba(60, 45, 20, 0.25);
+  }
+  .page::before {
+    content: "paper-style · 风格校准档案";
+    position: absolute; top: -6px; right: 0;
+    background: var(--ink); color: var(--paper);
+    font-family: var(--font-sans);
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 档案头（.doc-head 族） === */
+  .doc-head { margin-bottom: 2.5rem; }
+  .doc-eyebrow {
+    font-family: var(--font-sans); font-size: 11px; letter-spacing: .28em;
+    text-transform: uppercase; color: var(--ink-faint); margin-bottom: .6rem;
+  }
+  .doc-title {
+    font-family: var(--font-serif); font-size: 2.1rem; font-weight: 700;
+    line-height: 1.25; margin-bottom: 1rem; letter-spacing: .01em;
+  }
+  .doc-meta {
+    display: flex; flex-wrap: wrap; gap: .5rem 1.5rem;
+    padding-top: 1rem; border-top: 1px solid var(--rule);
+    color: var(--ink-soft); font-size: .9rem;
+  }
+  .doc-meta b { color: var(--ink-faint); font-weight: 500; margin-right: .375rem; }
+  /* 模式徽章（.mode-badge · 复用 paper-method 的手法，色值同族） */
+  .mode-badge {
+    display: inline-block; margin-top: .75rem; margin-right: .5rem;
+    padding: .375rem .875rem; border-radius: 2px;
+    font-family: var(--font-sans); font-size: .85rem; font-weight: 600; line-height: 1.5;
+    background: var(--l3-bg); color: var(--l3); border: 1px solid var(--l3);
+  }
+  .decision-badge {
+    display: inline-block; margin-top: .75rem; padding: .375rem .875rem;
+    border-radius: 2px; font-family: var(--font-sans); font-size: .85rem;
+    font-weight: 600; line-height: 1.5;
+    background: var(--l4-bg); color: var(--l4); border: 1px solid var(--l4);
+  }
+
+  /* === 四层语义色图例（.legend，全部报告模板必备） === */
+  .legend {
+    margin: 1.75rem 0; padding: 1rem 1.25rem;
+    background: rgba(255, 255, 255, .4); border: 1px dashed var(--rule);
+    font-size: .85rem;
+  }
+  .legend-title {
+    font-family: var(--font-sans); font-size: 10px; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--ink-faint); margin-bottom: .5rem;
+  }
+  .legend ul { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; }
+  .legend li { display: flex; align-items: center; color: var(--ink-soft); }
+  .sw { width: .625rem; height: .625rem; border-radius: 2px; margin-right: .45rem; display: inline-block; }
+  .sw-l1 { background: var(--l1); }
+  .sw-l2 { background: var(--l2); }
+  .sw-l3 { background: var(--l3); }
+  .sw-l4 { background: var(--l4); }
+  .legend-note { margin-top: .5rem; font-size: .78rem; color: var(--ink-faint); }
+
+  /* === 四层语义徽章族（.tag-inline.t1-t4，行内来源标签） === */
+  .tag-inline {
+    display: inline-block; font-family: var(--font-sans);
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: var(--l1-bg); color: var(--l1); border: 1px solid var(--l1); }
+  .t2 { background: var(--l2-bg); color: var(--l2); border: 1px solid var(--l2); }
+  .t3 { background: var(--l3-bg); color: var(--l3); border: 1px solid var(--l3); }
+  .t4 { background: var(--l4-bg); color: var(--l4); border: 1px solid var(--l4); }
+
+  /* === 章节标题（h2.section + .sec-no） === */
+  h2.section {
+    font-family: var(--font-sans); font-size: 1.05rem; font-weight: 700;
+    letter-spacing: .04em; margin-top: 2.75rem; margin-bottom: 1.25rem;
+    padding-bottom: .5rem; border-bottom: 1px solid var(--rule);
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .sec-no {
+    font-family: var(--font-serif); font-style: italic; font-weight: 400;
+    font-size: .85rem; color: var(--ink-faint); letter-spacing: normal;
+  }
+  section h3 {
+    font-family: var(--font-sans); font-size: .98rem; font-weight: 700;
+    color: var(--ink); margin-top: 1.75rem; margin-bottom: .75rem;
+  }
+  p.section-intro {
+    color: var(--ink-soft); font-size: .92rem; line-height: 1.75; margin: .75rem 0;
+  }
+  p.table-note {
+    color: var(--ink-faint); font-size: .85rem; font-style: italic; margin: .5rem 0 1.5rem;
+  }
+
+  /* === 声明块（.scope-block 族 · 与 screen / logic / method 共用手法） === */
+  .scope-block {
+    background: var(--l2-bg); border: 1px solid var(--l2); border-left: 4px solid var(--l2);
+    padding: 1rem 1.25rem; margin: .75rem 0; color: var(--ink-soft);
+    font-size: .92rem; line-height: 1.75;
+  }
+  .scope-block p { margin: .4rem 0; }
+  .scope-block .scope-label {
+    font-family: var(--font-sans); font-size: 10px; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--l2); margin-bottom: .5rem; font-weight: 700;
+  }
+  .scope-block.alert { background: var(--l4-bg); border-color: var(--l4); }
+  .scope-block.alert .scope-label { color: var(--l4); }
+  .scope-block.mech { background: var(--l3-bg); border-color: var(--l3); }
+  .scope-block.mech .scope-label { color: var(--l3); }
+
+  /* === 表格共用基础（metrics / offset 共用） === */
+  table { width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td {
+    border: 1px solid var(--rule); padding: .625rem .75rem;
+    text-align: left; vertical-align: top; line-height: 1.7;
+  }
+  thead th {
+    background: var(--l2-bg); color: var(--l2); font-family: var(--font-sans);
+    font-weight: 700; font-size: .88rem;
+  }
+  td.count {
+    text-align: center; font-family: var(--font-serif); font-weight: 700;
+    color: var(--l2); font-size: 1rem;
+  }
+  td.continuation { text-align: center; color: var(--ink-faint); font-style: italic; }
+  /* 低样本行：句子数 < 5，标准差不具解释力（style 专属） */
+  tr.unreliable td:first-child { border-left: 3px solid var(--l4); }
+  tr.unreliable { background: rgba(154, 59, 46, .045); }
+
+  /* === 近似值角标（.approx-tag · style 专属，本模板最要紧的一个组件） === */
+  .approx-tag {
+    display: inline-block; font-family: var(--font-sans);
+    font-size: 9px; font-weight: 700; letter-spacing: .06em;
+    padding: 1px 5px; border-radius: 2px; margin-left: .35rem; vertical-align: 2px;
+    background: var(--l4-bg); color: var(--l4); border: 1px dashed var(--l4);
+  }
+  .approx-block {
+    margin: 1.25rem 0; padding: 1rem 1.25rem;
+    background: var(--l4-bg); border: 1px dashed var(--l4);
+    color: var(--ink-soft); font-size: .88rem; line-height: 1.75;
+  }
+  .approx-block .scope-label {
+    font-family: var(--font-sans); font-size: 10px; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--l4); margin-bottom: .5rem; font-weight: 700;
+  }
+  .approx-block p { margin: .4rem 0; }
+
+  /* === 变异系数横条（.cv-bar · 纯 CSS，不引图表库） === */
+  .cv-bar {
+    display: block; height: .5rem; width: 100%;
+    background: rgba(31, 27, 22, .07); border-radius: 2px; overflow: hidden;
+  }
+  .cv-bar > span { display: block; height: 100%; background: var(--l3); }
+  td.cv-cell { min-width: 8rem; }
+  td.cv-cell .cv-num {
+    font-family: var(--font-serif); font-weight: 700; color: var(--l3);
+    font-size: .95rem; display: block; margin-bottom: .3rem;
+  }
+
+  /* === 着力点陈列（.focus-list · 每条必须以疑问句收尾） === */
+  .focus-list { margin: 1rem 0; }
+  .focus-item {
+    position: relative; padding: .875rem 1.125rem; margin-bottom: .75rem;
+    background: rgba(255, 255, 255, .45);
+    border: 1px solid var(--rule); border-left: 4px solid var(--l4);
+  }
+  .focus-fact {
+    color: var(--ink); font-size: .95rem; line-height: 1.8; margin-bottom: .45rem;
+  }
+  .focus-q {
+    color: var(--l4); font-size: .92rem; line-height: 1.75;
+    font-family: var(--font-serif); font-style: italic;
+  }
+
+  /* === 风格基线预览（.baseline-preview · 模式 b 专属） === */
+  .baseline-preview {
+    background: var(--l1-bg); border: 1px solid var(--l1); border-left: 4px solid var(--l1);
+    padding: 1rem 1.25rem; margin: 1rem 0; font-size: .92rem; line-height: 1.75;
+  }
+  .baseline-preview .scope-label {
+    font-family: var(--font-sans); font-size: 10px; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--l1); margin-bottom: .5rem; font-weight: 700;
+  }
+  .baseline-preview code { background: rgba(43, 74, 111, .08); }
+
+  /* === 误判申诉块（.appeal-block · 模式 c 专属，顶部两句固定声明不得删） === */
+  .appeal-block {
+    background: var(--l1-bg); border: 1px solid var(--l1);
+    padding: 1.125rem 1.375rem; margin: 1rem 0;
+    color: var(--ink-soft); font-size: .92rem; line-height: 1.8;
+  }
+  .appeal-block .scope-label {
+    font-family: var(--font-sans); font-size: 10px; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--l1); margin-bottom: .5rem; font-weight: 700;
+  }
+  .appeal-block p { margin: .5rem 0; }
+  .appeal-block strong { color: var(--l1); }
+
+  /* === 页脚（footer + .seal） === */
+  footer {
+    margin-top: 3.5rem; padding-top: 1.25rem; border-top: 2px double var(--rule);
+    color: var(--ink-soft); font-size: .85rem; line-height: 1.7;
+  }
+  footer .seal {
+    font-family: var(--font-sans); font-size: 10px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--ink-faint); margin-bottom: .5rem;
+  }
+
+  /* === 行内链接 / 代码 === */
+  a { color: var(--l1); text-decoration: underline; text-underline-offset: 2px; }
+  code {
+    font-family: var(--font-mono); font-size: .85em; background: rgba(31, 27, 22, .06);
+    padding: .05em .35em; border-radius: 2px;
+  }
+
+  /* === 入场动画：page 内子元素逐个 8px 上浮 + 淡入 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(n+7) { animation-delay: .47s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<article class="page">
+
+  <header class="doc-head">
+    <div class="doc-eyebrow">Paper-Style · 风格校准档案</div>
+    <h1 class="doc-title">风格校准报告</h1>
+    <div class="doc-meta">
+      <span><b>日期</b><日期></span>
+      <span><b>校准范围</b><用户拍板的文件 / 章节范围原话></span>
+      <span><b>样本规模</b><数> 章节 / <数> 句 / <数> 有效字</span>
+      <span><b>学科梯队</b><第一梯队实证型 / 第二梯队理论型 / 第三梯队人文，按 project.paper.yaml 或你的判定填写></span>
+    </div>
+    <div class="mode-badge"><模式 a 全文一致性校准 / 模式 b 建立个人风格基线 / 模式 c 误判申诉特征陈列 —— 三者取一></div>
+    <div class="decision-badge">风格取舍 100% 由你决定 · AI 只机械计算特征并陈列偏移，不代改一句定稿</div>
+  </header>
+
+  <section class="legend">
+    <div class="legend-title">内容标注 · Content Provenance</div>
+    <ul>
+      <li><span class="sw sw-l1"></span>👤 用户原话</li>
+      <li><span class="sw sw-l2"></span>📋 常见事实（非推荐）</li>
+      <li><span class="sw sw-l3"></span>🪞 系统归纳（可追溯）</li>
+      <li><span class="sw sw-l4"></span>❓ 待用户决定</li>
+    </ul>
+    <div class="legend-note">本报告不含"AI 的新判断"层——<b>不含</b>「读起来像不像 AI」「文风是否学术」这类判断：本命令只有六组可测量的数字，推不出那些结论，也不该由 AI 来下。</div>
+  </section>
+
+  <section class="metrics-section">
+    <h2 class="section">一、章节特征 <span class="sec-no">§ Section Metrics</span></h2>
+    <div class="scope-block mech">
+      <div class="scope-label">🪞 机械计算声明</div>
+      <p>下表每个数字由 <code>scripts/style_metrics.py</code> 从正文机械算出，切句为引号感知（引号内句号不切、<code>……</code> 算一个边界、小数点与 <code>et al.</code> 不切）；字数与句长均为<b>剔除标点与空白后</b>的有效字符数。生成命令示例：<code>python3 skills/paper-style/scripts/style_metrics.py --dir manuscript/ --json <输出路径></code>。</p>
+      <p>若手工改动此处任一数字，报告即与脚本输出脱节——须重跑脚本、按 <code>--json</code> 输出逐个转录。</p>
+    </div>
+    <table class="metrics-table">
+      <thead>
+        <tr>
+          <th>章节</th>
+          <th>字数 / 句数</th>
+          <th>句长 均值 / 中位 / 标准差</th>
+          <th>虚词<br>每百字</th>
+          <th>引用位置<br>句首 / 句中 / 句末</th>
+          <th>人称<br>每千字</th>
+          <th>四字格<br>每千字<span class="approx-tag">近似</span></th>
+          <th>术语<br>每百字<span class="approx-tag">近似</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><章节名，取自 --json 的 sections[].name></td>
+          <td class="count"><数> / <数></td>
+          <td class="count"><数> / <数> / <数></td>
+          <td class="count"><数></td>
+          <td class="count"><数> / <数> / <数></td>
+          <td class="count"><数></td>
+          <td class="count"><数></td>
+          <td class="count"><数></td>
+        </tr>
+        <tr class="unreliable">
+          <td><低样本章节名>　⚠️ 仅 <数> 句</td>
+          <td class="count"><数> / <数></td>
+          <td class="count"><数> / <数> / ⚠️ 不具解释力</td>
+          <td class="count"><数></td>
+          <td class="count"><数> / <数> / <数></td>
+          <td class="count"><数></td>
+          <td class="count"><数></td>
+          <td class="count"><数></td>
+        </tr>
+        <tr><td class="continuation" colspan="8">……（按 --json 的 sections 数逐行续填，一节一行）</td></tr>
+      </tbody>
+    </table>
+    <p class="table-note">⚠️ 带 ⚠️ 的行为 <code>reliable: false</code>（句子数 &lt; 5）：均值与中位数仍可读，<b>标准差不具解释力、不得参与章节间比较</b>。高频虚词与高频术语的具体词条见 <code>--json</code> 的 <code>function_word_top</code> / <code>term_top</code>，可按需在正文中陈列。</p>
+    <div class="approx-block">
+      <div class="scope-label">⚠️ 近似值声明（不得删）</div>
+      <p><b>术语密度</b>为近似值：技术栈约定零第三方依赖（不引 jieba 分词），无用户术语表时退到「文中重复出现 ≥3 次的 2–6 字汉字串」估算，会把部分常用词误当术语。本次来源：<code><用户术语表 / 重复串近似，取自 --json 的 term_source></code>。<b>给一份术语表（一行一个）即可让此项变精确。</b></p>
+      <p><b>四字格密度</b>为近似值：基于固定词表命中计数，非全量四字格识别。实际四字格用量高于此数。</p>
+    </div>
+  </section>
+
+  <section class="offset-section">
+    <h2 class="section">二、章节间偏移 <span class="sec-no">§ Cross-Section Variation</span></h2>
+    <p class="section-intro"><span class="tag-inline t3">🪞</span>按<b>变异系数（CV = 标准差 / 均值）</b>降序排列。为什么不用极差排序：句长（几十字）与虚词密度（每百字几次）量纲不同，直接比极差会把「句长差若干字」说成比「虚词密度差若干次」更重要。CV 无量纲，是「哪个特征在章节间抖得最厉害」的唯一可辩护排序依据。</p>
+    <table class="offset-table">
+      <thead>
+        <tr><th>特征</th><th>变异系数 CV</th><th>最小</th><th>最大</th><th>极差</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><特征名，取自 --json 的 ranked_by_cv[].label></td>
+          <td class="cv-cell">
+            <span class="cv-num"><数></span>
+            <span class="cv-bar"><span style="width:<数>%"></span></span>
+          </td>
+          <td class="count"><数><br><small><最小值所在章节名></small></td>
+          <td class="count"><数><br><small><最大值所在章节名></small></td>
+          <td class="count"><数></td>
+        </tr>
+        <tr><td class="continuation" colspan="5">……（按 ranked_by_cv 顺序逐行续填，共 8 个特征）</td></tr>
+      </tbody>
+    </table>
+    <p class="table-note">📋 横条宽度按各特征 CV 相对最大值的百分比填写，仅作视觉排序提示，<b>不代表达标与否</b>——本报告不设任何达标线、基准线、合格区间。<code>comparison.available</code> 为 <code>false</code>（只切出一个章节）时，本节整段省略，并在正文说明「无章节间偏移可算」及其出路。</p>
+  </section>
+
+  <section class="focus-section">
+    <h2 class="section">三、着力点 <span class="sec-no">§ Points to Consider</span></h2>
+    <p class="section-intro"><span class="tag-inline t4">❓</span>下列各条只陈列<b>偏移量最大的客观事实</b>，每条以疑问句收尾交回你决定。章节间存在偏移是常态（引言与方法的语体本就不同），偏移<b>不等于</b>缺陷——是否要动、动哪里、动到什么程度，是你的研究判断。</p>
+    <div class="focus-list">
+      <div class="focus-item">
+        <div class="focus-fact"><span class="tag-inline t3">🪞</span><客观事实陈列，如：X 特征的 CV 为 <数>，在 A 章为 <数>、在 B 章为 <数>，是各特征中偏移量最大的一项。></div>
+        <div class="focus-q"><span class="tag-inline t4">❓</span><以疑问句收尾，如：A 章与 B 章的这一差异是你有意为之（两章语体本应不同），还是无意的不统一？></div>
+      </div>
+      <div class="focus-item">
+        <div class="focus-fact"><span class="tag-inline t3">🪞</span><第二条客观事实陈列></div>
+        <div class="focus-q"><span class="tag-inline t4">❓</span><第二条疑问句></div>
+      </div>
+      <div class="focus-item">
+        <div class="focus-fact"><span class="tag-inline t3">🪞</span><第三条客观事实陈列></div>
+        <div class="focus-q"><span class="tag-inline t4">❓</span><第三条疑问句></div>
+      </div>
+    </div>
+    <p class="table-note">⚠️ 本节<b>禁</b>出现「建议改成」「应当改为」「需要统一为」及任何等价表述（三条不变①）。你若明确要示例改法，AI 可给 1–2 句并标「示例、非定稿」，该次留痕同时升「语言润色」级——那属于另一次交互，不预先写进本报告。</p>
+  </section>
+
+  <section class="baseline-section">
+    <h2 class="section">四、风格基线 <span class="sec-no">§ Style Baseline</span></h2>
+    <p class="section-intro">📋 <b>仅模式 b 保留本节</b>，模式 a / c 整段省略。字段契约见 <a href="风格基线契约.md">风格基线契约.md</a>——该文档是唯一权威，字段名改动会静默破坏 <code>paper-draft</code> 的读取。</p>
+    <div class="baseline-preview">
+      <div class="scope-label">👤 已落盘：manuscript/风格基线.md</div>
+      <p><b>样本来源</b>：<用户原话描述的来源，须含「是否本人自写」的确认></p>
+      <p><b>样本规模</b>：<数> 章节 / <数> 句 / <数> 有效字　·　<b>可靠性</b>：<可用 / 样本偏小（句数 &lt; 30）——特征仅供参考></p>
+      <p><b>下游用法</b>：下次跑 <code>/paper-draft</code> 时会自动读本文件对齐句长 / 虚词 / 引用习惯，不必再重贴风格样本——<b>只学风格、不抄内容</b>。</p>
+      <p><b>用户补充的风格偏好</b>：<用户原话的口头补充，如「引用一律放句末」；优先级高于统计值。无补充则写「无」></p>
+    </div>
+    <div class="scope-block alert">
+      <div class="scope-label">基线三条底线</div>
+      <p>① 基线只从<b>用户自写样本</b>算——从 AI 起草的文字算出的基线会让 draft 去对齐 AI 自己的风格，形成回音室；② 样本规模与可靠性如实写，句数 &lt; 30 必须标「样本偏小」；③ 近似项（术语密度 / 四字格）必须带标注。</p>
+    </div>
+  </section>
+
+  <section class="appeal-section">
+    <h2 class="section">五、误判申诉特征陈列 <span class="sec-no">§ Appeal Material</span></h2>
+    <p class="section-intro">📋 <b>仅模式 c 保留本节</b>，模式 a / b 整段省略。口径见 <a href="误判申诉口径.md">误判申诉口径.md</a>。</p>
+    <div class="appeal-block">
+      <div class="scope-label">固定声明（不得改写、不得删）</div>
+      <p>本报告服务<strong>误判申诉</strong>，不服务规避检测。以上特征是对该段落<strong>可测量文本事实</strong>的陈列，<strong>不含</strong>「该段是否由 AI 生成」的判断——本命令没有能力也没有立场做这个判断。</p>
+      <p>建议配合 <code>.paper/</code> 写作过程留痕一并提交：留痕是<strong>事后无法重构</strong>的过程记录（哪段 AI 起草、哪段用户改写、哪段用户自写、风格来源是什么），作为申诉材料的效力高于任何文本特征分析。</p>
+    </div>
+    <h3>5.1 可援引的过程证据</h3>
+    <table class="evidence-table">
+      <thead><tr><th>证据</th><th>状态</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>.paper/</code> 写作过程留痕</td>
+          <td><有（<数> 条，最早 <日期>）/ 无（此前未用过 Paper 命令）></td>
+          <td>事后无法重构；<b>无留痕时如实写「无」，绝不编造</b></td>
+        </tr>
+        <tr>
+          <td>AI 使用说明</td>
+          <td><❓ 待生成 / 已有></td>
+          <td>用 <code>/paper-disclose</code> 把 <code>.paper/</code> 四级留痕汇编成一份可交的说明——<b>如实披露是应对误判的正解</b></td>
+        </tr>
+        <tr>
+          <td>本报告的特征陈列</td>
+          <td>🪞 已产（见第一节）</td>
+          <td>说明该段哪些客观特征可能触发检测器判定，不含任何 AI 概率 / 相似度 / 疑似程度的量化判定</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="table-note">⚠️ 本节<b>不给改法</b>（三条不变③）。按检测器调参是与不透明黑箱博弈——阈值不公开、模型月月更新；且在多数学校与期刊的学术规范里，「刻意规避检测」比「使用 AI」定性更重，会把一件可以申诉的事变成一件说不清的事。</p>
+  </section>
+
+  <footer>
+    <div class="seal">Human–AI Division of Labor</div>
+    <p>本报告的全部特征数字由 <code>scripts/style_metrics.py</code> 从正文机械算出，术语密度与四字格密度为已标注的近似值；风格取舍、是否改写、改到什么程度、章节间偏移是否属于问题——全部由你决定。AI 不代改一句定稿，不下「读起来像不像 AI」的判断，也不服务规避检测。</p>
+  </footer>
+
+</article>
+</body>
+</html>

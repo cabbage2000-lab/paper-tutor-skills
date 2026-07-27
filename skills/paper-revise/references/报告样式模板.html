@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-revise 产物「修订与回复-<时间戳>.html」的样式权威）
+  ====================================================================
+  宿主 agent 生成产物时：把本文件整段复制为产物，再把 <body> 里的
+  <尖括号占位> 替换为真实实例内容。<style> 段原样保留、勿改配色。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+     参照学术期刊内页与档案馆检索卡。禁营销页/仪表盘语汇。
+  2. 四层语义色是「摆事实非推荐、基于事实不编」死线，四色须一眼可辨：
+     👤 用户输入原话（审稿意见）=靛蓝(#2b4a6f, 最重) /
+     📋 常见归类（非定论）=赭石(#7a6230) /
+     🪞 AI 重组生成（可追溯回正文事实）=青灰(#4a6b5c) /
+     ❓ 待用户决定 / ⚠️ 需补充=砖红(#9a3b2e)。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）
+     所有模板必备；本模板不引入 ECharts——revise 无图表。宿主 agent 生成产物时须
+     原样保留外部引用、不得内联替代、不得删减。断网时产物降级为无样式 HTML
+     （内容可读、排版失效）——这是可接受的折衷。
+  4. 陈列型可视化边界（图表与「不下结论」死线的共存规则）：
+     - 图表只客观投影表格/列表已有数据，不得引入派生指标（均值、排名、达标线、基准线）。
+     - 禁视觉倾斜：不用面积大小暗示优劣、不用颜色深浅暗示高低、不用动画放大某点、
+       不用 split area 分区暗示达标带。
+     - 图表配色限定：四层语义色 + 两档墨色，即 echarts-theme.js 注册的 paper 主题色板。
+       禁红绿灯色板延伸到图表数据。
+     - 每张图必须带说明性 caption：写明"陈列什么、不下什么结论"。
+     本模板不含图表，此条作为产品死线保留、约束未来可能的可视化扩展。
+  5. revise 专属元素：修订建议对照表（.revise-table 5 列 # / 👤意见 / 📋归类 / 🪞修订方向 / ❓候选回复）、
+     逐点回复信区块（.reviewer-group + .response-item，按 reviewer/视角分组）、
+     来源徽章（.source-badge 真实交付 / 模拟练习二选一）、
+     成句生成声明徽章（.gen-badge AI 起草 · 采纳由用户逐条决定）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>修订与回复报告</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 页面骨架（通用组件，保留 <style> 因伪元素/多层背景 Tailwind 难以表达） === */
+  body {
+    background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page::before {
+    content: "paper-revise · 修订与回复档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 四层语义徽章族（.tag-inline.t1-t4） === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === revise 专属：修订建议对照表（.revise-table 5 列 + .row-flag + .flag-mark） === */
+  .revise-table {
+    width: 100%; border-collapse: collapse; margin: 1rem 0;
+    font-size: .9rem; table-layout: fixed;
+  }
+  .revise-table th, .revise-table td {
+    border: 1px solid #c9bfa8; padding: .65rem .75rem; text-align: left;
+    vertical-align: top; line-height: 1.7; word-wrap: break-word;
+  }
+  .revise-table th {
+    background: #5a5247; color: #f6f2ea; font-weight: 700;
+    font-family: "PingFang SC", sans-serif; font-size: .85rem;
+    letter-spacing: .02em;
+  }
+  .revise-table th.col-num { width: 2.2rem; text-align: center; }
+  .revise-table th.col-q   { width: 22%; }
+  .revise-table th.col-cat { width: 7rem; }
+  .revise-table th.col-dir { width: 28%; }
+  .revise-table th.col-resp { width: auto; }
+  .revise-table td.col-num {
+    text-align: center; font-family: Georgia, serif; font-weight: 700;
+    color: #8a8071; font-size: .95rem;
+  }
+  .revise-table td.col-q   { background: #e6edf4; color: #2b4a6f; }
+  .revise-table td.col-cat { background: #f0e9d8; color: #7a6230;
+    font-family: "PingFang SC", sans-serif; font-size: .85rem; font-weight: 600; }
+  .revise-table td.col-dir { background: #e4ece8; color: #4a6b5c; }
+  .revise-table td.col-resp { background: #f3e3df; color: #9a3b2e; font-size: .88rem; }
+  .revise-table td a { color: #2b4a6f; text-decoration: underline; text-underline-offset: 2px; }
+  /* ⚠️ 需用户补充行（涉及编内容红线、整行砖红加粗） */
+  .revise-table tr.row-flag td {
+    border-color: #9a3b2e; border-width: 2px;
+    background-image: linear-gradient(rgba(154,59,46,.06), rgba(154,59,46,.06));
+  }
+  .revise-table tr.row-flag .flag-mark {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-left: .3rem;
+    background: #9a3b2e; color: #f6f2ea;
+  }
+
+  /* === revise 专属：逐点回复信区块（.reviewer-group + .response-item） === */
+  .reviewer-group {
+    border-left: 3px solid #4a6b5c;
+    padding-left: 1.2rem;
+    margin-bottom: 1.8rem;
+  }
+  .reviewer-group h3 {
+    margin: 0 0 0.8rem 0;
+    font-family: "PingFang SC", sans-serif;
+    font-size: 1rem; font-weight: 700; color: #4a6b5c;
+    display: flex; align-items: baseline; gap: .5rem;
+  }
+  .reviewer-group .role-stamp {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+    color: #8a8071; font-weight: 600;
+  }
+  .response-item { margin-bottom: 1.2rem; }
+  .item-quote {
+    border-left: 3px solid #2b4a6f;
+    padding: .4rem .8rem; margin-bottom: .4rem;
+    background: #e6edf4; color: #2b4a6f;
+    font-size: .9rem; line-height: 1.7;
+  }
+  .item-quote .q-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .12em; font-weight: 700;
+    margin-right: .35rem; opacity: .8;
+  }
+  .item-resp {
+    padding: .5rem .8rem; margin-bottom: .3rem;
+    background: #e4ece8; color: #1f1b16;
+    font-size: .92rem; line-height: 1.75;
+    border-radius: 0 3px 3px 0;
+  }
+  .item-resp .resp-label {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .35rem;
+    background: #4a6b5c; color: #f6f2ea;
+  }
+  .item-resp .pending {
+    display: inline-block; font-family: "PingFang SC", sans-serif;
+    font-size: .8rem; color: #9a3b2e; font-style: italic;
+    margin-left: .35rem;
+  }
+  .item-flag {
+    display: inline-block; padding: .2rem .55rem; margin-top: .2rem;
+    background: #9a3b2e; color: #f6f2ea;
+    font-family: "PingFang SC", sans-serif;
+    font-size: .78rem; font-weight: 600; border-radius: 2px;
+  }
+  /* 待用户决定提示（reply letter 末尾） */
+  .decision-note {
+    background: #f3e3df; border-left: 3px solid #9a3b2e;
+    padding: 1rem 1.2rem; margin: 1rem 0;
+    font-size: .88rem; color: #5a5247;
+  }
+  .decision-note .dn-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: #9a3b2e; margin-bottom: .4rem; font-weight: 700;
+  }
+
+  /* === revise 专属：来源徽章 + 成句生成声明徽章 === */
+  /* Task 9 lesson：brief 列明的专属组件保留具名 CSS 规则（不转 utility-only） */
+  .source-badge {
+    display: inline-block; padding: 0.5rem 1rem; border-radius: 3px;
+    font-size: 0.85rem; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600; margin-top: .8rem;
+    background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e;
+    line-height: 1.5;
+  }
+  .source-badge.mock { background: #e4ece8; color: #4a6b5c; border-color: #4a6b5c; }
+  .gen-badge {
+    display: inline-block; padding: 0.5rem 1rem; border-radius: 3px;
+    font-size: 0.85rem; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600; margin-top: .8rem; margin-left: .5rem;
+    background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f;
+    line-height: 1.5;
+  }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(n+7) { animation-delay: .47s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body class="font-serif text-ink text-base leading-[1.85] antialiased">
+<article class="page max-w-[920px] mx-auto mt-12 mb-20 bg-paper border border-rule border-t-[6px] border-t-ink px-16 py-14 relative shadow-[0_1px_0_#ece5d6,0_30px_60px_-30px_rgba(60,45,20,0.25)]">
+
+  <header class="doc-head mb-10">
+    <div class="font-sans text-[11px] tracking-[0.28em] uppercase text-ink-faint mb-[0.6rem]">
+      Paper-Revise · 修订与回复档案
+    </div>
+    <h1 class="font-serif text-[2.1rem] font-bold leading-[1.25] mt-0 mb-4 tracking-[0.01em]">
+      修订与回复 <em class="italic font-medium text-ink-soft" style="font-family:Georgia,'Songti SC',serif">Revision & Response</em>
+    </h1>
+    <div class="flex flex-wrap gap-x-6 gap-y-2 pt-4 border-t border-rule text-ink-soft text-[0.9rem]">
+      <span><b class="text-ink-faint font-medium mr-1.5">日期</b><日期></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">稿件来源</b><真实审稿 / paper-review 模拟下游></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">意见源</b><用户粘贴 / review/模拟评审报告.md></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">学科梯队</b><实证 / 理论型 / 规范文本型 / 诠释型></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">条目数</b><共 N 条 · Reviewer <数量>></span>
+    </div>
+    <!-- 来源徽章：二选一（真实交付 / 模拟练习） -->
+    <div class="source-badge">📫 真实交付档案 · 本档案对应真实审稿意见 · 回复信定稿后可作投稿 / 答辩交付</div>
+    <!-- 若为模拟下游替换为：<div class="source-badge mock">🪞 模拟练习档案 · 输入是 paper-review 模拟产物 · 回复信非真实交付、用于梳理修订思路</div> -->
+    <!-- 成句生成声明徽章 -->
+    <div class="gen-badge">✍️ AI 起草 · 采纳与定稿由用户逐条决定 · 基于已有研究事实、不含编造内容</div>
+  </header>
+
+  <section class="legend my-7 px-5 py-4 bg-white/40 border border-dashed border-rule text-[0.85rem]">
+    <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-ink-faint mb-2">
+      内容标注 · Content Provenance
+    </div>
+    <ul class="m-0 p-0 list-none flex flex-wrap gap-x-6 gap-y-2">
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l1"></span>👤 用户输入原话（审稿意见）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l2"></span>📋 常见归类（非定论）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l3"></span>🪞 AI 重组生成（可追溯回正文事实）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l4"></span>❓ 待用户决定 / ⚠️ 需补充</li>
+    </ul>
+    <div class="mt-2 text-[0.78rem] text-ink-faint">本档案不含"AI 的新判断"层 —— 回复措辞基于用户已有研究事实、不编新结果/未读文献/夸大表述；采纳/拒绝/改写由用户逐条决定、AI 不替用户定。</div>
+  </section>
+
+  <section class="revise-map">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      一、修订建议对照表 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Revision Map · 🪞 修订方向陈列（非"必须这样改"）</span>
+    </h2>
+    <table class="revise-table">
+      <thead>
+        <tr>
+          <th class="col-num">#</th>
+          <th class="col-q">👤 审稿意见</th>
+          <th class="col-cat">📋 归类</th>
+          <th class="col-dir">🪞 修订方向（配正文锚点）</th>
+          <th class="col-resp">❓ 候选回复（80-150 字草稿）</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-num">1</td>
+          <td class="col-q text-l1 bg-l1-bg"><意见原话，如"方法节样本量描述不足"></td>
+          <td class="col-cat">方法</td>
+          <td class="col-dir"><改哪段 + 修订要点，如"方法 §3.2 补样本量计算依据、效应量预估"> · <a href="正文.md#方法-3-2">方法 §3.2</a></td>
+          <td class="col-resp"><候选回复措辞、基于已有事实> <span class="pending">❓ 待用户确认/改写</span></td>
+        </tr>
+        <tr>
+          <td class="col-num">2</td>
+          <td class="col-q"><意见原话></td>
+          <td class="col-cat">结果</td>
+          <td class="col-dir"><修订方向> · <a href="正文.md#结果">结果章</a></td>
+          <td class="col-resp"><候选回复> <span class="pending">❓ 待用户确认/改写</span></td>
+        </tr>
+        <!-- 涉及 ⚠️ 需用户补充的条目示例（整行加 .row-flag） -->
+        <tr class="row-flag">
+          <td class="col-num">3</td>
+          <td class="col-q"><意见原话，如"建议补一组对照实验"></td>
+          <td class="col-cat">方法</td>
+          <td class="col-dir"><修订方向，标 ⚠️ 涉及补实验></td>
+          <td class="col-resp"><候选回复措辞、摆已有数据能否部分支撑、不编> <span class="flag-mark">⚠️ 需用户补充</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="response-letter-section">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      二、逐点回复信 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Response Letter · 🪞 AI 起草（每条 ❓ 待用户改写）</span>
+    </h2>
+    <div class="response-letter my-4">
+
+      <article class="reviewer-group">
+        <h3>Reviewer 1 <span class="role-stamp">👤 用户粘贴意见</span></h3>
+
+        <div class="response-item">
+          <div class="item-quote">
+            <span class="q-label">👤 意见 1.1</span><审稿意见原话，逐字保留>
+          </div>
+          <div class="item-resp">
+            <span class="resp-label">🪞 候选回复</span>
+            <基于用户已有研究事实起草的回复措辞，80-150 字> <span class="pending">❓ 待用户确认/改写</span>
+          </div>
+        </div>
+
+        <div class="response-item">
+          <div class="item-quote">
+            <span class="q-label">👤 意见 1.2</span><审稿意见原话>
+          </div>
+          <div class="item-resp">
+            <span class="resp-label">🪞 候选回复</span>
+            <候选回复> <span class="pending">❓ 待用户确认/改写</span>
+          </div>
+          <!-- 涉及补实验/数据时显示 -->
+          <div class="item-flag">⚠️ 需用户补充：涉及未做的实验/数据，AI 不代写</div>
+        </div>
+      </article>
+
+      <article class="reviewer-group">
+        <h3>Reviewer 2 <span class="role-stamp">👤 用户粘贴意见</span></h3>
+
+        <div class="response-item">
+          <div class="item-quote">
+            <span class="q-label">👤 意见 2.1</span><审稿意见原话>
+          </div>
+          <div class="item-resp">
+            <span class="resp-label">🪞 候选回复</span>
+            <候选回复> <span class="pending">❓ 待用户确认/改写</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- review 模拟下游场景：reviewer-group 标"📋 模拟视角" -->
+      <!-- <article class="reviewer-group">
+        <h3>视角 1：期刊审稿人 <span class="role-stamp">📋 模拟视角</span></h3>
+        ...
+      </article> -->
+
+      <div class="decision-note">
+        <div class="dn-label">❓ 待用户逐条决定</div>
+        采纳 / 拒绝 / 改写由用户逐条决定，AI 不替用户定；需要写新段落时回 <code>/paper-draft</code>；修订后建议 <code>/paper-logic</code> 复查论证链、<code>/paper-verify</code> 复查引用。
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="mt-14 pt-5 border-t-2 border-double border-rule text-ink-soft text-[0.85rem] leading-[1.7]">
+    <p>本对照表 + 回复信由 AI 基于用户已有研究事实起草（<strong>成句生成级</strong>）；采纳与定稿由用户逐条决定、AI 不替用户定。回复信不含编造的新结果或未读文献。整段新正文共写归 <code>/paper-draft</code>、引用存在性复查归 <code>/paper-verify</code>、论证链复查归 <code>/paper-logic</code>。</p>
+  </footer>
+
+</article>
+</body>
+</html>

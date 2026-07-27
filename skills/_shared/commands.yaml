@@ -1,0 +1,554 @@
+# Paper 命令主清单（单一事实来源）
+#
+# 本文件是 Paper 全部命令的权威注册表。`paper-help` 的命令总表与推荐、
+# `paper-init` 的「命令发布映射表」均从此推导——新增或发布命令时只改本文件，
+# 两个消费方自动同步，避免两处维护脱节。
+#
+# 字段说明：
+#   name          命令名（去斜杠，= skill 目录名 = 触发名）
+#   phase         生命周期阶段标签：A-E 研究阶段 / infra 跨阶段基础设施
+#   stage_zh      中文阶段名（用于按阶段分组呈现）
+#   intent_zh     一句话定位（用户可见）
+#   dir           落盘目录（研究命令才填；基础设施命令留空）
+#   builtin_in    仅内建子命令填：宿主命令名。语义 = 本命令没有独立 skill 目录，
+#                 入口寄生在宿主 skill 的 SKILL.md 里（先例：paper-format /
+#                 paper-claim 内建于 paper-verify）。
+#                 不填 = 独立 skill，必须有同名目录 + SKILL.md。
+#                 注意与「流程上可由某命令进入」区分：paper-plot 有独立目录、
+#                 可独立调用，只是 paper-figure 的主流程会引导进入它——那是
+#                 流程关系，不是打包关系，故 plot 不填 builtin_in。
+#                 校验：tests/test_manifest_consistency.py
+#   status        发布状态：released（已发布）
+#                           planned（规划中，开发中）
+#                           phase2 / phase4（明确归属更晚阶段）
+#   guidance_zh   「什么时候用」指引（paper-help 推荐时附带的出口说明）
+#
+# 发布联动：某命令可用时把它的 status 翻转为 released——paper-init 生成的
+# README 写入者列、paper-help 的命令总表都据此呈现。
+#
+# 命名约定（PRD·子命令集·约定①）：paper- 前缀 + 单个学术熟词；
+# 基础设施命令取工程熟词（init / pipeline / help）。
+
+# ── 跨阶段基础设施（不对应 5 阶段 23 环节中的任何研究环节）─────────────────
+- name: paper-init
+  phase: infra
+  stage_zh: 跨阶段基础设施
+  intent_zh: 科研工作目录脚手架——一轮提问建标准目录骨架，顺带生成项目信息配置（长期记忆）与可选的宿主配置文件
+  dir: ""
+  status: released
+  guidance_zh: 要开始一个新研究项目、新论文，或想把科研目录结构规范化时用。
+
+- name: paper-help
+  phase: infra
+  stage_zh: 跨阶段基础设施
+  intent_zh: 命令导航器——帮你找到当下该用哪个 paper 命令
+  dir: ""
+  status: released
+  guidance_zh: 不确定 Paper 能做什么、该用哪个命令时用。
+
+- name: paper-doctor
+  phase: infra
+  stage_zh: 跨阶段基础设施
+  intent_zh: 环境就绪度体检——一条命令查清核验/检索环境能不能用、缺什么、怎么补
+  dir: ""
+  status: released
+  guidance_zh: 跑 verify/search 前想先确认数据源、网络、凭证是否就绪，或核验命令跑不起来要排查环境时用。
+
+- name: paper-daily
+  phase: infra
+  stage_zh: 跨阶段基础设施
+  intent_zh: 每日学术雷达——抢发检测（全源对照已发文献）+ 新发泛读（arXiv 自动轨 + 用户多源补充）。LLM 给高/中/低相关度标签但不打分、不排序、不替用户判研究价值；断网显式声明降级
+  dir: daily/
+  status: released
+  guidance_zh: 手头有研究想法（RQ / 方法 / 想投会议），想确认是否被人抢发、或每天泛读该方向新发论文时用。
+  # 2026-07-26 发布。产物型 skill（HTML+MD+JSON 三产物落 daily/），
+  # 纯提示词层（无 scripts/，复用 paper-search/scripts/search.py 做检索）。
+  # 借鉴 PaperFlow 的 daily 概念、但守本仓库"三条不变"：
+  # ① 不替用户判研究价值、不排序（高/中/低是辅助陈列标签、非价值判断）；
+  # ② 抢发命中不夸大、不替用户下定论（每条标概念比对依据、末尾疑问句式交回用户）；
+  # ③ 真实 API 为准、断网显式声明降级（不静默用模型记忆顶替、继承 paper-verify 代码层约束）。
+  # 三条红线与 paper-search 同源（日报场景化重写）：不判研究价值 / 覆盖方式必声明 + 中文缺口必提示 /
+  # 真实 API 为准。
+  # 双轨设计：抢发对照轨（全源 search.py，不限时间）+ 新发自动轨（仅 arXiv，时间窗今日/最近 N 天）+
+  # 用户补充轨（用户粘的多源新发：RSS/订阅/Twitter/PaperFlow 输出/同事推送）。
+  # 两停点流程：锁定 RQ+时间窗+补充轨 → 双轨拉取+抢发对照 → 三段式陈列（停）→ 落盘留痕。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测，
+  # 与 topic/outline/logic/disclose/abstract/review 同构）；② 复用 paper-search/scripts/search.py，
+  # 若 search.py 接口变更需同步；③ 时间窗过滤依赖 arXiv API 能力，按天精确过滤不可用时按年拉再筛；
+  # ④ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-daily/。
+
+# paper-pipeline 已取消（2026-07-26）：编排器想解决的「上下文超」正解是拆会话，
+# 而拆会话靠 .paper/ 目录留痕 + paper-help 导航已足够；状态机/检查点功能被
+# paper-init 建的目录结构与各 skill 的 .paper/ 留痕天然覆盖，编排器无不可替代的
+# 增量价值。详见 memory: paper-pipeline-wontdo。
+
+# ── 阶段 A｜选题与立项（环节 1-7）──────────────────────────────────────
+- name: paper-topic
+  phase: A
+  stage_zh: 选题与立项
+  intent_zh: 选题导航器——一步步引导、逐层给该方向客观常见的选项（不推荐不排序），用户拍板聚焦成可研究的研究问题（RQ），产 HTML 报告不下结论
+  dir: topic/
+  status: released
+  guidance_zh: 刚有个模糊方向、还说不清要研究什么时用。
+  # 2026-07-25 发布（v3 选题导航器）。发布门：过程中立性门达标（5 独立 runner + rev-gate 五条
+  # 判据零命中）、行为验收 8 场景通过、裸模型对比增量清晰（裸模型替判断 6/3/6/3 vs 带 skill 全 0）、
+  # pytest 159 passed、最终 whole-branch review Ready to merge。
+  # 已知观察项（非 blocker，已登记）：① SKILL.md 3 处贴边价值表述（"很值得做/很正/挺好"，贴红线 2
+  # 边、未命中五条判据，留观察）；② 过程中立性门 runner=opus，弱模型未验；③ A-弃/脚本 C 各单跑一次
+  # （A-选 跑满 3 次）；④ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-topic/。
+  # 2026-07-25 后续增强（呈现层增量，不触发重跑）：报告产物从五块升六块（新增「下一步验证清单」、
+  # 只许疑问句）、引入四层内容标注（👤/📋/🪞/❓，无"AI 新判断"层）、HTML 样式系统拆到
+  # references/报告样式模板.html（学术档案风、四层语义色、离线单文件）。核心机制与发布门判据未变。
+
+- name: paper-search
+  phase: A
+  stage_zh: 选题与立项
+  intent_zh: 中英双轨文献检索与综述辅助
+  dir: literature/
+  status: released
+  guidance_zh: 有了 RQ 要查文献、做文献综述、找研究缺口时用。
+  # 2026-07-25 发布。行为验收：场景 1/2/3/4/6/8/9/10 通过、确定性单测 159 passed。
+  # 已知差异：场景 5「不排序」在 Claude Code/Opus 侧有执行偏离（2 次稳定替排序、违反
+  # 红线 1），Codex 侧正确遵守——非 skill 设计缺陷，待加强 Claude 侧话术力度。
+  # 场景 7 断网声明级因测试方法局限未可靠验证。详见 tests/paper-search/。
+
+- name: paper-screen
+  phase: A
+  stage_zh: 选题与立项
+  intent_zh: 系统综述筛选——PRISMA 2020 两轮筛选台账（纳入排除由用户逐篇拍板）+ 计数守恒校验 + 流程图 + 数据提取表骨架 + 偏倚工具条目陈列
+  dir: literature/
+  status: released
+  guidance_zh: 要做系统性文献综述、需要 PRISMA 筛选流程图与纳排记录时用。
+  # 2026-07-27 发布。产物型 + 脚本型 skill（HTML+MD 双产物 + 台账 + 提取表落 literature/），
+  # 含确定性内核 scripts/screen.py（仿 paper-verify 的脚本层分工；
+  # 本仓库有 scripts/ 的 skill：verify / search / doctor / screen）。
+  # 上游消费 search 产物（literature/文献笔记表.md + 检索日志.md）；下游供 outline
+  # （骨架库已有「系统性综述（PRISMA）」专节）。
+  # 三条不变：① 不替用户判纳排（逐篇陈列与纳排标准的对应事实 + ❓、产物禁「建议纳入/排除」）；
+  # ② 计数守恒不靠模型（screen.py 校验三条守恒等式 + 组合矛盾检查——后者补前者盲区：
+  # 标摘筛已排除却填了全文筛的行会被静默丢出流程图而等式照样成立；任一不过即报错不出图、
+  # 退出码 1。待定行属筛选未完成、退出码 2，与台账有错区分；读不到台账退出码 3）；
+  # ③ 不编文献不编排除理由（台账每行必指笔记表真实条目、理由必是用户原话或用户选的码）。
+  # 学科三梯队：第一梯队全走；第二梯队理论型偏倚评估让路；第三梯队人文整体让路（保留检索日志与去重台账）。
+  # 明确不做：元分析统计合成（效应量/异质性 I²，与「AI 不接阶段 B 数据分析」边界相撞、
+  # 森林图绘制留 paper-plot v1.1+）、PRISMA 27 项自动判定（仅清单陈列 + 用户自评）、
+  # 偏倚评分（仅条目清单、评分用户填）。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑模拟脚本（确定性内核有 35 条 pytest）；
+  # ② 去重靠 DOI 与标题规范化比对，同一研究的会议版/期刊版机器判不出、需用户手工标 E7；
+  # ③ 流程图识别框如实标「记录总数」、未拆「数据库检索 / 其他来源」两栏（拆栏留后续；
+  # references 的归位规则定位为供报告正文做文字细分）；④ logical_conflicts 里对「待定」的分支在 CLI 路径上不可达
+  # （pending_seqs 先返回 2），作为库函数直接调用时仍有效；⑤ 跨宿主验证未做。详见 tests/paper-screen/。
+
+- name: paper-method
+  phase: A
+  stage_zh: 选题与立项
+  intent_zh: 研究设计参谋——双模式自适应（方法-RQ 匹配检查 + 方法类引导）+ 涉人类被试强制伦理审查提示清单
+  dir: topic/
+  status: released
+  guidance_zh: 要定研究方法、检查方法能否回答你的 RQ、或研究涉人类被试要理伦理审查提示清单时用。
+  # 2026-07-25 发布。产物型 skill（HTML+MD 双产物落 topic/），
+  # 纯提示词层（无 scripts/，与 paper-topic / outline / logic / disclose 同构）。
+  # 上游消费 topic 产物（RQ）+ literature/ 笔记表；下游供 proposal / outline。
+  # 双模式自适应：检查模式（用户有方法草案→跑匹配维度）/ 引导模式（无草案→摆方法类常见项）。
+  # 三条不变：① 不替用户定方法（摆常见不推荐不排序）；② 不下价值结论（陈列+疑问句）；
+  # ③ 不出具伦理豁免判断（涉人类被试强制陈列六项提示清单，末尾标「须机构确认，AI 不能替代」）。
+  # 学科三梯队：实证全核 / 理论型按类型调整不强套实证模板 / 诠释型轻量让路（让路不让伦理义务）。
+  # 两停点流程：读输入+学科+模式判定 → 匹配检查/方法类引导+伦理清单（停）→ 落盘留痕交棒。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测,
+  # 与 topic/outline/logic/disclose 同构）；② 涉人类被试检测基于关键词+学科+RQ 形态启发式、
+  # 可能漏判（清单顶部固定自检声明交回用户）；③ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-method/。
+
+- name: paper-proposal
+  phase: A
+  stage_zh: 选题与立项
+  intent_zh: 开题报告组装——多源汇聚（topic RQ + literature 笔记 + method 研究设计）按中文学位论文制度节点组装草案
+  dir: topic/
+  status: released
+  guidance_zh: 选题、文献、方法都有了、要写学位论文开题报告时用。
+  # 2026-07-25 发布。产物型 skill（HTML+MD 双产物落 topic/），
+  # 纯提示词层（无 scripts/，与 paper-topic / outline / method / logic / disclose 同构）。
+  # 选题与立项阶段收口命令：汇聚 topic（RQ）+ search（literature 笔记）+ method（研究设计参谋），
+  # 按中文学位论文开题报告常见制度节点（选题依据/文献综述/研究内容/研究方法/技术路线/
+  # 工作计划/参考文献/创新点）摆骨架 + 从上游真实产物提取片段。
+  # 三条不变：① 不替用户定研究内容（摆制度节点骨架、研究内容/工作计划/创新点标占位请用户填、
+  # 不代写各节正文）；② 锚点不造假（文献必指 literature 真实笔记、RQ 必指 topic 原话、
+  # 方法必指 method 产物）；③ 产物如实披露组装来源。
+  # 学科三梯队：研究方法部分按梯队调整（实证/理论/诠释）、不设让路（开题各学科都要写）。
+  # 三停点流程：读多源输入+学科判定 → 摆骨架+提取片段+引导补充（停）→ 落盘留痕交棒。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测,
+  # 与 topic/outline/method/logic/disclose 同构）；② 第一版只产通用制度节点母版、
+  # 各校特定模板留 Phase 2+ references 扩展;③ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-proposal/。
+
+# ── 阶段 B｜执行研究（环节 8-11）────────────────────────────────────────
+# Paper 明确不设命令覆盖阶段 B——数据采集、实验、分析由研究者本人负责，
+# AI 不进场。这是「核心分工原则」（AI 负责效率，人负责研究决策）的体现，不是缺口。
+
+# ── 阶段 C｜成文（环节 12-16）────────────────────────────────────────────
+- name: paper-outline
+  phase: C
+  stage_zh: 成文
+  intent_zh: 论文大纲——基于 RQ 与文献笔记产出大纲草案
+  dir: manuscript/
+  status: released
+  guidance_zh: 文献读得差不多、要搭论文骨架时用。
+  # 2026-07-25 发布。产物型 skill（HTML+MD 双产物落 manuscript/），
+  # 纯提示词层（无 scripts/，与 paper-topic 同构）。
+  # 三条不变：① 结构取舍由用户拍板；② 锚点不造假（必指 literature/.paper/ 真实笔记、
+  # 无支撑标占位）；③ 产物只记用户拍板的结构。
+  # 四停点流程：选骨架 → 起草草案 → 逐章修订 → 落盘留痕。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测，
+  # 与 topic 同构）；② 骨架库第一版仅覆盖 IMRD / 学位论文 / 综述 / 案例研究四种，
+  # 法学 / 人文留观察；③ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-outline/。
+
+- name: paper-draft
+  phase: C
+  stage_zh: 成文
+  intent_zh: 分段正文共写——基于大纲与文献笔记逐段起草正文初稿
+  dir: manuscript/
+  status: released
+  guidance_zh: 有大纲、要逐段展开正文时用。
+  # 2026-07-25 发布。产物型 skill（HTML+MD 双产物落 manuscript/）,
+  # 纯提示词层（无 scripts/,与 paper-outline / paper-topic 同构）。
+  # 三条不变：① 段落取舍由用户拍板（逐段停点）;② 锚点与事实不造假（必指 literature/.paper/ 真实笔记、
+  # 数据不在笔记绝不编、无支撑标占位）;③ 产物如实披露成句辅助（PRD 披露第三级、逐段可追溯）。
+  # 风格样本机制：用户贴 1-2 段自己写过的文字、AI 只学风格不抄内容（防变相抄袭）。
+  # 四停点流程：选段+风格 → 起草第一段 → 段落循环 → 落盘留痕。
+  # 上游消费 paper-outline 大纲 + paper-search 文献笔记。下游供 paper-logic / paper-abstract。
+  # 2026-07-27 联动改造（随 paper-style 发布）：风格样本机制三档升四档，新增最优
+  # A+ 档「读 manuscript/风格基线.md」（paper-style 模式 b 产）——命中则不必再请用户
+  # 贴样本，把常态降级档变成常态正常档。共六处改动（机制段 / 降级矩阵 / 会话开始第 3 件事 /
+  # 留痕风格来源取值 / 异常表两行 / 交棒），无自动守卫、人工核。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测,
+  # 与 outline / topic 同构）;② 风格样本只提取句长/虚词/术语密度/引用习惯四特征,
+  # 更细粒度风格建模留观察（A+ 档改由 style_metrics.py 机械算出六组特征、比口头描述细）;
+  # ③ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-draft/。
+
+- name: paper-style
+  phase: C
+  stage_zh: 成文
+  intent_zh: 风格校准——全文一致性校准（章节特征表 + 章节间偏移按变异系数排序）+ 个人风格基线（持久化供 paper-draft 复用）+ AIGC 误判申诉特征陈列；六组特征一律脚本机械算，禁「读起来像不像 AI」判断
+  dir: manuscript/
+  status: released
+  guidance_zh: 要查各章文风是否一致、要把自己的写作风格存成基线供起草复用、或论文被 AIGC 检测误判要申诉材料时用。
+  # 2026-07-27 发布。产物型 + 脚本型 skill（HTML+MD 双产物落 manuscript/，
+  # 模式 b 另落 manuscript/风格基线.md），含确定性内核 scripts/style_metrics.py
+  # （本仓库有 scripts/ 的 skill：verify / search / doctor / screen / style）。
+  # 与 screen / typeset 同出一份 spec（系统综述 · 风格校准 · 出版链三块补齐），为第二交付单元。
+  # 上游消费 manuscript/ 正文（draft 产物或用户自写）；下游供 paper-draft（读风格基线对齐起草，
+  # 把 draft 的常态降级档变成常态正常档——这是本命令除「查一致性」外的真实增量）与
+  # paper-disclose（模式 c 指向 .paper/ 留痕作过程证据）。
+  # 三条不变：① 不替用户改写定稿（默认只陈列偏移与着力点、每条以疑问句收尾、产物禁
+  # 「建议改成 / 应当改为」；用户明确要示例改法才给 1-2 句并标「示例、非定稿」）；
+  # ② 风格特征是算出来的不是感觉出来的（六组特征一律 style_metrics.py 机械算，
+  # 禁「读起来像 / 不像 AI」「文风不够学术」；脚本跑不了显式声明「特征不可用」、不凭感觉顶替）；
+  # ③ 硬拒「去 AI 味躲检测」（服务全文一致性与误判申诉、不服务规避检测，指路 paper-disclose）。
+  # 三模式：a 全文一致性校准 / b 建立个人风格基线（必问「这几段是你自己写的还是 AI 起草过的」——
+  # 从 AI 草稿算基线会让 draft 对齐 AI 自己的风格、形成回音室）/ c 误判申诉特征陈列。
+  # 内核六组特征：句长分布（引号感知切句——引号内句号不切、`……` 算一个边界、小数点与
+  # et al. 不切）/ 虚词密度（长词优先匹配防重复计数）/ 引用位置三形态 / 人称频次 /
+  # 四字格密度（近似）/ 术语密度（近似，不引 jieba）；章节间偏移按变异系数 CV 排序
+  # （量纲不同时极差不可比）；脚本只排序、不下结论。
+  # 退出码三态：0 算出结果 / 2 样本不足（剥离表格代码引用块后切不出句子，不是错误）/
+  # 3 读不到输入。不凑第四码——本命令无守恒等式可校验，不存在「算得出但不可信」的中间态。
+  # 留痕混合级（仿 paper-figure）：默认构思讨论；用户明确要示例改法、AI 给出改写句时该次
+  # 升「构思讨论 + 语言润色」——没给改法不许写语言润色级（虚报辅助级别同属不如实留痕）。
+  # 学科三梯队只改解读口径、不改脚本算什么，且**不设整体让路**（风格一致性各学科都要看，
+  # 只是判据宽严不同：人文放宽到「同一文内不跳档」）——与 screen 的人文整体让路不同，勿类推。
+  # 明确不做：替用户改写定稿、「降 AI 味」改写服务、查重降重（PRD §446 指路知网）、
+  # 判定文本是否由 AI 生成、解释检测器阈值。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑模拟脚本（确定性内核有 51 条 pytest）；
+  # ② 术语密度与四字格为近似值（零第三方依赖不引 jieba），产物每处必标「近似」，
+  # 给术语表可让术语密度变精确；③ 引用位置只认三种行内形态，全脚注制（`[^1]`）会全为 0、
+  # 须如实声明该项不可用；④ 章节切分按「能切出 ≥2 节的最浅 ATX 标题层级」，非常规标题结构
+  # 可能切得不理想（可改用 --dir 多文件）；⑤ 风格基线契约无自动守卫（markdown 非代码），
+  # 字段名改动会静默破坏 draft 的读取，改前须看 references/风格基线契约.md；
+  # ⑥ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-style/。
+
+- name: paper-logic
+  phase: C
+  stage_zh: 成文
+  intent_zh: 论证链检查——RQ→方法→结果→结论四者对应
+  dir: manuscript/
+  status: released
+  guidance_zh: 初稿成形、要查论证链是否闭环时用。
+  # 2026-07-25 发布。产物型 skill（HTML+MD 双产物落 manuscript/），
+  # 纯提示词层（无 scripts/，与 paper-topic / outline / disclose 同构）。
+  # 上游消费 outline 产物（章节大纲 + 锚点）+ literature/ 笔记表五字段；
+  # 可选增强消费 draft 正文（段落级增强区块）。
+  # 三条不变：① 只核结构对应、不核内容真伪（理论型明示不核证明）；② 不下价值结论
+  # （禁"断裂/强弱"定性词、徽章只说 X/Y 对应）；③ 诊断可追溯到原文（锚点指回 outline/笔记表）。
+  # 学科适配三梯队：实证全核 / 理论型核结构不核证明 / 诠释型让路不产。
+  # 三步一停点流程：读输入+学科判定 → 四链检查陈列（停）→ 落盘留痕交棒。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测，
+  # 与 topic/outline/disclose 同构）；② 四链检查项第一版聚焦实证+理论型，诠释型留
+  # v1.1+ references 扩展；③ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-logic/。
+
+- name: paper-abstract
+  phase: C
+  stage_zh: 成文
+  intent_zh: 摘要提炼——从已完成正文提炼摘要初稿（每句可追溯、不编内容、成句生成级披露）
+  dir: manuscript/
+  status: released
+  guidance_zh: 正文写完、要凝练摘要时用。
+  # 2026-07-25 发布。产物型 skill（HTML+MD 双产物落 manuscript/），
+  # 纯提示词层（无 scripts/，与 paper-topic / outline / draft / method / proposal / logic / disclose 同构）。
+  # 上游消费 draft 正文（必要）+ outline / topic（可选增强）；下游供 import / verify / review。
+  # 提炼器型：从已成正文提取要点、按摘要常见式重组生成句子（新句、每句标正文锚点可追溯）。
+  # 三条不变：① 不代写正文（正文缺让路 /paper-draft）；② 不编内容（每句可追溯、不添加正文
+  # 没有的论断、不夸大结果）；③ 如实披露成句生成（摘要句子是 AI 重组生成的新句、属成句生成级、
+  # 顶部声明 + 留痕如实）。
+  # 学科三梯队摘要式：结构化（实证）/ 理论型 / 诠释型、不设让路（摘要各学科都要写）。
+  # 三停点流程：读正文+学科判定 → 提炼摘要初稿（停）→ 落盘留痕交棒。
+  # 本项目首个成句生成级命令（PRD 披露第三级、披露最重）。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测,
+  # 与同构命令一致）；② 第一版按通用摘要式、期刊特定模板（ICLR/Nature）留 Phase 2+
+  # references 扩展;③ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-abstract/。
+
+- name: paper-import
+  phase: C
+  stage_zh: 成文
+  intent_zh: 题录导入——知网/Zotero/EndNote 题录批量整理入笔记表 + 题录-草稿一致性核对（题录即证据、不做 API 核验）
+  dir: literature/
+  status: released
+  guidance_zh: 有从知网/Zotero 导出的题录要批量整理、或要核对题录与草稿引用一致性时用。
+  # 2026-07-25 发布。产物型 skill（笔记表追加 + 核对报告 HTML+MD 双产物落 literature/），
+  # 纯提示词层（无 scripts/，与同构命令一致）。
+  # 工具型 + 核对器型：整理用户导入的题录入 literature/笔记表.md（五字段标占位）+ 题录-草稿一致性核对。
+  # 三条不变：① 题录不编（只整理实际导入的题录、字段缺失标占位、绝不凭记忆补、不凭空生成）；
+  # ② 一致性核对客观陈列（陈列对应关系、不判对错、"无对应题录"不判编造交 verify）；
+  # ③ 产物如实披露整理来源（条目标来源、核对报告顶部声明非存在性核验）。
+  # 与 verify 分工（关键）：题录即用户从权威库导出的证据（PRD §128）、import 不重复 API 核验；
+  # 存在性 API 核验（题录是否真实存在）归 verify。二者衔接：import 入库、verify 核验。
+  # 跨学科通用、不设让路（题录格式各学科一致）。
+  # 三停点流程：读题录+解析+检测草稿 → 整理入表+一致性核对（停）→ 落盘留痕交棒。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测）;
+  # ② 题录格式解析基于启发式、复杂或罕见格式可能失败（标占位请用户确认）;③ 跨宿主验证未做。
+  # 详见 tests/paper-import/。
+
+- name: paper-figure
+  phase: C
+  stage_zh: 成文
+  intent_zh: 图表可视化辅助——B 诊断模式（贴图/代码/口述 → 5 维度诊断陈列）+ C 设计建议模式（数据/论断 → 图类/图注/配色/坐标轴/工具 5 组件建议）；自适应双模式
+  dir: manuscript/
+  status: released
+  guidance_zh: 有图要查规范性、或还没画图要设计建议时用。需生成绘图代码时由本命令进入 /paper-plot。
+  # 2026-07-26 发布。产物型 skill（HTML+MD 双产物落 manuscript/），
+  # 纯提示词层（无 scripts/，与 paper-outline / draft / logic / abstract / method / disclose 同构）。
+  # 覆盖阶段 C 环节 14「图表可视化」（标尺 5 阶段 23 环节中阶段 C 最后一环）。
+  # 三条不变：① 不替用户做研究表达决策（图类/图注/配色/工具陈列常见选项 + ❓ 待决定、摆事实不推荐）；
+  # ② 不编数据不编图表内容（f：贴数据用真实 + 顶部声明、没贴或仅口述用 PAPER_PLACEHOLDER + 顶部声明、
+  # 绝不编看似真实的研究数据——CLAUDE.md 处 2 死线）；③ 诊断与建议可追溯（视觉可靠性低标 ⚠️ 建议自查、
+  # 配色标 hex + 色板来源）。
+  # 双模式自适应：B 诊断（贴图/代码静态分析/口述降级三路径）+ C 设计建议（a 图类/b 图注骨架/c 配色/d 坐标轴/e 工具）。
+  # 学科三梯队不让路：第一梯队实证理工社科（柱/折/箱/散/误差/直方/热图 + 子领域 KM/森林/ROC）、
+  # 第二梯队理论型规范文本型（函数曲线/推导图/交换图 + 子领域相图/概念关系图/算法流程图）、
+  # 第三梯队人文（时间线/地图/谱系图/年表）。
+  # 留痕混合级：B 诊断 + C a/d/e 构思讨论；C b 大纲结构；C c 构思讨论（取自公开色板）；
+  # C f（绘图代码生成）由内建子命令 paper-plot 承担、属成句生成级（重）。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测，与同构命令一致）；
+  # ② B 诊断 AI 视觉可靠性边界（坐标轴 40%/配色 35%/误差 20%）已通过局限性声明 + 自查清单降级处理；
+  # ③ f v1.0 P0 范围仅 7 类图（柱状/条形算 1 类）× matplotlib+ggplot2，TikZ/KM/ROC/森林图留 v1.1+、第三梯队专项留 v1.2+；
+  # ④ 期刊特定规范（Nature/ICLR 等）第一版不做、留 Phase 2+ references/figure-guidelines/ 扩展；
+  # ⑤ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-figure/。
+
+- name: paper-plot
+  phase: C
+  stage_zh: 成文
+  intent_zh: 绘图代码生成（内建于 paper-figure，可独立调用）——按图类+工具库生成可运行 matplotlib/ggplot2 代码（v1.0 P0 7 类图，柱状/条形算 1 类）
+  dir: manuscript/
+  status: released
+  guidance_zh: 要生成柱状/折线/散点/箱线/误差线/直方图/热图的绘图代码时用；由 /paper-figure 进入或独立调用。
+  # 2026-07-26 发布。内建子命令（仿 paper-verify → paper-format / paper-claim 模式，
+  # PRD·约定③），可由 paper-figure 主流程"生成代码"进入、也可独立 /paper-plot 调用。
+  # 产物型 skill（.py/.R 代码文件落 manuscript/），纯提示词层（无 scripts/）。
+  # 三条不变（与 figure 共享、加 f 专项）：① 不替研究表达决策（选库让用户拍板、配色取自公开色板）；
+  # ② 不编数据（贴数据用真实 + 顶部声明、没贴或仅口述用 PAPER_PLACEHOLDER + 顶部声明、
+  # 绝不编看似真实的研究数据——CLAUDE.md 处 2 死线）；③ 诊断与建议可追溯（每段代码注释指明数据/论断来源、
+  # 配色取自哪个色板）。
+  # v1.0 P0 范围：matplotlib + ggplot2 × 7 类图（柱状/条形算 1 类：柱状/条形/折线/散点/箱线/误差线/直方图/热图）。
+  # P1 留 v1.1+：KM 生存曲线/ROC/森林图/TikZ 推导图/交换图。P2 留 v1.2+：第三梯队专项（时间线/谱系图/地理地图/年表）。
+  # 占位符标准格式：# PAPER_PLACEHOLDER: <描述>。数据输入格式优先级：CSV > Markdown 表 > JSON > 粘贴文本。
+  # 自检规则：grep -iE "p\s*<\s*0\.|N\s*=\s*[0-9]+" 期望 0 命中（防误编统计数据）。
+  # 留痕成句生成级（重）——本项目第四个成句生成级命令（与 abstract/draft/revise 同级）。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测）；
+  # ② v1.0 P0 范围有限、TikZ 与第三梯队代码生成留 v1.1+/v1.2+；③ 跨宿主验证未做。详见 tests/paper-plot/。
+
+# ── 阶段 D｜评审与修订（环节 17-19）──────────────────────────────────────
+# paper-verify 内建 paper-format 与 paper-claim 两个命令入口（PRD·约定③）。
+- name: paper-verify
+  phase: D
+  stage_zh: 评审与修订
+  intent_zh: 引用存在性核验（六态：已核实 / 元数据不符 / 已撤稿 / 未找到（疑似不存在）/ 无法核实 / 待人工核对）
+  dir: review/
+  status: released
+  guidance_zh: 有草稿要自查引用是不是编造、查得到查不到时用。
+  # 2026-07-25 发布。发布门：量化门槛达标（tests/paper-verify/test_acceptance.py 42 条样本——
+  # 虚构检出率 100%、真实误报率 0%、中文误伤 0）、确定性单测 63 passed（parse/judge/format/report/verify
+  # 全覆盖）、真实 API 端到端三路径冒烟通过（真实→VERIFIED、编造前缀→NOT_FOUND、ISTIC 中文→PENDING_MANUAL）。
+  # 上游联动：routing.py + models.py 增 doi_ra="not_registered" 态（前缀未注册自证不存在）。
+  # 已知观察项（非 blocker，已登记）：① 裸模型 vs 带 skill 端到端并排对比待跑（离线门槛已过，
+  # 同 search/topic 惯例标"待跑"）；② claim 过程中立性门（独立跑 N 次不下定论）N≥3 runner 待实跑；
+  # ③ 引用解析器启发式，作者/venue 提取不保证准确（DOI/year 为主、第一作者姓比对容错）；
+  # ④ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-verify/、evals/paper-verify/README.md。
+
+- name: paper-format
+  phase: D
+  stage_zh: 评审与修订
+  intent_zh: GB/T 7714-2015 著录格式检查（纯规则，内建于 paper-verify）
+  dir: review/
+  builtin_in: paper-verify
+  status: released
+  guidance_zh: 要查参考文献格式是否符合国标时用（随 paper-verify 发布）。
+  # 2026-07-25 随 paper-verify 发布（内建子命令，独立入口 scripts/format_check.py）。
+
+- name: paper-claim
+  phase: D
+  stage_zh: 评审与修订
+  intent_zh: 结论夸大检查——核对结论是否超出结果支撑（内建于 paper-verify）
+  dir: review/
+  builtin_in: paper-verify
+  status: released
+  guidance_zh: 要查论文结论有没有说过头话时用（随 paper-verify 发布）。
+  # 2026-07-25 随 paper-verify 发布（内建子命令，纯提示词层、过程中立性门验收）。
+
+- name: paper-review
+  phase: D
+  stage_zh: 评审与修订
+  intent_zh: 模拟评审——多视角模拟审稿意见（期刊审稿/学位论文盲审/答辩委员）+ 分项评分；强制询问稿件来源、不接收他人在审稿件
+  dir: review/
+  status: released
+  guidance_zh: 投稿/答辩前想预演评审意见、提前补漏时用。
+  # 2026-07-25 发布。产物型 skill（HTML+MD 双产物落 review/），
+  # 纯提示词层（无 scripts/，与同构命令一致）。
+  # 上游消费 draft 正文（必要）+ verify 产物（可选）；下游供 revise（修订+回复信）。
+  # 多视角模拟陈列器：期刊审稿 / 学位论文盲审（§385 预设、限定为模拟盲审挑刺套路） / 答辩委员三视角。
+  # 三条不变：① 不接收他人在审稿件（会话开始强制询问稿件来源、用户以评审人身份持有的他人在审稿件
+  # 立即拒绝、违反同行评审保密义务 §361；只评审本人或指导学生稿件）；② 不替用户写回复信（归 revise）；
+  # ③ 评分是模拟视角陈列、非 AI 对论文的价值判断（分项评分每维标「模拟常见审稿维度」、
+  # 禁「行/不行」「值得发表」总判断、顶部声明 + 总分配文「模拟练习产物、不代表真实水平」）。
+  # 评分张力（PRD §132 要评分 vs 项目「不下价值结论」底线）经 brainstorming 七问 + 用户拍板方案 A 化解：
+  # 分项评分（每维可追溯模拟常见维度）+ 模拟视角声明、既满足 PRD 又守底线。
+  # 学科三梯队：评审维度按梯队调整（实证全维度/理论型调整/诠释型调整）、不设让路。
+  # 三停点流程：强制询问稿件来源+读输入+学科判定 → 多视角模拟评审（停）→ 落盘留痕交棒。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测）;
+  # ② 评分与意见质量依赖模型对学科评审惯例理解、可能需多轮调;③ 期刊特定评审维度（ICLR/Nature）
+  # 留 Phase 2+ references 扩展;④ 跨宿主验证未做。详见 tests/paper-review/。
+
+- name: paper-revise
+  phase: D
+  stage_zh: 评审与修订
+  intent_zh: 修订辅助——修订建议对照表 + 逐点回复信初稿（基于已有研究事实起草、采纳由用户逐条决定）
+  dir: review/
+  status: released
+  guidance_zh: 收到审稿意见、要逐条修订并写回复信时用。
+  # 2026-07-26 发布。产物型 skill（HTML+MD 双产物落 review/），
+  # 纯提示词层（无 scripts/，与 paper-review / abstract 同构）。
+  # 上游消费 draft 正文（必要）+ review 产物（可选）+ verify 产物（可选）。
+  # 双路输入：真实审稿意见粘贴（作者侧核心场景）+ paper-review 模拟下游（预演修订）。
+  # 三条不变：① 不替用户决定是否采纳（每条标 ❓ 待用户决定）；② 不编内容应付审稿人
+  # （基于用户已有研究事实、禁编新结果/未读文献/夸大）；③ 不替用户写整段新正文（归 draft）。
+  # 学科三梯队：修订方向按梯队调整（实证补实验/统计、理论补推导/命题、诠释补文本证据）、不设让路。
+  # 三停点流程：读输入+解析+学科判定 → 对照表+回复信初稿（停）→ 落盘留痕交棒。
+  # 留痕级别：成句生成级（回复信措辞是 AI 起草的新句、与 abstract/draft 同级、本项目第三个成句生成级命令）。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测）;
+  # ② 回复信措辞依赖模型对学科惯例理解、可能需多轮调;③ 期刊特定回复信模板（Nature/ICLR）
+  # 留 Phase 2+ references 扩展;④ 跨宿主验证未做。详见 tests/paper-revise/。
+
+# ── 阶段 E｜发表与发表后（环节 20-23）────────────────────────────────────
+- name: paper-disclose
+  phase: E
+  stage_zh: 发表与发表后
+  intent_zh: AI 使用说明生成——一键汇编 .paper/ 四级留痕记录
+  dir: submission/
+  status: released
+  guidance_zh: 要生成投稿用的 AI 使用披露说明时用。
+  # 2026-07-25 发布。产物型 skill（HTML+MD 双产物落 submission/）,
+  # 纯提示词层（无 scripts/,与 paper-topic / outline 同构）。
+  # .paper/ 留痕体系的第一个消费者：按 PRD 四级（构思讨论 / 大纲结构 / 成句生成 /
+  # 语言润色）归类陈列,缺级标占位,反向暴露留痕体系覆盖盲点。
+  # 三条不变：① 只读不编（.paper/ 空则让路）;② 留痕如实（可隐去但顶部强制声明）;
+  # ③ 不下价值结论（禁"AI 占比 X%"）。
+  # 段落级读者标签轴（👤导师 / 📋研究生院 / 🔎期刊 / 🛡️AIGC 检测）,HTML 读者切换器。
+  # 三停点流程：扫留痕归类 → 摆草案 → 逐条修订 → 落盘留痕。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测,
+  # 与 topic / outline 同构）;② 期刊特定模板（ICLR / Nature）第一版不做,留 Phase 2+
+  # references/ 扩展;③ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-disclose/。
+
+- name: paper-submit
+  phase: E
+  stage_zh: 发表与发表后
+  intent_zh: 投稿准备——投稿材料 checklist 整理 + 目标期刊常见投稿要求陈列 + cover letter 要点骨架（基于已有研究产物、不替用户选刊/写整段 cover letter/编期刊信息）
+  dir: submission/
+  status: released
+  guidance_zh: 论文写完要投稿、要整理投稿材料清单、要查期刊投稿要求、要准备 cover letter 时用。
+  # 2026-07-26 发布。产物型 skill（HTML+MD 双产物落 submission/），
+  # 纯提示词层（无 scripts/，与 paper-disclose / revise / review 同构）。
+  # 阶段 E 收口命令：覆盖生命周期环节 20（投稿、期刊适配、格式转换）；
+  # 环节 21 署名/基金声明/AI 披露的 AI 披露部分归 paper-disclose、署名/基金声明归研究者本人；
+  # 环节 22 发表后传播（PRD §148 项目不覆盖）、环节 23 发表后监测（PRD §149 项目不覆盖）。
+  # 上游消费 draft 正文（必要）+ verify/review/revise 产物（可选）+ disclose AI 使用说明（可选）；
+  # 下游供 paper-typeset（格式转换，流程关系非打包关系，仿 figure → plot）——
+  # 投稿动作本身由人类在期刊系统真实执行，无命令代劳。
+  # 2026-07-27 联动改造（随 paper-typeset 发布）：不变③ 原文「不代做 LaTeX/DOCX 转换」
+  # 已精确化——PRD §448 禁的是**期刊特定排版模板库**，不是格式转换本身；通用转换管线
+  # （md → Word/LaTeX/PDF + 国标著录）归 paper-typeset。共五处改动：不变③ / 生命周期段下游 /
+  # 交棒第 3 项 / 越界表（原一行拆成「某刊模板=越界」与「转格式=正常能力」两行）/ v1 非范围。
+  # 清单整理器 + 要求陈列器：陈列目标期刊常见投稿要求类目（按三梯队期刊生态调整）+
+  # 整理投稿材料 checklist 草案 + cover letter 要点骨架（研究亮点/与期刊契合/未同时投递声明/推荐审稿人占位）。
+  # 三条不变：① 不替用户做投稿决策（选刊/预印本/撤稿/cover letter 定稿/出版伦理判断全归人、每项标 ❓）；
+  # ② 期刊信息不编造（只陈列通用类目、禁编影响因子/接收率/审稿周期/模板/截图、以官网为准）；
+  # ③ 不替用户写 cover letter 整段（归 draft）、不做查重降重（PRD §446 指路知网）、
+  # 不做期刊格式模板库（PRD §448 指路官方模板）。
+  # 学科三梯队按期刊生态：实证理工（SCI/英语）/ 实证社科（CSSCI）/ 人文社科（中文核心、集刊）、不设让路。
+  # 三停点流程：读输入+学科判定+期刊生态 → checklist+要求陈列+cover letter 骨架（停）→ 落盘留痕交棒。
+  # 已知观察项（非 blocker）：① 行为验收靠人工跑过模拟脚本、无 pytest（提示词型 skill、无确定性逻辑可测,
+  # 与 disclose/revise/review/abstract 同构）；② 期刊特定投稿要求库（Nature/ICLR/中文核心 D 类）
+  # 留 Phase 2+ references 扩展；③ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-submit/。
+
+- name: paper-typeset
+  phase: E
+  stage_zh: 发表与发表后
+  intent_zh: 出版链——Markdown → LaTeX/DOCX/PDF 转换管线 + GB/T 7714-2015 国标著录（内置官方 CSL 两制式）；只换容器不改一个字，环境缺失给「原因+安装指引+手工命令」四件套、绝不伪造产物
+  dir: submission/
+  status: released
+  guidance_zh: 论文写完、期刊要 Word/LaTeX/PDF 版稿件，或参考文献要按国标渲染时用；由 /paper-submit 引导进入或独立调用。
+  # 2026-07-27 发布。产物型 + 脚本型 skill，**产物是转换后的文件本身**（落 submission/）
+  # + submission/转换记录.md——**无 HTML 报告产物**（与其余 16 个 skill 不同，spec §4.2 已定：
+  # 为一个只产 .docx/.pdf 的命令再做 HTML 报告是纯仪式）。
+  # 含确定性内核 scripts/export.py（本仓库有 scripts/ 的 skill：verify / search / doctor /
+  # screen / style / typeset）+ 共享探测层 _shared/paper_shared/toolchain.py。
+  # **有独立目录、不填 builtin_in**：要放 scripts/export.py 与 references/csl/，填了会让
+  # tests/test_manifest_consistency.py::test_内建子命令不应有独立目录 失败（spec §2 点了这个易错点）。
+  # 建模与 paper-plot 一致：独立目录 + 由 paper-submit 主流程引导进入（流程关系、非打包关系）。
+  # 与 screen / style 同出一份 spec（系统综述 · 风格校准 · 出版链三块补齐），为**第三（末）交付单元**。
+  # 三条不变：① 不改一个字（只换容器、绝不「顺手润色」；转换后按校验边界逐格式校验）；
+  # ② 环境缺失明确降级不静默（四件套：未生成什么/原因/安装指引/可手工执行的完整命令；
+  # 绝不假装成功、绝不用模型生成一个「看起来像」的产物——继承 CLAUDE.md 唯一保留的代码层约束）；
+  # ③ 不做期刊/学校排版模板库（PRD §448，指路官网）。
+  # **校验边界（本命令最需要诚实的一处）**：.tex 无 bib → 源正文汉字序列与产物逐字相等（强）；
+  # .tex 有 bib → 源汉字序列是产物连续子串（参考文献由 CSL 追加、必然多字）；
+  # .docx/.pdf → **无法字符级校验**，只校验源文件 md5 未变 + 产物非空，**绝不谎称校验过**
+  # （对二进制谎称校验比不校验更坏：用户会以为有保障）。校验前剥 HTML 注释（pandoc 默认丢弃）。
+  # 五态退出码（五个处置动作互不相同，故不合并）：0 全部成功 / 1 pandoc·xelatex 返回非零
+  # （转述 stderr、不重试不改源文件）/ 2 环境缺失降级（已生成部分照常交付、未生成逐项列明，
+  # 不得说成「转换失败」）/ 3 输入·输出目录·CSL·bib 路径问题 / 4 **正文一致性校验失败**
+  # （最严重：产物不可信、勿投稿）。
+  # 三个最易静默错的参数（references §4）：--citeproc 必须显式给（pandoc ≥2.11 起 --csl/
+  # --bibliography 不再自动启用 citeproc，漏了引用会原样输出成 [@key] 而产物「看起来成功」）；
+  # 中文 PDF 必须 --pdf-engine=xelatex + CJKmainfont=<族名>（传文件名无效）；.tex 必须 --standalone。
+  # 内置 CSL 两制式（与 paper-format 支持的两种对齐）：gbt7714-2015-numeric.csl（顺序编码制）+
+  # gbt7714-2015-author-date.csl（著者-出版年制），取自 CSL 官方仓库、CC BY-SA 3.0、
+  # 许可与出处见 references/csl/LICENSE。**CSL 绝不可由模型凭记忆生成**——数百行 XML，
+  # 手写必与国标有出入，且错误会经「format 查、typeset 产」的闭环放大成「看起来合规」。
+  # 与 paper-format 的闭环：format 查国标著录是否合规、typeset 用国标 CSL 产合规著录，一查一产。
+  # paper-doctor 联动：新增 typeset 分组三项（pandoc/xelatex/中文字体），**独立分组、不进
+  # compute_overall、status 用 warn 而非 fail**（照 cache 的先例：缺了只影响转格式，
+  # verify/search 照常，判成 blocked 是误报）。
+  # 跨学科通用、不设让路（转格式各学科一样）。
+  # 已知观察项（非 blocker）：① **端到端真实转换未验证**——本机既无 pandoc 也无 xelatex，
+  # 单测全程 mock subprocess（spec §9 已定）、成功路径靠 --dry-run 打印命令人工核对；
+  # **降级路径已真跑过**（退出码 2、四件套文案、输出目录保持为空无半成品）。装上 pandoc +
+  # MacTeX 后应补一次真实端到端验证，届时可消掉本条；② 只支持 docx/tex/pdf 三格式，
+  # 其他（epub/odt）报退出码 3，pandoc 本身支持但本命令不校验；③ 中文字体探测覆盖三平台常见
+  # 字体 + fc-list，罕见字体环境会落降级路径；④ 图片相对路径以工作目录解析，需在项目根跑；
+  # ⑤ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-typeset/。

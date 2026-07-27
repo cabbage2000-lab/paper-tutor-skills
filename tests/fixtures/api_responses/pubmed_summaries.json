@@ -1,0 +1,13 @@
+{
+  "result": {
+    "uids": ["2386"],
+    "2386": {
+      "title": "Nanometre-scale thermometry in a living cell",
+      "authors": [{"name": "Kucsko G"}, {"name": "Maurer PC"}],
+      "pubdate": "2013 Aug 1",
+      "fulljournalname": "Nature",
+      "articleids": [{"idtype": "doi", "value": "10.1038/nature12373"}],
+      "pubtype": ["Journal Article"]
+    }
+  }
+}

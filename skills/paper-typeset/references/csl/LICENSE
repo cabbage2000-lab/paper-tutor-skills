@@ -1,0 +1,50 @@
+本目录内的 `.csl` 文件是第三方作品，许可与项目主体不同
+=====================================================
+
+## 文件清单与出处
+
+| 本地文件名 | 上游原始文件名 | 上游 `<updated>` |
+| --- | --- | --- |
+| `gbt7714-2015-numeric.csl` | `china-national-standard-gb-t-7714-2015-numeric.csl` | 2024-01-22T22:07:03+08:00 |
+| `gbt7714-2015-author-date.csl` | `china-national-standard-gb-t-7714-2015-author-date.csl` | 2024-01-22T23:27:33+08:00 |
+
+- **来源仓库**：Citation Style Language 官方样式库
+  <https://github.com/citation-style-language/styles>
+- **获取 URL**（raw）：
+  - <https://raw.githubusercontent.com/citation-style-language/styles/master/china-national-standard-gb-t-7714-2015-numeric.csl>
+  - <https://raw.githubusercontent.com/citation-style-language/styles/master/china-national-standard-gb-t-7714-2015-author-date.csl>
+- **获取日期**：2026-07-27
+- **样式标准依据**（上游 `<link rel="documentation">`）：GB/T 7714-2015《信息与文献 参考文献著录规则》，国家标准全文公开系统
+  <https://std.samr.gov.cn/gb/search/gbDetailed?id=71F772D8055ED3A7E05397BE0A0AB82A>
+
+**本地只做了重命名，文件内容一字未改**（重命名是为了与 `paper-format` 支持的两种著录制式名称对齐、便于 `export.py` 的 `--csl numeric|author-date` 简写解析）。
+
+## 署名（来自各文件 `<info>` 段）
+
+| 角色 | 姓名 | 邮箱 |
+| --- | --- | --- |
+| 作者 | 牛耕田 | buffalo_d@163.com |
+| 贡献者 | Zeping Lee | zepinglee@gmail.com |
+
+## 许可
+
+两个 `.csl` 文件均按其 `<rights>` 元素声明：
+
+> This work is licensed under a Creative Commons Attribution-ShareAlike 3.0 License
+
+即 **Creative Commons Attribution-ShareAlike 3.0 Unported（CC BY-SA 3.0）**
+<http://creativecommons.org/licenses/by-sa/3.0/>
+
+使用条件：**署名**（保留上表作者与来源信息）+ **相同方式共享**（若修改这两个文件并分发，衍生文件须同样以 CC BY-SA 3.0 授权）。
+
+## 与项目主体许可的关系
+
+项目主体采用 PolyForm Noncommercial 许可。CC BY-SA 3.0 的**传染性仅及于本目录内的 `.csl` 文件本身及其衍生修改**，不及于调用它们的 `scripts/export.py`、不及于项目其余部分——CSL 文件是被 pandoc 读取的**数据文件**，不与项目代码构成衍生关系。
+
+**若要修改这两个文件**：修改后的版本须以 CC BY-SA 3.0 授权，并在本文件记录改动内容。当前状态为「未修改」，仅重命名。
+
+## 为什么内置而不是让用户自己下载
+
+`paper-format` 用国标查参考文献著录是否合规，`paper-typeset` 用国标 CSL **产**合规著录——一个查一个产，构成中文引用链的闭环。若 CSL 靠用户自行下载，闭环的一半会在「用户忘了下载 / 下错了版本」时静默断掉，而产出的著录格式是错的却看不出来。内置 + 完整许可声明是权衡后的选择（spec §7.3 用户拍板）。
+
+**这两个文件绝不可由模型凭记忆生成**：CSL 是数百行 XML，手写出来的著录规则一定与国标有出入，而错误会经由「format 查、typeset 产」的闭环被放大成"看起来合规"。更新 CSL 只能重新从上游仓库获取。

@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-daily 产物「YYYY-MM-DD.html」的样式权威）
+  ====================================================================
+  宿主 agent 生成产物时：把本文件整段复制为 daily/YYYY-MM-DD.html，再把 <body> 里的
+  <尖括号占位> 替换为真实实例内容（删掉未触发的块，如完全降级时删整个 #scoop
+  段并在 header 内插 .fallback-banner）。<style> 段原样保留、勿改配色
+  （四层语义色是产品死线）。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+     参照学术期刊内页与档案馆检索卡。
+     禁营销页/仪表盘语汇：KPI 大字、发光卡片、3D 饼图、渐变仪表盘、动态滚动数字、
+     loading spinner、营销 hero 区。允许静态陈列型图表，但须服从纸面气质——
+     低饱和色、无渐变发光、无 3D 阴影、无循环动画。
+  2. 四层语义色是「摆事实非推荐」死线，四色须一眼可辨：
+     👤 用户原话=靛蓝(#2b4a6f, 最重) / 📋 常见事实=赭石(#7a6230) /
+     🪞 系统归纳=青灰(#4a6b5c) / ❓ 待用户验证=砖红(#9a3b2e)。
+     四色低饱和、从纸面浮起、不抢正文。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）
+     所有模板必备；按需层（ECharts CDN + _shared/echarts-theme.js）仅图表模板引入
+     （本模板不引入 ECharts——daily 无图表）。宿主 agent 生成产物时须原样保留外部引用、
+     不得内联替代、不得删减。断网时产物降级为无样式 HTML（内容可读、排版失效）——
+     这是可接受的折衷。
+  4. 陈列型可视化边界（图表与「不下结论」死线的共存规则）：
+     - 图表只客观投影表格/列表已有数据，不得引入派生指标（均值、排名、达标线、基准线）。
+     - 禁视觉倾斜：不用面积大小暗示优劣、不用颜色深浅暗示高低、不用动画放大某点、
+       不用 split area 分区暗示达标带。
+     - 图表配色限定：四层语义色 + 两档墨色。禁红绿灯色板延伸到图表数据。
+     - 每张图必须带说明性 caption：写明"陈列什么、不下什么结论"。
+     （本模板无图表，此条对后续可能的可视化扩展约束。）
+  5. daily 专属元素：
+     - 📋 今日概览（三段统计 + 中文缺口提示原文）
+     - 🚨 抢发检测（高/中/低三档分组、每条带概念比对徽章；完全降级时整段省略）
+     - 📰 新发泛读（arXiv 自动轨 + 用户补充轨两轨，每条 .digest-item）
+     - 🎯 下一步行动（每条 .action-card + 疑问句式；程序化陈列非 AI 拍板）
+     - ⚠️ 完全降级 banner（醒目警示色，仅 F1/F2/F10 时显示）
+     相关度徽章沿用四层色变量：🔴 高=砖红(l4) / 🟡 中=赭石(l2) / ⚪ 低=青灰(l3)。
+     徽章只陈列"X 维重叠"、不下"最该读"结论。
+     ★ 双态保留：完全降级时「删整个 #scoop 段 + header 内插 .fallback-banner +
+       overview 改写为降级版三段统计」。两种状态的 HTML 骨架均保留在模板里
+       （降级态以 HTML 注释形式给出，宿主 agent 取舍）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>YYYY-MM-DD</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 页面骨架（通用组件，保留 <style> 因伪元素/多层背景 Tailwind 难以表达） === */
+  body {
+    background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page::before {
+    content: "paper-daily · 学术日报档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 四层语义徽章族（.tag-inline.t1-t4）：bg + text + border 组合 shorthand === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === daily 专属：完全降级 banner .fallback-banner（l4 浅底 + 4px 左带，仅 F1/F2/F10 时显示） ===
+     保留命名锚点：bg-l4-bg border border-l4 border-l-4 px-5 py-4 mt-4 text-l4 font-semibold leading-[1.7]
+     子元素 .fallback-label：font-sans text-[10px] tracking-[0.2em] uppercase text-l4 font-bold */
+  .fallback-banner {
+    margin: 1rem 0 0;
+    padding: 1rem 1.4rem;
+    background: #f3e3df;
+    border: 1px solid #9a3b2e;
+    border-left-width: 4px;
+    color: #9a3b2e;
+    font-weight: 600;
+    line-height: 1.7;
+  }
+  .fallback-banner .fallback-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: #9a3b2e; margin-bottom: .35rem; font-weight: 700;
+  }
+
+  /* === daily 专属：今日概览统计 .overview-stats（grid 三段，每段 l3 左带） ===
+     保留命名锚点：<ul> list-none m-0 mb-4 p-0 grid gap-2
+     <li>：py-2 px-4 bg-white/40 border-l-[3px] border-l3 text-ink-soft text-[0.95rem] */
+  .overview-stats {
+    list-style: none; margin: 0 0 1rem; padding: 0;
+    display: grid; gap: .5rem;
+  }
+  .overview-stats li {
+    padding: .5rem .9rem;
+    background: rgba(255,255,255,.4);
+    border-left: 3px solid #4a6b5c;
+    color: #5a5247;
+    font-size: .95rem;
+  }
+  .overview-stats li b { color: #1f1b16; font-weight: 600; }
+
+  /* === daily 专属：抢发检测段容器 .scoop-alert（l4 浅底 + 4px 左带） ===
+     保留命名锚点：bg-l4-bg border border-l4 border-l-4 px-6.5 py-5.5 mb-8 */
+  .scoop-alert {
+    background: #f3e3df;
+    border: 1px solid #9a3b2e;
+    border-left-width: 4px;
+    padding: 1.4rem 1.6rem;
+    margin: 0 0 2rem;
+  }
+
+  /* === daily 专属：新发泛读条目 .digest-item（l3 默认 / .user l1 / .parse-failed l4） ===
+     保留命名锚点：border-l-[3px] bg-l3-bg px-4.5 py-3.5 mb-3 leading-[1.75]
+     变体 .user：border-l1 bg-l1-bg / .parse-failed：border-l4 bg-l4-bg */
+  .digest-item {
+    border-left: 3px solid #4a6b5c;
+    background: #e4ece8;
+    padding: .9rem 1.1rem;
+    margin-bottom: .7rem;
+    line-height: 1.75;
+  }
+  .digest-item.user {
+    border-left-color: #2b4a6f;
+    background: #e6edf4;
+  }
+  .digest-item.parse-failed {
+    border-left-color: #9a3b2e;
+    background: #f3e3df;
+  }
+  .digest-item.parse-failed .item-title { color: #9a3b2e; }
+
+  /* === daily 专属：概念比对徽章 .concept-badges / .cb（overlap l4 / no-overlap ink-faint） ===
+     保留命名锚点：<div> flex flex-wrap gap-[0.35rem] mt-[0.35rem]
+     .cb：inline-block px-1.5 py-px rounded-sm font-sans text-[10px] font-bold tracking-[0.03em] border
+     .cb.overlap：bg-l4-bg text-l4 border-l4 / .cb.no-overlap：bg-white/40 text-ink-faint border-rule */
+  .concept-badges {
+    display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .35rem;
+  }
+  .concept-badges .cb {
+    display: inline-block; padding: 1px 6px; border-radius: 2px;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .03em;
+    border: 1px solid;
+  }
+  .cb.overlap { background: #f3e3df; color: #9a3b2e; border-color: #9a3b2e; }
+  .cb.no-overlap { background: rgba(255,255,255,.4); color: #8a8071; border-color: #c9bfa8; }
+
+  /* === daily 专属：相关度徽章 .rel-badge（🔴 高 l4 / 🟡 中 l2 / ⚪ 低 l3） ===
+     保留命名锚点：inline-block px-2 py-0.5 rounded-sm font-sans text-[11px] font-bold border ml-1.5 */
+  .rel-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 3px;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 11px; font-weight: 700; letter-spacing: .04em;
+    border: 1px solid; margin-left: .4rem;
+  }
+  .rel-high   { background: #f3e3df; color: #9a3b2e; border-color: #9a3b2e; }
+  .rel-medium { background: #f0e9d8; color: #7a6230; border-color: #7a6230; }
+  .rel-low    { background: #e4ece8; color: #4a6b5c; border-color: #4a6b5c; }
+
+  /* === daily 专属：下一步行动卡 .action-card（l2 默认 / .activated l4） ===
+     保留命名锚点：bg-l2-bg border-l-[3px] border-l2 px-4.5 py-3 mb-2.5 leading-[1.7]
+     变体 .activated：bg-l4-bg border-l4 */
+  .action-card {
+    background: #f0e9d8;
+    border-left: 3px solid #7a6230;
+    padding: .8rem 1.1rem;
+    margin-bottom: .6rem;
+    line-height: 1.7;
+  }
+  .action-card.activated {
+    background: #f3e3df;
+    border-left-color: #9a3b2e;
+  }
+
+  /* === 入场动画：page 内子元素逐个 8px 上浮 + 淡入 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(7) { animation-delay: .47s; }
+    .page > *:nth-child(8) { animation-delay: .54s; }
+    .page > *:nth-child(9) { animation-delay: .61s; }
+    .page > *:nth-child(n+10) { animation-delay: .68s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body class="font-serif text-ink text-base leading-[1.85] antialiased">
+<article class="page max-w-[880px] mx-auto mt-12 mb-20 bg-paper border border-rule border-t-[6px] border-t-ink px-16 py-14 relative shadow-[0_1px_0_#ece5d6,0_30px_60px_-30px_rgba(60,45,20,0.25)]">
+
+  <header class="doc-head mb-10">
+    <div class="font-sans text-[11px] tracking-[0.28em] uppercase text-ink-faint mb-[0.6rem]">
+      Paper-Daily · 学术日报档案
+    </div>
+    <h1 class="font-serif text-[2.1rem] font-bold leading-[1.25] mt-0 mb-4 tracking-[0.01em]">
+      Paper 日报 · <YYYY-MM-DD>
+    </h1>
+    <div class="flex flex-wrap gap-x-6 gap-y-2 pt-4 border-t border-rule text-ink-soft text-[0.9rem]">
+      <span><b class="text-ink-faint font-medium mr-1.5">RQ</b><用户一句话></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">时间窗</b>今日 | 最近 N 天</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">数据源</b>✅ arXiv 自动 / ✅ 用户补充 / ⚠️ 中文库未自动检索</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">生成时间</b><YYYY-MM-DD HH:MM></span>
+    </div>
+    <!-- 完全降级时插入（替换掉 #scoop 整段 + 改写 overview-stats）：
+    <div class="fallback-banner bg-l4-bg border border-l4 border-l-4 px-5 py-4 mt-4 text-l4 font-semibold leading-[1.7]">
+      <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-l4 mb-[0.35rem] font-bold">⚠️ 自动轨不可用</div>
+      <具体原因，如「检索脚本缺失」「网络不通」「脚本异常退出」>。今日仅运行用户补充轨。
+    </div>
+    -->
+  </header>
+
+  <section class="legend my-7 px-5 py-4 bg-white/40 border border-dashed border-rule text-[0.85rem]">
+    <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-ink-faint mb-2">
+      内容标注 · Content Provenance
+    </div>
+    <ul class="m-0 p-0 list-none flex flex-wrap gap-x-6 gap-y-2">
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l1"></span>👤 用户原话</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l2"></span>📋 常见事实（非推荐）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l3"></span>🪞 系统归纳（可追溯）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l4"></span>❓ 待用户验证</li>
+    </ul>
+    <div class="mt-2 text-[0.78rem] text-ink-faint">本报告不含"AI 的新判断"层 —— 凡无法归入上述四层者即越界。高/中/低相关度徽章只陈列"X 维重叠"、不下"最该读/必读"结论；抢发命中不下"已被抢发"定性词。</div>
+  </section>
+
+  <section class="rq">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      研究问题（RQ） <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ RQ</span>
+    </h2>
+    <div class="rq-block relative pl-7 pr-7 py-6 my-4 mb-10 border-l-4 border-l1" style="background:linear-gradient(180deg,#e6edf4,transparent 90%);">
+      <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-l1 mb-[0.6rem] font-bold">
+        👤 用户当轮提供或 topic/ 交棒的原话
+      </div>
+      <p class="rq-text text-[1.32rem] leading-[1.6] font-semibold text-ink">
+        <span class="text-ink-faint">「</span><用户一句话 RQ，不改写><span class="text-ink-faint">」</span>
+      </p>
+    </div>
+  </section>
+
+  <section id="overview">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      📋 今日概览 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Overview</span>
+    </h2>
+    <ul class="overview-stats list-none m-0 mb-4 p-0 grid gap-2">
+      <li class="py-2 px-4 bg-white/40 border-l-[3px] border-l3 text-ink-soft text-[0.95rem]">
+        <b class="text-ink font-semibold">抢发对照</b>：全源检索命中 <X> 篇（🔴 高 <H> / 🟡 中 <M> / ⚪ 低 <L>）
+      </li>
+      <li class="py-2 px-4 bg-white/40 border-l-[3px] border-l3 text-ink-soft text-[0.95rem]">
+        <b class="text-ink font-semibold">新发自动轨</b>：arXiv 命中 <Y> 篇（🔴 <H'> / 🟡 <M'> / ⚪ <L'>）
+      </li>
+      <li class="py-2 px-4 bg-white/40 border-l-[3px] border-l3 text-ink-soft text-[0.95rem]">
+        <b class="text-ink font-semibold">新发补充轨</b>：用户补充 <Z> 篇
+      </li>
+      <!-- 完全降级时改写为：
+      <li><b>自动轨</b>：❌ 不可用</li>
+      <li><b>用户补充</b>：<Z> 篇</li>
+      <li><b>⚠️ 抢发检测本次无法生成</b>（依赖自动轨全源检索）→ 建议：用 /paper-doctor 排查环境后重跑</li>
+      -->
+    </ul>
+    <div class="gap-notice mt-4 px-5 py-4 bg-l2-bg border-l-[3px] border-l2 text-ink-soft text-[0.92rem] leading-[1.75]">
+      <div class="font-sans text-[10px] tracking-[0.12em] text-l2 font-bold mb-[0.35rem]">⚠️ 中文缺口提示</div>
+      英文库没检索到 ≠ 没人研究过。本次未纳入中文库自动检索，如研究涉中文语境，请用 <code>/paper-search</code> 走中文引导轨（知网/万方）补检。
+    </div>
+  </section>
+
+  <section id="scoop" class="scoop-alert">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      🚨 抢发检测 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Scoop Alert</span>
+    </h2>
+    <!-- 完全降级（F1/F2/F10）时整段省略，header 内插 .fallback-banner -->
+    <div class="scoop-standard m-0 mb-5 px-5 py-3 bg-white/50 border-l-[3px] border-ink-faint text-[0.9rem] text-ink-soft leading-[1.75]">
+      <b class="text-l4">陈列标准</b>：概念块（对象 / 干预 / 结果 / 场景 / 方法）与 RQ 至少一项重叠。<br>
+      <b class="text-l4">判断归用户与导师</b>：「是否仍可做」不归 AI——以下陈列仅为客观线索，每条标概念比对依据与重叠维数。
+    </div>
+
+    <div class="scoop-group mb-6">
+      <h3 class="font-sans text-[0.98rem] font-bold mt-0 mb-3 text-ink">🔴 概念高度重叠（<H> 篇，≥3 维重叠）</h3>
+      <div class="digest-item">
+        <span class="item-title font-semibold text-ink block mb-[0.2rem]">[标题]<a class="text-l1 underline underline-offset-2 font-medium text-[0.88rem] ml-2" href="https://doi.org/<DOI>">DOI</a></span>
+        <div class="item-meta text-ink-faint text-[0.85rem] mb-[0.35rem]">一作者 et al. (<年份>). <Venue>. <span class="source-tag inline-block px-1.5 py-px rounded-sm bg-l1 text-paper font-sans text-[9px] font-bold tracking-[0.05em] ml-1.5 align-[1px]">crossref</span></div>
+        <div class="concept-badges flex flex-wrap gap-[0.35rem] mt-[0.35rem]">
+          <span class="cb overlap inline-block px-1.5 py-px rounded-sm font-sans text-[10px] font-bold tracking-[0.03em] border bg-l4-bg text-l4 border-l4">对象 ✓</span>
+          <span class="cb overlap inline-block px-1.5 py-px rounded-sm font-sans text-[10px] font-bold tracking-[0.03em] border bg-l4-bg text-l4 border-l4">方法 ✓</span>
+          <span class="cb overlap inline-block px-1.5 py-px rounded-sm font-sans text-[10px] font-bold tracking-[0.03em] border bg-l4-bg text-l4 border-l4">场景 ✓</span>
+          <span class="cb no-overlap inline-block px-1.5 py-px rounded-sm font-sans text-[10px] font-bold tracking-[0.03em] border bg-white/40 text-ink-faint border-rule">干预 ✗</span>
+          <span class="cb no-overlap inline-block px-1.5 py-px rounded-sm font-sans text-[10px] font-bold tracking-[0.03em] border bg-white/40 text-ink-faint border-rule">结果 ✗</span>
+        </div>
+        <span class="rel-badge rel-high">高相关 · 3 维</span>
+      </div>
+    </div>
+
+    <div class="scoop-group mb-6">
+      <h3 class="font-sans text-[0.98rem] font-bold mt-0 mb-3 text-ink">🟡 部分概念重叠（<M> 篇，2 维重叠）</h3>
+      <div class="digest-item">
+        <span class="item-title font-semibold text-ink block mb-[0.2rem]">[标题]<a class="text-l1 underline underline-offset-2 font-medium text-[0.88rem] ml-2" href="https://doi.org/<DOI>">DOI</a></span>
+        <div class="item-meta text-ink-faint text-[0.85rem] mb-[0.35rem]">一作者 et al. (<年份>). <Venue>.</div>
+        <div class="concept-badges flex flex-wrap gap-[0.35rem] mt-[0.35rem]">
+          <span class="cb overlap inline-block px-1.5 py-px rounded-sm font-sans text-[10px] font-bold tracking-[0.03em] border bg-l4-bg text-l4 border-l4">方法 ✓</span>
+          <span class="cb overlap inline-block px-1.5 py-px rounded-sm font-sans text-[10px] font-bold tracking-[0.03em] border bg-l4-bg text-l4 border-l4">场景 ✓</span>
+        </div>
+        <span class="rel-badge rel-medium">中相关 · 2 维</span>
+      </div>
+    </div>
+
+    <div class="scoop-group">
+      <h3 class="font-sans text-[0.98rem] font-bold mt-0 mb-3 text-ink">⚪ 弱重叠 / 仅上下文相关（<L> 篇，≤1 维重叠）</h3>
+      <div class="digest-item">
+        <span class="item-title font-semibold text-ink block mb-[0.2rem]">[标题]<a class="text-l1 underline underline-offset-2 font-medium text-[0.88rem] ml-2" href="https://doi.org/<DOI>">DOI</a></span>
+        <div class="item-meta text-ink-faint text-[0.85rem] mb-[0.35rem]">一作者 et al. (<年份>). <Venue>.</div>
+        <div class="concept-badges flex flex-wrap gap-[0.35rem] mt-[0.35rem]">
+          <span class="cb overlap inline-block px-1.5 py-px rounded-sm font-sans text-[10px] font-bold tracking-[0.03em] border bg-l4-bg text-l4 border-l4">对象 ✓</span>
+        </div>
+        <span class="rel-badge rel-low">低相关 · 1 维</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="digest">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      📰 新发泛读 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Digest</span>
+    </h2>
+
+    <div class="scoop-group mb-6">
+      <h3 class="font-sans text-[0.98rem] font-bold mt-0 mb-3 text-ink">[arXiv 自动轨] — 今日 / 最近 N 天，<Y> 篇</h3>
+      <div class="digest-item">
+        <span class="item-title font-semibold text-ink block mb-[0.2rem]">[标题]<a class="text-l1 underline underline-offset-2 font-medium text-[0.88rem] ml-2" href="https://arxiv.org/abs/<ARXIV-ID>">arXiv</a></span>
+        <div class="item-meta text-ink-faint text-[0.85rem] mb-[0.35rem]">一作者 et al. (<YYYY-MM-DD>). arXiv:<ARXIV-ID>. <span class="source-tag inline-block px-1.5 py-px rounded-sm bg-l1 text-paper font-sans text-[9px] font-bold tracking-[0.05em] ml-1.5 align-[1px]">arxiv 自动</span></div>
+        <div class="item-abstract text-ink-soft text-[0.9rem] mb-[0.35rem]">摘要首句：<一句话></div>
+        <span class="rel-badge rel-medium">中相关 · 2 维</span>
+      </div>
+    </div>
+
+    <div class="scoop-group">
+      <h3 class="font-sans text-[0.98rem] font-bold mt-0 mb-3 text-ink">[用户补充轨] — <Z> 篇</h3>
+      <div class="digest-item user">
+        <span class="item-title font-semibold text-ink block mb-[0.2rem]">[标题]<a class="text-l1 underline underline-offset-2 font-medium text-[0.88rem] ml-2" href="<用户提供的链接或 DOI>">链接</a></span>
+        <div class="item-meta text-ink-faint text-[0.85rem] mb-[0.35rem]">一作者 et al. (<日期>). <span class="source-tag inline-block px-1.5 py-px rounded-sm bg-l1 text-paper font-sans text-[9px] font-bold tracking-[0.05em] ml-1.5 align-[1px]">用户补充</span></div>
+        <span class="rel-badge rel-low">低相关 · 1 维</span>
+      </div>
+      <!-- F5 解析失败时：
+      <div class="digest-item user parse-failed">
+        <span class="item-title">[解析失败] <用户原文片段></span>
+        <div class="item-meta">待人工核对</div>
+      </div>
+      -->
+      <!-- F6 补充为空时：
+      <div class="digest-item user"><span class="item-title">今日无补充</span></div>
+      -->
+    </div>
+  </section>
+
+  <section id="actions">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      🎯 下一步行动 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Next Actions</span>
+    </h2>
+    <div class="actions-note mb-4 px-5 py-3 bg-white/40 border-l-[3px] border-ink-faint text-[0.88rem] text-ink-soft leading-[1.7]">
+      以下是程序化陈列（基于上面的命中数量），<b class="text-ink font-semibold">不是 AI 替你拍板</b>。每条是否执行由你决定。
+    </div>
+    <div class="action-card activated">
+      <div class="action-trigger font-sans text-[10px] tracking-[0.12em] text-l4 font-bold mb-[0.3rem]">🚨 触发条件：scoop_high ≥ 1</div>
+      <div class="action-text text-ink">是否进入 <code>/paper-topic</code> 重审 RQ？</div>
+    </div>
+    <div class="action-card activated">
+      <div class="action-trigger font-sans text-[10px] tracking-[0.12em] text-l4 font-bold mb-[0.3rem]">📖 触发条件：digest_high ≥ 1</div>
+      <div class="action-text text-ink">是否进入 <code>/paper-search</code> 对该篇做深检？</div>
+    </div>
+    <div class="action-card">
+      <div class="action-trigger font-sans text-[10px] tracking-[0.12em] text-ink-faint font-bold mb-[0.3rem]">🟢 触发条件：all_low</div>
+      <div class="action-text text-ink">是否照常推进当前研究？</div>
+    </div>
+    <div class="action-card activated">
+      <div class="action-trigger font-sans text-[10px] tracking-[0.12em] text-l4 font-bold mb-[0.3rem]">📚 触发条件：chinese_gap</div>
+      <div class="action-text text-ink">是否进入 <code>/paper-search</code> 走中文引导轨补检？</div>
+    </div>
+  </section>
+
+  <footer class="mt-14 pt-5 border-t-2 border-double border-rule text-ink-soft text-[0.85rem] leading-[1.7]">
+    <div class="font-sans text-[10px] tracking-[0.22em] uppercase text-ink-faint mb-2">Paper-Daily · 学术雷达档案</div>
+    <p>本日报由 AI 解析检索脚本返回 + 用户补充、客观陈列概念比对与相关度线索；
+       「是否仍可做」「要不要追」「哪篇该精读」的判断全部由用户与导师决定。
+       留痕指针：<code>.paper/<YYYY-MM-DD>.json</code></p>
+  </footer>
+
+</article>
+</body>
+</html>

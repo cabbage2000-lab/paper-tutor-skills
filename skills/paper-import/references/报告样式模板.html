@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-import 产物「题录核对报告.html」的样式权威）
+  ====================================================================
+  宿主 agent 生成产物时：把本文件整段复制为产物，再把 <body> 里的
+  <尖括号占位> 替换为真实实例内容。<style> 段原样保留、勿改配色。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+     参照学术期刊内页与档案馆检索卡。禁营销页/仪表盘语汇。
+  2. 四层语义色是「摆事实非推荐」死线，四色须一眼可辨：
+     👤 用户题录原文=靛蓝(#2b4a6f, 最重) / 📋 从题录提取=赭石(#7a6230) /
+     🪞 系统归纳（可追溯）=青灰(#4a6b5c) / ❓ 待用户决定=砖红(#9a3b2e)。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）
+     所有模板必备；本模板不引入 ECharts——import 无图表。宿主 agent 生成产物时须
+     原样保留外部引用、不得内联替代、不得删减。断网时产物降级为无样式 HTML
+     （内容可读、排版失效）——这是可接受的折衷。
+  4. 陈列型可视化边界（图表与「不下结论」死线的共存规则）：
+     - 图表只客观投影表格/列表已有数据，不得引入派生指标（均值、排名、达标线、基准线）。
+     - 禁视觉倾斜：不用面积大小暗示优劣、不用颜色深浅暗示高低、不用动画放大某点、
+       不用 split area 分区暗示达标带。
+     - 图表配色限定：四层语义色 + 两档墨色，即 echarts-theme.js 注册的 paper 主题色板。
+       禁红绿灯色板延伸到图表数据。
+     - 每张图必须带说明性 caption：写明"陈列什么、不下什么结论"。
+     本模板不含图表，此条作为产品死线保留、约束未来可能的可视化扩展。
+  5. import 专属元素：三表陈列（草稿→题录 / 题录→草稿 / 字段差异）、
+     状态徽章族 .st（✅ 有对应/被引 · ⚠️ 无对应/差异 · 📋 未引/冗余）、
+     核对范围声明徽章 .scope-badge（顶部固定"基于字段对应、非存在性核验"）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>题录导入核对报告</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 页面骨架（通用组件，保留 <style> 因伪元素/多层背景 Tailwind 难以表达） === */
+  body {
+    background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page::before {
+    content: "paper-import · 题录核对档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === import 专属：状态徽章族（.st 三色：ok 绿 / warn 砖红 / info 赭石） === */
+  .st {
+    display: inline-block; padding: 1px 7px; border-radius: 2px;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    white-space: nowrap;
+  }
+  .st.st-ok   { background: #d8e6c6; color: #2f4a1c; border: 1px solid #a8c08e; }
+  .st.st-warn { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+  .st.st-info { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+
+  /* === import 专属：核对汇总块（.summary）锚点 === */
+  .summary p { margin: .3rem 0; }
+  .summary b { color: #4a6b5c; font-weight: 600; }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(7) { animation-delay: .47s; }
+    .page > *:nth-child(n+8) { animation-delay: .54s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body class="font-serif text-ink text-base leading-[1.85] antialiased">
+<article class="page max-w-[880px] mx-auto mt-12 mb-20 bg-paper border border-rule border-t-[6px] border-t-ink px-16 py-14 relative shadow-[0_1px_0_#ece5d6,0_30px_60px_-30px_rgba(60,45,20,0.25)]">
+
+  <header class="doc-head mb-10">
+    <div class="font-sans text-[11px] tracking-[0.28em] uppercase text-ink-faint mb-[0.6rem]">
+      Paper-Import · 题录核对报告档案
+    </div>
+    <h1 class="font-serif text-[2.1rem] font-bold leading-[1.25] mt-0 mb-4 tracking-[0.01em]">
+      题录-草稿一致性核对报告
+    </h1>
+    <div class="flex flex-wrap gap-x-6 gap-y-2 pt-4 border-t border-rule text-ink-soft text-[0.9rem]">
+      <span><b class="text-ink-faint font-medium mr-1.5">日期</b><日期></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">题录来源</b><知网 / Zotero / EndNote · 格式 · N 条></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">草稿来源</b><manuscript/正文.md · 有/无></span>
+    </div>
+    <span class="scope-badge inline-block px-3.5 py-1.5 rounded-sm font-sans text-[0.85rem] font-semibold mt-3 bg-l4-bg text-l4 border border-l4">
+      核对范围：基于题录与草稿的字段对应 · 非存在性核验（存在性归 /paper-verify）
+    </span>
+  </header>
+
+  <section class="legend my-7 px-5 py-4 bg-white/40 border border-dashed border-rule text-[0.85rem]">
+    <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-ink-faint mb-2">
+      内容标注 · Content Provenance
+    </div>
+    <ul class="m-0 p-0 list-none flex flex-wrap gap-x-6 gap-y-2">
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l1"></span>👤 用户题录原文</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l2"></span>📋 从用户题录提取</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l3"></span>🪞 系统归纳（可追溯）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l4"></span>❓ 待用户决定</li>
+    </ul>
+    <div class="mt-2 text-[0.78rem] text-ink-faint">本核对不含"AI 的新判断"层 —— 只陈列对应关系与字段差异，"无对应题录"不判编造（交 /paper-verify 核验）、字段差异不判对错。</div>
+  </section>
+
+  <section class="check-1">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      一、草稿引用 → 题录 <span class="ml-2"><span class="st st-info">每条草稿引用有无对应题录</span></span>
+    </h2>
+    <table class="check-table w-full border-collapse my-4 text-[0.92rem]">
+      <thead>
+        <tr>
+          <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">草稿引用</th>
+          <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">对应题录</th>
+          <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7] font-medium text-ink">[Smith 2023]</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">Smith J. (2023). Title... <a class="text-l1 underline underline-offset-2" href="#">[题录锚点]</a></td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]"><span class="st st-ok">✅ 有对应</span></td>
+        </tr>
+        <tr>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7] font-medium text-ink">[张三 2022]</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">—</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]"><span class="st st-warn">⚠️ 无对应题录（可能漏导，交 /paper-verify 核验）</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="check-2">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      二、题录 → 草稿引用 <span class="ml-2"><span class="st st-info">每条题录有无被引</span></span>
+    </h2>
+    <table class="check-table w-full border-collapse my-4 text-[0.92rem]">
+      <thead>
+        <tr>
+          <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">题录</th>
+          <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">被草稿引用</th>
+          <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7] font-medium text-ink">Smith J. (2023). Title...</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">[Smith 2023]</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]"><span class="st st-ok">✅ 被引</span></td>
+        </tr>
+        <tr>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7] font-medium text-ink">Lee K. (2021). Title...</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">—</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]"><span class="st st-info">📋 未引（冗余导入、可能备而未用）</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="check-3">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      三、字段级差异 <span class="ml-2"><span class="st st-info">草稿引用 vs 题录元数据</span></span>
+    </h2>
+    <table class="check-table w-full border-collapse my-4 text-[0.92rem]">
+      <thead>
+        <tr>
+          <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">草稿引用字段</th>
+          <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">题录字段</th>
+          <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">差异</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7] font-medium text-ink">作者"Smith 2023"</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">作者"Smith J., 2022"、年份 2022</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]"><span class="st st-warn">⚠️ 年份差异（草稿 2023 vs 题录 2022）</span></td>
+        </tr>
+        <tr>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7] font-medium text-ink">标题"ChatGPT and Writing"</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]">标题"ChatGPT and Academic Writing"</td>
+          <td class="border border-rule px-3 py-2.5 text-left align-top leading-[1.7]"><span class="st st-warn">⚠️ 标题略异</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="summary-block">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      四、核对汇总 <span class="ml-2"><span class="st st-info">🪞 系统归纳</span></span>
+    </h2>
+    <div class="summary bg-l3-bg border-l-[3px] border-l3 px-5 py-4 my-4 text-ink-soft text-[0.94rem] leading-[1.75]">
+      <p><b>草稿引用</b> N 条：有对应题录 X 条、无对应 Y 条</p>
+      <p><b>题录</b> M 条：被引 X' 条、未引 Y' 条</p>
+      <p><b>字段差异</b> Z 处</p>
+      <p>题录与草稿引用字段均 <span class="inline-block px-2 py-0.5 rounded-sm bg-l1-bg text-l1 text-[0.78rem] font-sans align-middle">👤 用户原话</span> 原样陈列、不改写不凭记忆补。</p>
+      <p class="text-[0.88rem] text-ink-faint">↑ "无对应题录"不直接判编造（可能漏导、交 /paper-verify 核验）；"字段差异"只陈列不判对错；"未引题录"是冗余导入、用户决定去留。</p>
+    </div>
+  </section>
+
+  <footer class="mt-14 pt-5 border-t-2 border-double border-rule text-ink-soft text-[0.85rem] leading-[1.7]">
+    <p>本核对由 AI 陈列题录与草稿的字段对应关系；题录整理如实（只整理用户导入的真实题录、不凭记忆补）、
+       一致性核对客观陈列（不判对错）。"无对应题录"的引用是否编造、字段差异如何取舍、冗余题录去留——
+       全部由用户决定（存在性核验归 /paper-verify）。</p>
+  </footer>
+
+</article>
+</body>
+</html>

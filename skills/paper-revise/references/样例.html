@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-revise 产物「修订与回复-<时间戳>.html」的样式权威）
+  ====================================================================
+  本文件是「样例 HTML」——用真实感模拟数据填充模板全部占位，
+  供人工视觉验收排版、配色、四层色、打印预览。
+  宿主 agent 生成真实产物时以「报告样式模板.html」为权威，本文件仅供对照。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸 + 墨色正文 + 衬线宋体 + 无衬线黑体标题。
+  2. 四层语义色是「摆事实非推荐、基于事实不编」死线：
+     👤 用户输入原话=靛蓝 / 📋 常见归类=赭石 / 🪞 AI 重组生成=青灰 / ❓ 待用户决定=砖红。
+  3. CDN 依赖：基础层（Tailwind CDN + typography + _shared/tailwind.config.js）。本模板不引入 ECharts。
+  4. 陈列型可视化边界（图表与「不下结论」死线的共存规则）：
+     - 图表只客观投影表格/列表已有数据，不得引入派生指标（均值、排名、达标线、基准线）。
+     - 禁视觉倾斜：不用面积大小暗示优劣、不用颜色深浅暗示高低、不用动画放大某点、
+       不用 split area 分区暗示达标带。
+     - 图表配色限定：四层语义色 + 两档墨色，即 echarts-theme.js 注册的 paper 主题色板。
+       禁红绿灯色板延伸到图表数据。
+     - 每张图必须带说明性 caption：写明"陈列什么、不下什么结论"。
+     本模板不含图表，此条作为产品死线保留、约束未来可能的可视化扩展。
+  5. revise 专属：.revise-table 5 列 + .row-flag + .reviewer-group + .response-item + .source-badge + .gen-badge。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>修订与回复报告 · 样例</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 页面骨架 === */
+  body {
+    background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page::before {
+    content: "paper-revise · 修订与回复档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 四层语义徽章族 === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === revise 专属：.revise-table + .row-flag + .flag-mark === */
+  .revise-table {
+    width: 100%; border-collapse: collapse; margin: 1rem 0;
+    font-size: .9rem; table-layout: fixed;
+  }
+  .revise-table th, .revise-table td {
+    border: 1px solid #c9bfa8; padding: .65rem .75rem; text-align: left;
+    vertical-align: top; line-height: 1.7; word-wrap: break-word;
+  }
+  .revise-table th {
+    background: #5a5247; color: #f6f2ea; font-weight: 700;
+    font-family: "PingFang SC", sans-serif; font-size: .85rem;
+    letter-spacing: .02em;
+  }
+  .revise-table th.col-num { width: 2.2rem; text-align: center; }
+  .revise-table th.col-q   { width: 22%; }
+  .revise-table th.col-cat { width: 7rem; }
+  .revise-table th.col-dir { width: 28%; }
+  .revise-table th.col-resp { width: auto; }
+  .revise-table td.col-num {
+    text-align: center; font-family: Georgia, serif; font-weight: 700;
+    color: #8a8071; font-size: .95rem;
+  }
+  .revise-table td.col-q   { background: #e6edf4; color: #2b4a6f; }
+  .revise-table td.col-cat { background: #f0e9d8; color: #7a6230;
+    font-family: "PingFang SC", sans-serif; font-size: .85rem; font-weight: 600; }
+  .revise-table td.col-dir { background: #e4ece8; color: #4a6b5c; }
+  .revise-table td.col-resp { background: #f3e3df; color: #9a3b2e; font-size: .88rem; }
+  .revise-table td a { color: #2b4a6f; text-decoration: underline; text-underline-offset: 2px; }
+  .revise-table tr.row-flag td {
+    border-color: #9a3b2e; border-width: 2px;
+    background-image: linear-gradient(rgba(154,59,46,.06), rgba(154,59,46,.06));
+  }
+  .revise-table tr.row-flag .flag-mark {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-left: .3rem;
+    background: #9a3b2e; color: #f6f2ea;
+  }
+
+  /* === revise 专属：.reviewer-group + .response-item === */
+  .reviewer-group {
+    border-left: 3px solid #4a6b5c;
+    padding-left: 1.2rem;
+    margin-bottom: 1.8rem;
+  }
+  .reviewer-group h3 {
+    margin: 0 0 0.8rem 0;
+    font-family: "PingFang SC", sans-serif;
+    font-size: 1rem; font-weight: 700; color: #4a6b5c;
+    display: flex; align-items: baseline; gap: .5rem;
+  }
+  .reviewer-group .role-stamp {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+    color: #8a8071; font-weight: 600;
+  }
+  .response-item { margin-bottom: 1.2rem; }
+  .item-quote {
+    border-left: 3px solid #2b4a6f;
+    padding: .4rem .8rem; margin-bottom: .4rem;
+    background: #e6edf4; color: #2b4a6f;
+    font-size: .9rem; line-height: 1.7;
+  }
+  .item-quote .q-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .12em; font-weight: 700;
+    margin-right: .35rem; opacity: .8;
+  }
+  .item-resp {
+    padding: .5rem .8rem; margin-bottom: .3rem;
+    background: #e4ece8; color: #1f1b16;
+    font-size: .92rem; line-height: 1.75;
+    border-radius: 0 3px 3px 0;
+  }
+  .item-resp .resp-label {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .35rem;
+    background: #4a6b5c; color: #f6f2ea;
+  }
+  .item-resp .pending {
+    display: inline-block; font-family: "PingFang SC", sans-serif;
+    font-size: .8rem; color: #9a3b2e; font-style: italic;
+    margin-left: .35rem;
+  }
+  .item-flag {
+    display: inline-block; padding: .2rem .55rem; margin-top: .2rem;
+    background: #9a3b2e; color: #f6f2ea;
+    font-family: "PingFang SC", sans-serif;
+    font-size: .78rem; font-weight: 600; border-radius: 2px;
+  }
+  .decision-note {
+    background: #f3e3df; border-left: 3px solid #9a3b2e;
+    padding: 1rem 1.2rem; margin: 1rem 0;
+    font-size: .88rem; color: #5a5247;
+  }
+  .decision-note .dn-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: #9a3b2e; margin-bottom: .4rem; font-weight: 700;
+  }
+
+  /* === revise 专属：.source-badge + .gen-badge === */
+  .source-badge {
+    display: inline-block; padding: 0.5rem 1rem; border-radius: 3px;
+    font-size: 0.85rem; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600; margin-top: .8rem;
+    background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e;
+    line-height: 1.5;
+  }
+  .source-badge.mock { background: #e4ece8; color: #4a6b5c; border-color: #4a6b5c; }
+  .gen-badge {
+    display: inline-block; padding: 0.5rem 1rem; border-radius: 3px;
+    font-size: 0.85rem; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600; margin-top: .8rem; margin-left: .5rem;
+    background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f;
+    line-height: 1.5;
+  }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(n+7) { animation-delay: .47s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body class="font-serif text-ink text-base leading-[1.85] antialiased">
+<article class="page max-w-[920px] mx-auto mt-12 mb-20 bg-paper border border-rule border-t-[6px] border-t-ink px-16 py-14 relative shadow-[0_1px_0_#ece5d6,0_30px_60px_-30px_rgba(60,45,20,0.25)]">
+
+  <header class="doc-head mb-10">
+    <div class="font-sans text-[11px] tracking-[0.28em] uppercase text-ink-faint mb-[0.6rem]">
+      Paper-Revise · 修订与回复档案
+    </div>
+    <h1 class="font-serif text-[2.1rem] font-bold leading-[1.25] mt-0 mb-4 tracking-[0.01em]">
+      修订与回复 <em class="italic font-medium text-ink-soft" style="font-family:Georgia,'Songti SC',serif">Revision & Response</em>
+    </h1>
+    <div class="flex flex-wrap gap-x-6 gap-y-2 pt-4 border-t border-rule text-ink-soft text-[0.9rem]">
+      <span><b class="text-ink-faint font-medium mr-1.5">日期</b>2026-07-26</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">稿件来源</b>真实审稿意见（期刊一审返修）</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">意见源</b>用户粘贴主编与 Reviewer 1/2 意见</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">学科梯队</b>实证社科（青少年发展心理学）</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">条目数</b>共 5 条 · Reviewer 2 位</span>
+    </div>
+    <!-- 来源徽章：二选一（真实交付 / 模拟练习） -->
+    <div class="source-badge">📫 真实交付档案 · 本档案对应真实审稿意见 · 回复信定稿后可作投稿 / 答辩交付</div>
+    <!-- 成句生成声明徽章 -->
+    <div class="gen-badge">✍️ AI 起草 · 采纳与定稿由用户逐条决定 · 基于已有研究事实、不含编造内容</div>
+  </header>
+
+  <section class="legend my-7 px-5 py-4 bg-white/40 border border-dashed border-rule text-[0.85rem]">
+    <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-ink-faint mb-2">
+      内容标注 · Content Provenance
+    </div>
+    <ul class="m-0 p-0 list-none flex flex-wrap gap-x-6 gap-y-2">
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l1"></span>👤 用户输入原话（审稿意见）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l2"></span>📋 常见归类（非定论）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l3"></span>🪞 AI 重组生成（可追溯回正文事实）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l4"></span>❓ 待用户决定 / ⚠️ 需补充</li>
+    </ul>
+    <div class="mt-2 text-[0.78rem] text-ink-faint">本档案不含"AI 的新判断"层 —— 回复措辞基于用户已有研究事实、不编新结果/未读文献/夸大表述；采纳/拒绝/改写由用户逐条决定、AI 不替用户定。</div>
+  </section>
+
+  <section class="revise-map">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      一、修订建议对照表 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Revision Map · 🪞 修订方向陈列（非"必须这样改"）</span>
+    </h2>
+    <table class="revise-table">
+      <thead>
+        <tr>
+          <th class="col-num">#</th>
+          <th class="col-q">👤 审稿意见</th>
+          <th class="col-cat">📋 归类</th>
+          <th class="col-dir">🪞 修订方向（配正文锚点）</th>
+          <th class="col-resp">❓ 候选回复（80-150 字草稿）</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-num">1</td>
+          <td class="col-q text-l1 bg-l1-bg">"方法节样本量描述不足，未交代 G*power 预估依据"</td>
+          <td class="col-cat">方法</td>
+          <td class="col-dir">方法 §3.2 补样本量计算依据：效应量 f=0.25、α=0.05、power=0.80 → N=336 · <a href="../manuscript/正文.md#方法-3-2">方法 §3.2</a></td>
+          <td class="col-resp">"感谢指出。我们已在方法 §3.2 补充 G*power 估算依据：基于前期试点效应量 f=0.25、α=0.05、power=0.80，最小样本量 N=336，实际招募 412 人保留 10% 流失冗余。" <span class="pending">❓ 待用户确认/改写</span></td>
+        </tr>
+        <tr>
+          <td class="col-num">2</td>
+          <td class="col-q">"HLM 模型未讨论 Level-2 样本量（班级数）是否满足 30/50 规则"</td>
+          <td class="col-cat">方法</td>
+          <td class="col-dir">方法 §3.3 增补 Level-2 样本量充分性讨论（42 个班级、参数估计稳定性） · <a href="../manuscript/正文.md#方法-3-3">方法 §3.3</a></td>
+          <td class="col-resp">"已在 §3.3 增补讨论：本研究 Level-2 包含 42 个班级，超过 HLM 收敛经验下限 30；参照 Maas & Hox (2005) 模拟，Level-2 ≥ 30 时 Level-2 标准误估计偏倚 &lt;10%。" <span class="pending">❓ 待用户确认/改写</span></td>
+        </tr>
+        <tr class="row-flag">
+          <td class="col-num">3</td>
+          <td class="col-q">"建议补一组无干预对照班级以排除霍桑效应"</td>
+          <td class="col-cat">方法</td>
+          <td class="col-dir">方法 §3.1 / 局限 §5.3 标 ⚠️ 涉及补实验——现有设计未含无干预对照组、无法在返修期内补做</td>
+          <td class="col-resp">"感谢建议。原设计采用等待组（waitlist）作为对照，但确未设置完全无干预组。我们已在局限 §5.3 补充说明这一限制，并指向未来研究的 RCT 设计；现有数据无法补做新对照组。" <span class="flag-mark">⚠️ 需用户补充</span></td>
+        </tr>
+        <tr>
+          <td class="col-num">4</td>
+          <td class="col-q">"图 2 的交互项 p=0.04 太接近 0.05，应报告效应量与 95% CI"</td>
+          <td class="col-cat">结果</td>
+          <td class="col-dir">结果 §4.2 补报告 β=0.18、95% CI [0.02, 0.34]、简单斜率分析图 · <a href="../manuscript/正文.md#结果-4-2">结果 §4.2</a></td>
+          <td class="col-resp">"感谢提醒。已在 §4.2 补充交互项效应量 β=0.18、95% CI [0.02, 0.34]，并新增简单斜率分析；在低家庭沟通组，屏幕时间与内化症状关联更强（simple slope=0.31）。" <span class="pending">❓ 待用户确认/改写</span></td>
+        </tr>
+        <tr>
+          <td class="col-num">5</td>
+          <td class="col-q">"讨论节对结果过度解读，'因果'一词出现 6 次，建议改'关联'"</td>
+          <td class="col-cat">写作</td>
+          <td class="col-dir">讨论 §5.1-5.2 通改：'因果'→'关联'、补研究设计局限说明（横断面因果推断限度） · <a href="../manuscript/正文.md#讨论-5-1">讨论 §5.1</a></td>
+          <td class="col-resp">"感谢严谨指正。已将讨论中 6 处'因果'统一改为'关联'，并在 §5.1 开头补一句：'本研究为 3 波纵向设计、可作时间先后推断但仍非实验因果证据'。" <span class="pending">❓ 待用户确认/改写</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="response-letter-section">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      二、逐点回复信 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Response Letter · 🪞 AI 起草（每条 ❓ 待用户改写）</span>
+    </h2>
+    <div class="response-letter my-4">
+
+      <article class="reviewer-group">
+        <h3>Reviewer A <span class="role-stamp">👤 用户粘贴意见</span></h3>
+
+        <div class="response-item">
+          <div class="item-quote">
+            <span class="q-label">👤 意见 A.1</span>"方法节样本量描述不足，未交代 G*power 预估依据"
+          </div>
+          <div class="item-resp">
+            <span class="resp-label">🪞 候选回复</span>
+            感谢指出。我们已在方法 §3.2 补充样本量估算依据：基于前期试点研究得到的效应量 f=0.25、显著性水平 α=0.05、统计功效 power=0.80，使用 G*power 3.1 计算最小样本量 N=336。考虑到被试流失，实际招募 412 名学生（保留约 10% 冗余），最终有效被试 387 人，满足估算要求。 <span class="pending">❓ 待用户确认/改写</span>
+          </div>
+        </div>
+
+        <div class="response-item">
+          <div class="item-quote">
+            <span class="q-label">👤 意见 A.2</span>"HLM 模型未讨论 Level-2 样本量是否满足 30/50 规则"
+          </div>
+          <div class="item-resp">
+            <span class="resp-label">🪞 候选回复</span>
+            已在方法 §3.3 增补 Level-2 样本量充分性讨论。本研究 Level-2 包含 42 个班级，超过多层模型收敛的经验下限 30；参照 Maas & Hox (2005) 的模拟研究，Level-2 单位数 ≥ 30 时，第二层标准误估计的相对偏倚小于 10%，可认为参数估计稳定。 <span class="pending">❓ 待用户确认/改写</span>
+          </div>
+        </div>
+
+        <div class="response-item">
+          <div class="item-quote">
+            <span class="q-label">👤 意见 A.3</span>"建议补一组无干预对照班级以排除霍桑效应"
+          </div>
+          <div class="item-resp">
+            <span class="resp-label">🪞 候选回复</span>
+            感谢这一建设性建议。原设计采用等待组（waitlist control）作为对照，但确实未设置完全无干预组。鉴于返修期内无法补做新的对照组，我们已在局限 §5.3 补充说明这一限制，并指向未来研究的随机对照设计；现有数据无法补做新对照组，霍桑效应的部分排除依赖等待组的纵向比较。 <span class="pending">❓ 待用户确认/改写</span>
+          </div>
+          <div class="item-flag">⚠️ 需用户补充：涉及未做的实验/数据，AI 不代写</div>
+        </div>
+      </article>
+
+      <article class="reviewer-group">
+        <h3>Reviewer B <span class="role-stamp">👤 用户粘贴意见</span></h3>
+
+        <div class="response-item">
+          <div class="item-quote">
+            <span class="q-label">👤 意见 B.1</span>"图 2 的交互项 p=0.04 太接近 0.05，应报告效应量与 95% CI"
+          </div>
+          <div class="item-resp">
+            <span class="resp-label">🪞 候选回复</span>
+            感谢提醒。已在结果 §4.2 补充交互项的效应量与置信区间：β=0.18、95% CI [0.02, 0.34]。新增简单斜率分析表明，在低家庭沟通组中，屏幕时间与内化症状的关联更强（simple slope=0.31, p&lt;.01），而在高家庭沟通组中关联减弱（simple slope=0.09, p=.21），支持调节假设。 <span class="pending">❓ 待用户确认/改写</span>
+          </div>
+        </div>
+
+        <div class="response-item">
+          <div class="item-quote">
+            <span class="q-label">👤 意见 B.2</span>"讨论节对结果过度解读，'因果'一词出现 6 次，建议改'关联'"
+          </div>
+          <div class="item-resp">
+            <span class="resp-label">🪞 候选回复</span>
+            感谢严谨指正。已将讨论节中 6 处"因果"统一修改为"关联"，并在 §5.1 开头补充一句研究设计局限说明："本研究采用 3 波纵向设计，虽可作时间先后推断，但仍非实验因果证据，相关结论应作关联性解读"。这一改动使表述与设计强度一致。 <span class="pending">❓ 待用户确认/改写</span>
+          </div>
+        </div>
+      </article>
+
+      <div class="decision-note">
+        <div class="dn-label">❓ 待用户逐条决定</div>
+        采纳 / 拒绝 / 改写由用户逐条决定，AI 不替用户定；需要写新段落时回 <code>/paper-draft</code>；修订后建议 <code>/paper-logic</code> 复查论证链、<code>/paper-verify</code> 复查引用。
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="mt-14 pt-5 border-t-2 border-double border-rule text-ink-soft text-[0.85rem] leading-[1.7]">
+    <p>本对照表 + 回复信由 AI 基于用户已有研究事实起草（<strong>成句生成级</strong>）；采纳与定稿由用户逐条决定、AI 不替用户定。回复信不含编造的新结果或未读文献。整段新正文共写归 <code>/paper-draft</code>、引用存在性复查归 <code>/paper-verify</code>、论证链复查归 <code>/paper-logic</code>。</p>
+  </footer>
+
+</article>
+</body>
+</html>

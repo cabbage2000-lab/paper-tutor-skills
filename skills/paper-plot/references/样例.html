@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<!--
+  paper-plot 样例——matplotlib 柱状图代码生成实例（占位符版本）
+  ====================================================================
+  样式复制自 paper-figure/references/报告样式模板.html（共用 figure 样式、
+  避免重复维护），body 替换为 plot 子命令产物结构。
+
+  诚信线：本样例全部使用 PAPER_PLACEHOLDER 占位符，
+  绝不编造看似真实的研究数据。
+
+  纯静态、离线可打开、不引入任何外部资源或网络请求。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>paper-plot · 绘图代码生成实例</title>
+<style>
+  /* === 基础重置（纯内联样式，无外部依赖） === */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong",
+                 "PingFang SC", "Microsoft YaHei", Georgia, serif;
+    color: #1f1b16; line-height: 1.85; background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px; background-position: -1px -1px;
+  }
+  a { color: #2b4a6f; text-decoration: underline; text-underline-offset: 2px; }
+  b, strong { color: #1f1b16; }
+
+  /* === 页面骨架 === */
+  .page {
+    max-width: 880px; margin: 3rem auto 5rem;
+    background: #f6f2ea; border: 1px solid #c9bfa8; border-top: 6px solid #1f1b16;
+    padding: 3.5rem 4rem; position: relative;
+    box-shadow: 0 1px 0 #ece5d6, 0 30px 60px -30px rgba(60,45,20,0.25);
+  }
+  .page::before {
+    content: "paper-plot \00b7 绘图代码档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 排版辅助 === */
+  .font-sans { font-family: "PingFang SC", "Source Han Sans SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif; }
+  .font-serif { font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", "PingFang SC", "Microsoft YaHei", Georgia, serif; }
+  .section { border-bottom: 1px solid #c9bfa8; padding-bottom: .5rem; }
+  .sec-no { font-family: Georgia, "Songti SC", serif; font-style: italic; font-weight: normal; font-size: .85rem; color: #8a8071; letter-spacing: normal; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; padding-top: 1rem; border-top: 1px solid #c9bfa8; font-size: .9rem; color: #5a5247; }
+  .meta-row b { color: #8a8071; font-weight: 500; margin-right: .4rem; }
+
+  /* === 四层语义色 token === */
+  .bg-l1 { background: #2b4a6f; } .bg-l1-bg { background: #e6edf4; } .border-l1 { border-color: #2b4a6f; } .text-l1 { color: #2b4a6f; }
+  .bg-l2 { background: #7a6230; } .bg-l2-bg { background: #f0e9d8; } .border-l2 { border-color: #7a6230; } .text-l2 { color: #7a6230; }
+  .bg-l3 { background: #4a6b5c; } .bg-l3-bg { background: #e4ece8; } .border-l3 { border-color: #4a6b5c; } .text-l3 { color: #4a6b5c; }
+  .bg-l4 { background: #9a3b2e; } .bg-l4-bg { background: #f3e3df; } .border-l4 { border-color: #9a3b2e; } .text-l4 { color: #9a3b2e; }
+  .text-ink { color: #1f1b16; } .text-ink-soft { color: #5a5247; } .text-ink-faint { color: #8a8071; }
+
+  /* === 四层语义徽章族（.tag-inline.t1-t4） === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === 代码块 === */
+  .code-block {
+    background: #f0ebe1; border: 1px solid #c9bfa8; border-left: 4px solid #4a6b5c;
+    padding: 1.2rem 1.4rem; margin: 1rem 0;
+    font-family: "Menlo", "Consolas", "Monaco", "Courier New", monospace;
+    font-size: .84rem; line-height: 1.7; white-space: pre; overflow-x: auto;
+    color: #3a362f;
+  }
+  .code-block .comment { color: #8a8071; }
+  .code-block .keyword { color: #7a6230; font-weight: 600; }
+  .code-block .string { color: #4a6b5c; }
+  .code-block .placeholder { color: #9a3b2e; font-weight: 600; }
+
+  /* === 色板声明表 === */
+  .palette-table {
+    width: 100%; border-collapse: collapse; font-size: .88rem; margin: .8rem 0;
+  }
+  .palette-table th, .palette-table td {
+    border: 1px solid #c9bfa8; padding: .55rem .8rem; text-align: left; vertical-align: middle;
+  }
+  .palette-table th {
+    font-family: "PingFang SC", sans-serif; font-weight: 700; font-size: .82rem;
+    background: #f0e9d8; color: #1f1b16; letter-spacing: .04em;
+  }
+  .swatch {
+    display: inline-block; width: 18px; height: 18px; border-radius: 2px;
+    border: 1px solid #c9bfa8; vertical-align: middle; margin-right: .5rem;
+  }
+
+  /* === 数据来源声明块 === */
+  .source-decl {
+    background: #e4ece8; border-left: 3px solid #4a6b5c;
+    padding: .8rem 1.2rem; margin: .8rem 0;
+    font-size: .94rem; color: #4a6b5c; font-weight: 600; line-height: 1.7;
+  }
+  .source-decl-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: #4a6b5c; font-weight: 700; margin-bottom: .4rem;
+  }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1)  { animation-delay: .05s; }
+    .page > *:nth-child(2)  { animation-delay: .10s; }
+    .page > *:nth-child(3)  { animation-delay: .15s; }
+    .page > *:nth-child(4)  { animation-delay: .20s; }
+    .page > *:nth-child(5)  { animation-delay: .25s; }
+    .page > *:nth-child(6)  { animation-delay: .30s; }
+    .page > *:nth-child(n+7) { animation-delay: .35s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<article class="page">
+
+  <!-- ====== 页头 ====== -->
+  <header class="doc-head" style="margin-bottom:2.5rem">
+    <div class="font-sans" style="font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#8a8071;margin-bottom:.6rem">
+      Paper-Plot \00b7 绘图代码档案
+    </div>
+    <h1 class="font-serif" style="font-size:2.1rem;font-weight:bold;line-height:1.25;margin:0 0 1rem;letter-spacing:.01em">
+      matplotlib 柱状图代码生成实例 <em style="font-style:italic;font-weight:500;color:#5a5247;font-family:Georgia,'Songti SC',serif">Bar Chart &middot; Placeholder Version</em>
+    </h1>
+    <div class="meta-row">
+      <span><b>图类</b>柱状图（bar）</span>
+      <span><b>工具库</b>matplotlib</span>
+      <span><b>配色</b>Okabe-Ito 色盲友好色板</span>
+      <span><b>数据</b>占位符（PAPER_PLACEHOLDER）</span>
+    </div>
+  </header>
+
+  <!-- ====== 数据来源声明 ====== -->
+  <section>
+    <h2 class="section font-sans" style="font-size:1.05rem;font-weight:bold;letter-spacing:.04em;margin:2.75rem 0 1.25rem;display:flex;align-items:baseline;justify-content:space-between">
+      数据来源声明 <span class="sec-no">§ Data Provenance</span>
+    </h2>
+    <div class="source-decl">
+      <div class="source-decl-label">⚠ 占位数据</div>
+      占位数据、需替换为真实数据。绝不编造看似真实的研究数据。
+    </div>
+  </section>
+
+  <!-- ====== 配色声明 ====== -->
+  <section>
+    <h2 class="section font-sans" style="font-size:1.05rem;font-weight:bold;letter-spacing:.04em;margin:2.75rem 0 1.25rem;display:flex;align-items:baseline;justify-content:space-between">
+      配色方案 <span class="sec-no">§ Color Palette</span>
+    </h2>
+    <p style="color:#5a5247;font-size:.94rem;margin-bottom:.6rem"><span class="t2 tag-inline">\u{1f4cb}</span>色板取自公开色盲友好色板、非 AI 原创。</p>
+    <table class="palette-table">
+      <thead>
+        <tr><th>色板</th><th>色序</th><th>hex</th><th>色块</th></tr>
+      </thead>
+      <tbody>
+        <tr><td rowspan="8" style="font-weight:600;white-space:nowrap">Okabe-Ito<br><span style="font-size:.75rem;color:#8a8071">Okabe &amp; Ito 2008</span></td>
+            <td>1</td><td><code>#E69F00</code></td><td><span class="swatch" style="background:#E69F00"></span></td></tr>
+        <tr><td>2</td><td><code>#56B4E9</code></td><td><span class="swatch" style="background:#56B4E9"></span></td></tr>
+        <tr><td>3</td><td><code>#009E73</code></td><td><span class="swatch" style="background:#009E73"></span></td></tr>
+        <tr><td>4</td><td><code>#F0E442</code></td><td><span class="swatch" style="background:#F0E442"></span></td></tr>
+        <tr><td>5</td><td><code>#0072B2</code></td><td><span class="swatch" style="background:#0072B2"></span></td></tr>
+        <tr><td>6</td><td><code>#D55E00</code></td><td><span class="swatch" style="background:#D55E00"></span></td></tr>
+        <tr><td>7</td><td><code>#CC79A7</code></td><td><span class="swatch" style="background:#CC79A7"></span></td></tr>
+        <tr><td>8</td><td><code>#000000</code></td><td><span class="swatch" style="background:#000000"></span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ====== 代码块 ====== -->
+  <section>
+    <h2 class="section font-sans" style="font-size:1.05rem;font-weight:bold;letter-spacing:.04em;margin:2.75rem 0 1.25rem;display:flex;align-items:baseline;justify-content:space-between">
+      绘图代码 <span class="sec-no">§ Plot Code</span>
+    </h2>
+    <div class="code-block"><span class="comment"># 占位数据、需替换为真实数据。绝不编造看似真实的研究数据。</span>
+<span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt
+<span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">import</span> pandas <span class="keyword">as</span> pd
+
+<span class="placeholder"># PAPER_PLACEHOLDER: 替换为您的数据文件路径</span>
+df = pd.read_csv(<span class="string">"your_data.csv"</span>)
+
+<span class="placeholder"># PAPER_PLACEHOLDER: 替换为您的分组列名</span>
+groups = df[<span class="string">"group_column"</span>]
+<span class="placeholder"># PAPER_PLACEHOLDER: 替换为您的数值列名</span>
+values = df[<span class="string">"value_column"</span>]
+
+<span class="comment"># 取自 Okabe-Ito 色盲友好色板（Okabe &amp; Ito 2008）</span>
+<span class="comment"># #E69F00 橙 / #56B4E9 天蓝 / #009E73 青绿 / #F0E442 黄</span>
+<span class="comment"># #0072B2 蓝 / #D55E00 朱红 / #CC79A7 粉 / #000000 墨</span>
+colors = [<span class="string">"#E69F00"</span>, <span class="string">"#56B4E9"</span>, <span class="string">"#009E73"</span>, <span class="string">"#F0E442"</span>,
+         <span class="string">"#0072B2"</span>, <span class="string">"#D55E00"</span>, <span class="string">"#CC79A7"</span>, <span class="string">"#000000"</span>]
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.bar(groups, values, color=colors[:len(groups)], edgecolor=<span class="string">"white"</span>, linewidth=0.5)
+
+<span class="placeholder"># PAPER_PLACEHOLDER: 替换为您的图表标题</span>
+ax.set_title(<span class="string">"Group Comparison"</span>)
+<span class="placeholder"># PAPER_PLACEHOLDER: 替换为您的 X 轴标签</span>
+ax.set_xlabel(<span class="string">"Group"</span>)
+<span class="placeholder"># PAPER_PLACEHOLDER: 替换为您的 Y 轴标签</span>
+ax.set_ylabel(<span class="string">"Value"</span>)
+plt.tight_layout()
+plt.savefig(<span class="string">"bar_plot.pdf"</span>, dpi=300, bbox_inches=<span class="string">"tight"</span>)</div>
+    <p style="color:#8a8071;font-size:.82rem;margin-top:.5rem">代码中所有 <code style="background:#f0e9d8;padding:0 .3rem;border-radius:2px;color:#9a3b2e"># PAPER_PLACEHOLDER</code> 标记处需用户自行替换为真实数据与参数。</p>
+  </section>
+
+  <!-- ====== 页脚 ====== -->
+  <footer style="margin-top:3.5rem;padding-top:1.25rem;border-top:3px double #c9bfa8;font-size:.85rem;color:#5a5247;line-height:1.7">
+    <div class="font-sans" style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#8a8071;margin-bottom:.5rem">Human–AI Division of Labor</div>
+    <p>本代码由 paper-plot 生成；代码结构、配色取自公开模板与色板（P0 图类代码模板 + Okabe-Ito 色盲友好色板），非 AI 原创。数据来源、图类选择、工具库选择、配色取舍由用户决定。</p>
+  </footer>
+
+</article>
+</body>
+</html>

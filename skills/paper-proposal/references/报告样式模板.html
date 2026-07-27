@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-proposal 产物「开题报告草案.html」的样式权威）
+  ====================================================================
+  宿主 agent 生成产物时：把本文件整段复制为产物，再把 <body> 里的
+  <尖括号占位> 替换为真实实例内容（缺上游产物的节标 ⚠️ 占位、不删整段；
+  待用户补充的节保留 .need-fill 占位请用户填）。<style> 段原样保留、勿改配色。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+     参照学术期刊内页与档案馆检索卡，禁营销页/仪表盘语汇。
+  2. 四层语义色是「摆事实非推荐」死线，四色须一眼可辨：
+     👤 用户原话=靛蓝(#2b4a6f, 最重) / 📋 常见制度节点=赭石(#7a6230) /
+     🪞 从上游提取（可追溯）=青灰(#4a6b5c) / ❓ 待用户补充=砖红(#9a3b2e)。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）
+     所有模板必备；本模板不引入 ECharts——proposal 无图表。宿主 agent 生成产物时须
+     原样保留外部引用、不得内联替代、不得删减。断网时产物降级为无样式 HTML
+     （内容可读、排版失效）——这是可接受的折衷。
+  4. 陈列型可视化边界（图表与「不下结论」死线的共存规则）：
+     - 图表只客观投影表格/列表已有数据，不得引入派生指标（均值、排名、达标线、基准线）。
+     - 禁视觉倾斜：不用面积大小暗示优劣、不用颜色深浅暗示高低、不用动画放大某点、
+       不用 split area 分区暗示达标带。
+     - 图表配色限定：四层语义色 + 两档墨色，即 echarts-theme.js 注册的 paper 主题色板。
+       禁红绿灯色板延伸到图表数据。
+     - 每张图必须带说明性 caption：写明"陈列什么、不下什么结论"。
+     本模板不含图表，此条作为产品死线保留、约束未来可能的可视化扩展。
+  5. proposal 专属元素：制度节点区块（.node + .need-fill / .missing-source 变体）、
+     工作计划表（.workplan-table）、组装来源徽章（.source-badge）、RQ 高亮块、tag-inline 族。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>开题报告</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 页面骨架（通用组件，保留 <style> 因伪元素/多层背景 Tailwind 难以表达） === */
+  body {
+    background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page::before {
+    content: "paper-proposal · 开题报告草案档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 四层语义徽章族（.tag-inline.t1-t4） === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === proposal 专属：RQ 高亮块（.rq-block 锚点） === */
+  .rq-block .rq-text::before { content: "「"; color: #8a8071; margin-right: .1em; }
+  .rq-block .rq-text::after  { content: "」"; color: #8a8071; margin-left: .1em; }
+
+  /* === proposal 专属：制度节点骨架（.node + .need-fill / .missing-source 变体） === */
+  .node .node-stamp {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+    color: #8a8071; font-weight: 600; margin-left: .5rem;
+  }
+  .node .node-body { color: #5a5247; font-size: .95rem; line-height: 1.8; }
+  .node .node-body p { margin: .3rem 0; }
+  .node .node-body b { color: #8a8071; font-weight: 500; margin-right: .3rem; }
+  .node .node-body a { color: #2b4a6f; text-decoration: underline; text-underline-offset: 2px; }
+  .node .fill-hint { font-size: .88rem; color: #9a3b2e; font-style: italic; margin-top: .3rem; }
+  .node .miss-hint { color: #9a3b2e; font-size: .9rem; font-style: italic; margin-top: .3rem; }
+  .node.missing-source {
+    border-left-style: dashed;
+    border-left-color: #c9bfa8;
+    background: rgba(255, 255, 255, 0.3);
+  }
+  .node.missing-source .miss-hint {
+    color: #9a3b2e;
+  }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(7) { animation-delay: .47s; }
+    .page > *:nth-child(8) { animation-delay: .54s; }
+    .page > *:nth-child(9) { animation-delay: .61s; }
+    .page > *:nth-child(n+10) { animation-delay: .68s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body class="font-serif text-ink text-base leading-[1.85] antialiased">
+<article class="page max-w-[880px] mx-auto mt-12 mb-20 bg-paper border border-rule border-t-[6px] border-t-ink px-16 py-14 relative shadow-[0_1px_0_#ece5d6,0_30px_60px_-30px_rgba(60,45,20,0.25)]">
+
+  <header class="doc-head mb-10">
+    <div class="font-sans text-[11px] tracking-[0.28em] uppercase text-ink-faint mb-[0.6rem]">
+      Paper-Proposal · 开题报告草案档案
+    </div>
+    <h1 class="font-serif text-[2.1rem] font-bold leading-[1.25] mt-0 mb-4 tracking-[0.01em]">
+      开题报告草案 <em class="italic font-medium text-ink-soft" style="font-family:Georgia,'Songti SC',serif">Proposal Draft</em>
+    </h1>
+    <div class="flex flex-wrap gap-x-6 gap-y-2 pt-4 border-t border-rule text-ink-soft text-[0.9rem]">
+      <span><b class="text-ink-faint font-medium mr-1.5">日期</b><日期></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">学位阶段 · 学科</b><本科/硕士/博士 · 学科梯队></span>
+    </div>
+    <span class="source-badge inline-block px-4 py-2 rounded-sm font-sans text-[0.85rem] font-semibold mt-3 bg-l3-bg text-l3 border border-l3 leading-[1.5]">
+      组装自 topic（RQ）+ literature（<X> 条笔记）+ method（<有/无>）· 节点 <N> 个
+    </span>
+  </header>
+
+  <section class="legend my-7 px-5 py-4 bg-white/40 border border-dashed border-rule text-[0.85rem]">
+    <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-ink-faint mb-2">
+      内容标注 · Content Provenance
+    </div>
+    <ul class="m-0 p-0 list-none flex flex-wrap gap-x-6 gap-y-2">
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l1"></span>👤 用户原话</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l2"></span>📋 常见制度节点（非推荐）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l3"></span>🪞 从上游产物提取（可追溯）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l4"></span>❓ 待用户补充</li>
+    </ul>
+    <div class="mt-2 text-[0.78rem] text-ink-faint">本草案不含"AI 的新判断"层 —— 研究内容、工作计划、创新点等研究者自有内容由用户决定。各校具体要求有差异，请按本校开题报告模板增删节点。</div>
+  </section>
+
+  <section class="rq">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      研究问题（RQ） <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ RQ · 从 topic 提取</span>
+    </h2>
+    <div class="rq-block relative pl-7 pr-7 py-6 my-4 mb-10 border-l-4 border-l1 bg-l1-bg" style="background:linear-gradient(180deg,#e6edf4,transparent 90%);">
+      <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-l1 mb-[0.6rem] font-bold">
+        👤 用户拍板的原话（锚点：<a class="underline underline-offset-2" href="研究问题澄清报告.md">topic 产物</a>）
+      </div>
+      <p class="rq-text text-[1.32rem] leading-[1.6] font-semibold text-ink"><从 topic/研究问题澄清报告.md 提取的 RQ 原话，不改写></p>
+    </div>
+  </section>
+
+  <section class="nodes">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      开题报告制度节点 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Nodes · 常见骨架</span>
+    </h2>
+
+    <article class="node need-fill border-l-[3px] border-l4 bg-l4-bg p-4 -ml-2.5 mb-7">
+      <h3 class="font-sans text-[1.05rem] font-bold mt-0 mb-2 text-l4">
+        一、选题依据（研究背景与意义）
+        <span class="node-stamp">📋 常见节点</span>
+      </h3>
+      <div class="node-body">
+        <p><b>研究背景</b><span class="t4 tag-inline">❓</span><AI 提问引导"你的研究背景是什么？这个问题为什么重要？"，用户补充></p>
+        <p><b>问题的提出</b><span class="t3 tag-inline">🪞</span>据 topic 澄清路径，用户从 <模糊方向> 收敛到 <RQ>（<a href="研究问题澄清报告.md">topic 产物</a>）</p>
+        <p><b>研究意义</b><span class="t4 tag-inline">❓</span><理论意义 + 实践意义，研究者自有判断、AI 不代写></p>
+        <p class="fill-hint">↑ 本节研究背景与意义需用户补充（AI 只提问引导、不代写）</p>
+      </div>
+    </article>
+
+    <article class="node border-l-[3px] border-l2 pl-5 mb-7">
+      <h3 class="font-sans text-[1.05rem] font-bold mt-0 mb-2 text-ink">
+        二、文献综述（国内外研究现状）
+        <span class="node-stamp">🪞 从 literature 提取</span>
+      </h3>
+      <div class="node-body">
+        <p><span class="t3 tag-inline">🪞</span>从 <a href="../literature/笔记表.md">literature/笔记表.md</a> 提取该方向文献五字段：</p>
+        <ul class="pl-6 list-disc my-2">
+          <li><a href="../literature/笔记表.md#smith2023">Smith 2023</a>：研究问题=<...>；方法=<...>；结论=<...>；不足=<...></li>
+          <li><a href="../literature/笔记表.md#张三2022">张三 2022</a>：<五字段></li>
+        </ul>
+        <p><b>研究缺口（Research Gap）</b><span class="t4 tag-inline">❓</span><AI 陈列各文献"不足"字段供参考；Gap 判断由用户></p>
+      </div>
+    </article>
+
+    <article class="node need-fill border-l-[3px] border-l4 bg-l4-bg p-4 -ml-2.5 mb-7">
+      <h3 class="font-sans text-[1.05rem] font-bold mt-0 mb-2 text-l4">
+        三、研究内容与目标
+        <span class="node-stamp">❓ 用户自有内容</span>
+      </h3>
+      <div class="node-body">
+        <p><b>研究目标</b><span class="t4 tag-inline">❓</span><AI 提问"你的研究目标是什么？"></p>
+        <p><b>拟研究的具体问题</b><span class="t4 tag-inline">❓</span><AI 提问"拟分几个子问题？"></p>
+        <p><b>关键问题</b><span class="t4 tag-inline">❓</span><AI 提问"最关键要解决的是什么？"></p>
+        <p class="fill-hint">↑ 本节是开题答辩核心，需用户自己定（AI 绝不替用户写研究内容）</p>
+      </div>
+    </article>
+
+    <article class="node border-l-[3px] border-l2 pl-5 mb-7">
+      <h3 class="font-sans text-[1.05rem] font-bold mt-0 mb-2 text-ink">
+        四、研究方法（研究设计）
+        <span class="node-stamp">🪞 从 method 提取 / 用户口述</span>
+      </h3>
+      <div class="node-body">
+        <p><span class="t3 tag-inline">🪞</span>从 <a href="研究设计参谋.md">topic/研究设计参谋.md</a> 提取用户拍板的方法类 + 匹配维度陈列；或用户口述。按学科梯队调整：</p>
+        <p><b>研究对象</b><span class="t3 tag-inline">🪞</span><从 method 或用户口述></p>
+        <p><b>变量 / 核心概念</b><span class="t3 tag-inline">🪞</span><...></p>
+        <p><b>数据 / 材料</b><span class="t3 tag-inline">🪞</span><...></p>
+        <p><b>收集与分析方法</b><span class="t3 tag-inline">🪞</span><...></p>
+        <p class="text-[0.88rem] text-ink-faint"><理论型调整：研究问题/推理工具/模型框架/论证方式；诠释型调整：研究对象/文本材料/诠释框架/论证方式——不强套实证模板></p>
+      </div>
+    </article>
+
+    <article class="node need-fill border-l-[3px] border-l4 bg-l4-bg p-4 -ml-2.5 mb-7">
+      <h3 class="font-sans text-[1.05rem] font-bold mt-0 mb-2 text-l4">
+        五、技术路线（研究步骤）
+        <span class="node-stamp">❓ 用户自有内容</span>
+      </h3>
+      <div class="node-body">
+        <p><span class="t4 tag-inline">❓</span><AI 摆常见步骤骨架"文献-设计-采集-分析-写作"、用户填具体路径；或用户自述></p>
+        <p class="fill-hint">↑ 技术路线需用户补充（部分校不强制要求技术路线图）</p>
+      </div>
+    </article>
+
+    <article class="node need-fill border-l-[3px] border-l4 bg-l4-bg p-4 -ml-2.5 mb-7">
+      <h3 class="font-sans text-[1.05rem] font-bold mt-0 mb-2 text-l4">
+        六、工作计划（进度安排）
+        <span class="node-stamp">❓ 用户自有内容</span>
+      </h3>
+      <div class="node-body">
+        <table class="workplan-table w-full border-collapse my-2 text-[0.92rem]">
+          <thead>
+            <tr>
+              <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2 text-left align-top leading-[1.7]">阶段</th>
+              <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2 text-left align-top leading-[1.7]">时间</th>
+              <th class="bg-l2-bg text-l2 font-bold font-sans text-[0.88rem] border border-rule px-3 py-2 text-left align-top leading-[1.7]">任务</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7]">第一阶段</td>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7] text-l4 wp-time"><起止时间></td>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7]"><文献综述 / 方法定型 / 开题></td>
+            </tr>
+            <tr>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7]">第二阶段</td>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7] text-l4 wp-time"><起止时间></td>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7]"><数据采集 / 实验执行></td>
+            </tr>
+            <tr>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7]">第三阶段</td>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7] text-l4 wp-time"><起止时间></td>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7]"><分析 / 撰写初稿></td>
+            </tr>
+            <tr>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7]">第四阶段</td>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7] text-l4 wp-time"><起止时间></td>
+              <td class="border border-rule px-3 py-2 text-left align-top leading-[1.7]"><修改 / 答辩准备></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="fill-hint">↑ 时间与具体任务需用户补充</p>
+      </div>
+    </article>
+
+    <article class="node border-l-[3px] border-l2 pl-5 mb-7">
+      <h3 class="font-sans text-[1.05rem] font-bold mt-0 mb-2 text-ink">
+        七、参考文献
+        <span class="node-stamp">🪞 从 literature 提取</span>
+      </h3>
+      <div class="node-body">
+        <p><span class="t3 tag-inline">🪞</span>从 <a href="../literature/笔记表.md">literature/笔记表.md</a> 题录按 GB/T 7714-2015 著录（格式检查归 /paper-format）：</p>
+        <ol class="pl-6 list-decimal my-2">
+          <li>Smith J. Title of the paper[J]. Journal Name, 2023, 1(2): 1-10.</li>
+          <li>张三. 论文标题[J]. 期刊名, 2022, 1(1): 1-8.</li>
+        </ol>
+      </div>
+    </article>
+
+    <article class="node need-fill border-l-[3px] border-l4 bg-l4-bg p-4 -ml-2.5 mb-7">
+      <h3 class="font-sans text-[1.05rem] font-bold mt-0 mb-2 text-l4">
+        八、创新点 / 预期成果
+        <span class="node-stamp">❓ 用户自有内容（部分校要求）</span>
+      </h3>
+      <div class="node-body">
+        <p><b>创新点</b><span class="t4 tag-inline">❓</span><AI 提问"你认为你的研究新在哪？"></p>
+        <p><b>预期成果</b><span class="t4 tag-inline">❓</span><AI 提问"预期产出什么？"></p>
+        <p class="fill-hint">↑ 创新点是开题答辩核心、需用户自己判断（AI 绝不替用户总结创新点）</p>
+      </div>
+    </article>
+
+  </section>
+
+  <footer class="mt-14 pt-5 border-t-2 border-double border-rule text-ink-soft text-[0.85rem] leading-[1.7]">
+    <div class="font-sans text-[10px] tracking-[0.22em] uppercase text-ink-faint mb-2">Human–AI Division of Labor</div>
+    <p>本草案由 AI 从上游真实产物（topic RQ + literature 文献笔记 + method 研究设计参谋）提取片段、
+       按中文学位论文开题报告常见制度节点组装骨架；研究内容、工作计划、创新点、文献 Gap 判断等
+       研究者自有内容由用户决定。各校具体要求有差异，请按本校开题报告模板增删节点、调整顺序。</p>
+  </footer>
+
+</article>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "paper-tutor-marketplace",
+  "description": "Paper-Tutor-Skills 分发市场（仓库自身即市场，含 paper-tutor 一个 plugin）。",
+  "owner": {
+    "name": "<你的名字或团队>"
+  },
+  "plugins": [
+    {
+      "name": "paper-tutor",
+      "description": "学术辅导 skills 套件。",
+      "source": "./"
+    }
+  ]
+}

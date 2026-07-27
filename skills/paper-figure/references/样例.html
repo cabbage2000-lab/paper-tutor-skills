@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<!--
+  B 诊断模式样例（已实例化产物）
+  ====================================================================
+  场景：第一梯队学科（实验/实证型理工），用户贴一张柱状图。
+  图表为虚构描述，不伪造任何研究数据。
+
+  自检：grep -iE "https?://|<script src|cdn" | grep -v "<!--" 期望 0 命中
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>图表诊断与设计建议</title>
+<style>
+  /* === 基础重置（纯内联样式，无外部依赖） === */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong",
+                 "PingFang SC", "Microsoft YaHei", Georgia, serif;
+    color: #1f1b16; line-height: 1.85; background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px; background-position: -1px -1px;
+  }
+  a { color: #2b4a6f; text-decoration: underline; text-underline-offset: 2px; }
+  b, strong { color: #1f1b16; }
+
+  /* === 页面骨架 === */
+  .page {
+    max-width: 880px; margin: 3rem auto 5rem;
+    background: #f6f2ea; border: 1px solid #c9bfa8; border-top: 6px solid #1f1b16;
+    padding: 3.5rem 4rem; position: relative;
+    box-shadow: 0 1px 0 #ece5d6, 0 30px 60px -30px rgba(60,45,20,0.25);
+  }
+  .page::before {
+    content: "paper-figure \00b7 图表档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 排版辅助 === */
+  .font-sans { font-family: "PingFang SC", "Source Han Sans SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif; }
+  .font-serif { font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", "PingFang SC", "Microsoft YaHei", Georgia, serif; }
+  .section { border-bottom: 1px solid #c9bfa8; padding-bottom: .5rem; }
+  .sec-no { font-family: Georgia, "Songti SC", serif; font-style: italic; font-weight: normal; font-size: .85rem; color: #8a8071; letter-spacing: normal; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; padding-top: 1rem; border-top: 1px solid #c9bfa8; font-size: .9rem; color: #5a5247; }
+  .meta-row b { color: #8a8071; font-weight: 500; margin-right: .4rem; }
+
+  /* === 四层语义色 token === */
+  .bg-l1 { background: #2b4a6f; } .bg-l1-bg { background: #e6edf4; } .border-l1 { border-color: #2b4a6f; } .text-l1 { color: #2b4a6f; }
+  .bg-l2 { background: #7a6230; } .bg-l2-bg { background: #f0e9d8; } .border-l2 { border-color: #7a6230; } .text-l2 { color: #7a6230; }
+  .bg-l3 { background: #4a6b5c; } .bg-l3-bg { background: #e4ece8; } .border-l3 { border-color: #4a6b5c; } .text-l3 { color: #4a6b5c; }
+  .bg-l4 { background: #9a3b2e; } .bg-l4-bg { background: #f3e3df; } .border-l4 { border-color: #9a3b2e; } .text-l4 { color: #9a3b2e; }
+  .text-ink { color: #1f1b16; } .text-ink-soft { color: #5a5247; } .text-ink-faint { color: #8a8071; }
+
+  /* === 四层语义徽章族（.tag-inline.t1-t4） === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === 诊断覆盖徽章（仿 logic 对应度徽章，只陈列 X/Y 比例） === */
+  .badge {
+    display: inline-block; padding: 0.3rem 0.7rem; border-radius: 3px;
+    font-size: 0.85rem; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600; white-space: nowrap;
+  }
+  .badge.green  { background: #d8e6c6; color: #2f4a1c; border: 1px solid #a8c08e; }
+  .badge.yellow { background: #f0e3b8; color: #5a4710; border: 1px solid #cbb564; }
+  .badge.red    { background: #ecc8c0; color: #6e2317; border: 1px solid #c98a7c; }
+
+  /* === 留痕级别声明表（.trace-table） === */
+  .trace-table {
+    width: 100%; border-collapse: collapse; font-size: .88rem;
+    margin: .8rem 0;
+  }
+  .trace-table th, .trace-table td {
+    border: 1px solid #c9bfa8; padding: .55rem .8rem; text-align: left; vertical-align: top;
+  }
+  .trace-table th {
+    font-family: "PingFang SC", sans-serif; font-weight: 700; font-size: .82rem;
+    background: #f0e9d8; color: #1f1b16; letter-spacing: .04em;
+  }
+  .trace-table td:first-child {
+    font-family: "PingFang SC", sans-serif; font-weight: 600; color: #1f1b16;
+    white-space: nowrap;
+  }
+  .trace-level {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 8px; border-radius: 2px; display: inline-block;
+  }
+  .trace-level.discuss { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .trace-level.outline  { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .trace-level.gen-heavy { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === B 诊断维度卡片（.diag-card） === */
+  .diag-card {
+    border: 1px solid #c9bfa8; border-left: 4px solid #4a6b5c;
+    background: rgba(255,255,255,.35);
+    padding: 1.2rem 1.4rem; margin: 0 0 1.4rem;
+  }
+  .diag-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 1rem; margin-bottom: .8rem; padding-bottom: .5rem;
+    border-bottom: 1px dashed #c9bfa8;
+  }
+  .diag-name {
+    font-family: "PingFang SC", "Source Han Sans SC", sans-serif;
+    font-weight: 700; font-size: 1rem; color: #1f1b16;
+  }
+  .diag-body { color: #5a5247; font-size: .94rem; line-height: 1.75; }
+  .diag-body ul { padding-left: 1.2rem; margin: .3rem 0; }
+  .diag-body li { margin: .2rem 0; }
+  .diag-body li::marker { color: #8a8071; }
+
+  /* === 自查清单降级区块（.selfcheck-block） === */
+  .selfcheck-block {
+    margin-top: .8rem; padding: .8rem 1rem;
+    background: #f3e3df; border-left: 3px solid #9a3b2e;
+    font-size: .9rem; color: #5a5247; line-height: 1.7;
+  }
+  .selfcheck-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .12em; color: #9a3b2e;
+    font-weight: 700; margin-bottom: .35rem;
+  }
+  .selfcheck-block ol { padding-left: 1.4rem; margin: .2rem 0; }
+  .selfcheck-block li { margin: .15rem 0; }
+
+  /* === C 建议组件卡片（.suggest-card） === */
+  .suggest-card {
+    border: 1px solid #c9bfa8; border-left: 4px solid #7a6230;
+    background: rgba(255,255,255,.35);
+    padding: 1.2rem 1.4rem; margin: 0 0 1.4rem;
+  }
+  .suggest-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 1rem; margin-bottom: .8rem; padding-bottom: .5rem;
+    border-bottom: 1px dashed #c9bfa8;
+  }
+  .suggest-name {
+    font-family: "PingFang SC", "Source Han Sans SC", sans-serif;
+    font-weight: 700; font-size: 1rem; color: #1f1b16;
+  }
+  .suggest-body { color: #5a5247; font-size: .94rem; line-height: 1.75; }
+  .suggest-body table {
+    width: 100%; border-collapse: collapse; font-size: .9rem; margin: .6rem 0;
+  }
+  .suggest-body th, .suggest-body td {
+    border: 1px solid #c9bfa8; padding: .45rem .7rem; text-align: left; vertical-align: top;
+  }
+  .suggest-body th {
+    font-family: "PingFang SC", sans-serif; font-weight: 700; font-size: .82rem;
+    background: #f0e9d8; color: #1f1b16;
+  }
+  .suggest-body ul { padding-left: 1.2rem; margin: .3rem 0; }
+  .suggest-body li { margin: .2rem 0; }
+
+  /* === 用户原话块 === */
+  .user-quote {
+    background: #e6edf4; border-left: 3px solid #2b4a6f;
+    padding: .8rem 1.2rem; margin: .6rem 0;
+    font-size: .95rem;
+  }
+  .user-quote .quote-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: #2b4a6f; font-weight: 700; margin-bottom: .4rem;
+  }
+  .user-quote p { color: #2b4a6f; font-weight: 600; line-height: 1.7; }
+
+  /* === 图注骨架六槽（.caption-skeleton） === */
+  .caption-skeleton { margin: .6rem 0; }
+  .caption-slot {
+    display: flex; gap: .6rem; align-items: baseline;
+    padding: .4rem 0; border-bottom: 1px dashed #c9bfa8;
+  }
+  .caption-slot:last-child { border-bottom: none; }
+  .slot-name {
+    flex-shrink: 0; width: 6rem;
+    font-family: "PingFang SC", sans-serif;
+    font-weight: 700; font-size: .9rem; color: #7a6230;
+  }
+  .slot-content { color: #5a5247; font-size: .94rem; line-height: 1.7; }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1)  { animation-delay: .05s; }
+    .page > *:nth-child(2)  { animation-delay: .10s; }
+    .page > *:nth-child(3)  { animation-delay: .15s; }
+    .page > *:nth-child(4)  { animation-delay: .20s; }
+    .page > *:nth-child(5)  { animation-delay: .25s; }
+    .page > *:nth-child(6)  { animation-delay: .30s; }
+    .page > *:nth-child(7)  { animation-delay: .35s; }
+    .page > *:nth-child(8)  { animation-delay: .40s; }
+    .page > *:nth-child(9)  { animation-delay: .45s; }
+    .page > *:nth-child(10) { animation-delay: .50s; }
+    .page > *:nth-child(n+11) { animation-delay: .55s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<article class="page">
+
+  <!-- ====== 页头 ====== -->
+  <header class="doc-head" style="margin-bottom:2.5rem">
+    <div class="font-sans" style="font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#8a8071;margin-bottom:.6rem">
+      Paper-Figure \00b7 图表档案
+    </div>
+    <h1 class="font-serif" style="font-size:2.1rem;font-weight:bold;line-height:1.25;margin:0 0 1rem;letter-spacing:.01em">
+      图表诊断与设计建议 <em style="font-style:italic;font-weight:500;color:#5a5247;font-family:Georgia,'Songti SC',serif">Figure Audit &amp; Design Suggestions</em>
+    </h1>
+    <div class="meta-row">
+      <span><b>日期</b>2026-07-26</span>
+      <span><b>模式</b>B 诊断（贴图路径）</span>
+      <span><b>图表来源</b>贴图</span>
+      <span><b>图表描述</b>三组柱状图（组 A / 组 B / 组 C）</span>
+      <span><b>学科梯队</b>第一梯队（实验/实证型理工）</span>
+    </div>
+  </header>
+
+  <!-- ====== 内容标注图例 ====== -->
+  <section style="margin:1.75rem 0;padding:1rem 1.25rem;background:rgba(255,255,255,.4);border:1px dashed #c9bfa8;font-size:.85rem">
+    <div class="font-sans" style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#8a8071;margin-bottom:.5rem">
+      内容标注 \00b7 Content Provenance
+    </div>
+    <ul style="margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:.5rem 1.5rem">
+      <li style="display:flex;align-items:center;color:#5a5247"><span style="width:10px;height:10px;border-radius:2px;margin-right:.45rem;background:#2b4a6f"></span>👤 用户原话</li>
+      <li style="display:flex;align-items:center;color:#5a5247"><span style="width:10px;height:10px;border-radius:2px;margin-right:.45rem;background:#7a6230"></span>📋 常见事实（非推荐）</li>
+      <li style="display:flex;align-items:center;color:#5a5247"><span style="width:10px;height:10px;border-radius:2px;margin-right:.45rem;background:#4a6b5c"></span>🪞 系统归纳（可追溯）</li>
+      <li style="display:flex;align-items:center;color:#5a5247"><span style="width:10px;height:10px;border-radius:2px;margin-right:.45rem;background:#9a3b2e"></span>❓ 待用户决定</li>
+    </ul>
+    <div style="margin-top:.5rem;font-size:.78rem;color:#8a8071">本报告不含"AI 的新判断"层 —— 诊断只陈列可视觉识别的客观事实、建议只陈列常见选项。图类选择、图注定稿、配色取舍、工具选定由用户拍板。</div>
+  </section>
+
+  <!-- ====== 留痕级别声明表（B 诊断全构思讨论级） ====== -->
+  <section>
+    <h2 class="section font-sans" style="font-size:1.05rem;font-weight:bold;letter-spacing:.04em;margin:2.75rem 0 1.25rem;display:flex;align-items:baseline;justify-content:space-between">
+      留痕级别声明表 <span class="sec-no">§ Trace Levels</span>
+    </h2>
+    <table class="trace-table">
+      <thead>
+        <tr><th>组件</th><th>留痕级别</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>B 诊断 5 维度</td>
+          <td><span class="trace-level discuss">构思讨论</span></td>
+          <td>AI 陈列常见检查点、客观识别可视觉判断的要素，未替用户做决策</td>
+        </tr>
+        <tr>
+          <td>C a 图类建议</td>
+          <td><span class="trace-level discuss">构思讨论</span></td>
+          <td>AI 陈列常见图类选项，最终图类选择归用户</td>
+        </tr>
+        <tr>
+          <td>C b 图注骨架</td>
+          <td><span class="trace-level outline">大纲结构</span></td>
+          <td>AI 搭六槽骨架框架，用户填措辞定稿</td>
+        </tr>
+        <tr>
+          <td>C c 配色方案</td>
+          <td><span class="trace-level discuss">构思讨论</span></td>
+          <td>色板取自公开色板、标注来源，非 AI 原创</td>
+        </tr>
+        <tr>
+          <td>C d 坐标轴</td>
+          <td><span class="trace-level discuss">构思讨论</span></td>
+          <td>AI 陈列常见坐标轴规范，非硬规则</td>
+        </tr>
+        <tr>
+          <td>C e 工具陈列</td>
+          <td><span class="trace-level discuss">构思讨论</span></td>
+          <td>AI 陈列常见绘图工具梯队，用户拍板</td>
+        </tr>
+        <tr>
+          <td>C f 绘图代码</td>
+          <td><span class="trace-level gen-heavy">成句生成（重）</span></td>
+          <td>由 paper-plot 子命令承担，本报告不含绘图代码</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ====== 用户原话 ====== -->
+  <section>
+    <h2 class="section font-sans" style="font-size:1.05rem;font-weight:bold;letter-spacing:.04em;margin:2.75rem 0 1.25rem;display:flex;align-items:baseline;justify-content:space-between">
+      用户原话 <span class="sec-no">§ User Input</span>
+    </h2>
+    <div class="user-quote">
+      <div class="quote-label">\u{1f464} 用户原话</div>
+      <p>"我贴了一张柱状图，三组数据（组 A、组 B、组 C），想看看有没有什么问题。Y 轴好像不是从 0 开始的，我不太确定要不要改。图注是英文的，大概写了个 Figure 1 加一句简述。"
+      </p>
+    </div>
+  </section>
+
+  <!-- ====== 视觉诊断局限性声明 ====== -->
+  <section style="margin-bottom:1.5rem">
+    <div style="padding:.75rem 1rem;background:#f3e3df;border:1px solid #c98a7c;font-size:.88rem;color:#5a5247;line-height:1.7">
+      <strong>视觉诊断的局限性：</strong>坐标轴截断/色盲友好性/误差棒类型等维度视觉判断可靠性有限（约 20%–40%），相应项降级为"建议自查"而非下结论。若需高可靠性诊断，请提供绘图代码（matplotlib/ggplot2 脚本），可进入代码静态分析路径。
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <!-- B 诊断 5 维度                                                   -->
+  <!-- ================================================================ -->
+  <section>
+    <h2 class="section font-sans" style="font-size:1.05rem;font-weight:bold;letter-spacing:.04em;margin:2.75rem 0 1.25rem;display:flex;align-items:baseline;justify-content:space-between">
+      B 诊断 · 5 维度 <span class="sec-no">§ Diagnosis · \u{1f9e0} 客观陈列</span>
+    </h2>
+
+    <!-- 维度 ① 图类适配 -->
+    <article class="diag-card">
+      <div class="diag-head">
+        <span class="diag-name">① 图类适配</span>
+        <span class="badge green">4 / 5 项可视觉识别</span>
+      </div>
+      <div class="diag-body">
+        <p><span class="t1 tag-inline">\u{1f464}</span>该图表达"比较"（组间差异）关系</p>
+        <p><span class="t3 tag-inline">\u{1f9e0}</span>当前图类为柱状图；表达"比较"关系的常见图类为<span class="t2 tag-inline">\u{1f4cb}</span>柱状图、条形图</p>
+        <p><span class="t3 tag-inline">\u{1f9e0}</span>第一梯队常见图类型中，柱状图属于通用图类型，与当前数据关系匹配</p>
+        <p style="margin-top:.5rem;font-size:.82rem;color:#8a8071">AI 视觉可靠性：高（≈80%）</p>
+      </div>
+    </article>
+
+    <!-- 维度 ② 图注与图例完整性 -->
+    <article class="diag-card">
+      <div class="diag-head">
+        <span class="diag-name">② 图注与图例完整性</span>
+        <span class="badge yellow">3 / 5 项可视觉识别</span>
+      </div>
+      <div class="diag-body">
+        <p>图注六槽逐项：</p>
+        <ul>
+          <li><span class="t2 tag-inline">\u{1f4cb}</span>图序号：<span class="t1 tag-inline">\u{1f464}</span>有（"Figure 1"）</li>
+          <li><span class="t2 tag-inline">\u{1f4cb}</span>简述：<span class="t1 tag-inline">\u{1f464}</span>有（一句英文简述）</li>
+          <li><span class="t2 tag-inline">\u{1f4cb}</span>要素说明（坐标轴/图例/符号）：<span class="t4 tag-inline">❓</span>未见</li>
+          <li><span class="t2 tag-inline">\u{1f4cb}</span>样本量：<span class="t4 tag-inline">❓</span>缺</li>
+          <li><span class="t2 tag-inline">\u{1f4cb}</span>统计标记：<span class="t4 tag-inline">❓</span>未见</li>
+          <li><span class="t2 tag-inline">\u{1f4cb}</span>来源：<span class="t4 tag-inline">❓</span>未见</li>
+        </ul>
+        <p><span class="t2 tag-inline">\u{1f4cb}</span>图例遮挡数据：未见</p>
+        <p><span class="t2 tag-inline">\u{1f4cb}</span>子图编号与正文引用一致性：未见子图</p>
+        <p style="margin-top:.5rem;font-size:.82rem;color:#8a8071">AI 视觉可靠性：中（≈60%）</p>
+      </div>
+    </article>
+
+    <!-- 维度 ③ 坐标轴与刻度 -->
+    <article class="diag-card">
+      <div class="diag-head">
+        <span class="diag-name">③ 坐标轴与刻度</span>
+        <span class="badge red">2 / 5 项可视觉识别</span>
+      </div>
+      <div class="diag-body">
+        <p><span class="t3 tag-inline">\u{1f9e0}</span>Y 轴标注：可见轴标签（具体文字需原图确认）</p>
+        <p><span class="t3 tag-inline">\u{1f9e0}</span>X 轴标注：可见三组名称（组 A、组 B、组 C）</p>
+      </div>
+      <!-- 贴图路径降级：自查清单 -->
+      <div class="selfcheck-block">
+        <div class="selfcheck-label">⚠️ 视觉判断可靠性有限、建议自查</div>
+        <ol>
+          <li>Y 轴起始值是否为 0？（柱状图必查——截断 Y 轴易夸大组间差异）</li>
+          <li>Y 轴是否截断（如从非零值起）？截断是否必要、是否标注断轴符号？</li>
+          <li>是否使用对数轴？对数轴是否在轴标签或图注中显式说明？</li>
+          <li>是否使用双 Y 轴？双轴的刻度对应关系是否易引起误读？</li>
+          <li>刻度数量是否适中（建议 5–8 个主刻度）？</li>
+        </ol>
+      </div>
+      <p style="margin-top:.5rem;font-size:.82rem;color:#8a8071">AI 视觉可靠性：低（≈40%）</p>
+    </article>
+
+    <!-- 维度 ④ 配色与可读性 -->
+    <article class="diag-card">
+      <div class="diag-head">
+        <span class="diag-name">④ 配色与可读性</span>
+        <span class="badge red">1 / 3 项可视觉识别</span>
+      </div>
+      <div class="diag-body">
+        <p><span class="t3 tag-inline">\u{1f9e0}</span>可见三个数据系列使用不同颜色区分</p>
+      </div>
+      <!-- 贴图路径降级：自查清单 -->
+      <div class="selfcheck-block">
+        <div class="selfcheck-label">⚠️ 视觉判断可靠性有限、建议自查</div>
+        <ol>
+          <li>是否使用红绿对比区分数据系列？（常见色盲盲区）</li>
+          <li>灰度打印下各数据系列是否仍可分辨？</li>
+          <li>是否仅靠颜色区分系列？有无形状/线型/图案辅助？</li>
+          <li>对比度是否充足（前景与背景、相邻系列间）？</li>
+        </ol>
+      </div>
+      <p style="margin-top:.5rem;font-size:.82rem;color:#8a8071">AI 视觉可靠性：低（≈35%）</p>
+    </article>
+
+    <!-- 维度 ⑤ 误差与统计标记 -->
+    <article class="diag-card">
+      <div class="diag-head">
+        <span class="diag-name">⑤ 误差与统计标记</span>
+        <span class="badge red">0 / 4 项可视觉识别</span>
+      </div>
+      <div class="diag-body">
+        <p><span class="t3 tag-inline">\u{1f9e0}</span>图中未见误差棒</p>
+        <p><span class="t3 tag-inline">\u{1f9e0}</span>图中未见星号标记（* / ** / ***）</p>
+        <p><span class="t3 tag-inline">\u{1f9e0}</span>图注中未见误差棒类型说明</p>
+      </div>
+      <!-- 贴图路径降级：自查清单 -->
+      <div class="selfcheck-block">
+        <div class="selfcheck-label">⚠️ 视觉判断可靠性有限、建议自查</div>
+        <ol>
+          <li>误差棒类型是 SE、SD 还是 95% CI？是否在图注中显式标注？</li>
+          <li>若有多组误差棒，类型是否一致（未混用 SE 与 SD）？</li>
+          <li>统计显著性标记（*、**、***）的 p 值阈值是否在图注中说明？</li>
+          <li>多重比较是否做了校正（Bonferroni / Tukey / FDR）？是否标注？</li>
+        </ol>
+      </div>
+      <p style="margin-top:.5rem;font-size:.82rem;color:#8a8071">AI 视觉可靠性：极低（≈20%）</p>
+    </article>
+  </section>
+
+  <!-- ====== 页脚 ====== -->
+  <footer style="margin-top:3.5rem;padding-top:1.25rem;border-top:3px double #c9bfa8;font-size:.85rem;color:#5a5247;line-height:1.7">
+    <div class="font-sans" style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#8a8071;margin-bottom:.5rem">Human–AI Division of Labor</div>
+    <p>本报告由 AI 客观陈列图表可识别要素与常见设计选项；诊断只陈列 X/Y 比例、不下"好/差"结论，建议只陈列常见选项、不推荐。图类选择、图注定稿、配色取舍、工具选定——全部由用户决定。</p>
+  </footer>
+
+</article>
+</body>
+</html>

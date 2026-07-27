@@ -1,0 +1,10 @@
+{
+  "id": "https://openalex.org/W2126269071",
+  "doi": "https://doi.org/10.1038/nature12373",
+  "display_name": "Nanometre-scale thermometry in a living cell",
+  "publication_year": 2013,
+  "type": "article",
+  "authorships": [{"author": {"display_name": "G. Kucsko"}},
+                  {"author": {"display_name": "P. C. Maurer"}}],
+  "primary_location": {"source": {"display_name": "Nature"}}
+}

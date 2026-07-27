@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-draft 产物「正文共写记录.html」的样式权威）
+  ====================================================================
+  本文件是「样例 HTML」——用真实感模拟数据填充模板全部占位，
+  供人工视觉验收排版、配色、四层色、打印预览。
+  宿主 agent 生成真实产物时以「报告样式模板.html」为权威，本文件仅供对照。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+     参照学术期刊内页与档案馆检索卡。禁营销页/仪表盘语汇。
+  2. 四层语义色是「摆事实非推荐」死线，四色须一眼可辨：
+     👤 用户原话=靛蓝(#2b4a6f, 最重) / 📋 常见事实=赭石(#7a6230) /
+     🪞 系统归纳=青灰(#4a6b5c) / ❓ 待用户验证=砖红(#9a3b2e)。
+     四色低饱和、从纸面浮起、不抢正文。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）
+     所有模板必备；本模板不引入 ECharts——draft 无图表。宿主 agent 生成产物时须
+     原样保留外部引用、不得内联替代、不得删减。断网时产物降级为无样式 HTML
+     （内容可读、排版失效）——这是可接受的折衷。
+  4. 陈列型可视化边界（图表与「不下结论」死线的共存规则）：
+     - 图表只客观投影表格/列表已有数据，不得引入派生指标（均值、排名、达标线、基准线）。
+     - 禁视觉倾斜：不用面积大小暗示优劣、不用颜色深浅暗示高低、不用动画放大某点、
+       不用 split area 分区暗示达标带。
+     - 图表配色限定：四层语义色 + 两档墨色。禁红绿灯色板延伸到图表数据。
+     - 每张图必须带说明性 caption：写明"陈列什么、不下什么结论"。
+     （本模板无图表，此条对后续可能的可视化扩展约束。）
+  5. draft 专属元素：段落辅助标签轴（.paragraph + .para-tags · 👤/📋/⚠️/✍️/🤖）、
+     成句辅助度堆叠条（.assist-bar · 客观陈列比例、不下"够/不够"结论）、
+     风格对齐徽章（.style-source / .badge.style-badge-* · 绿=样本对齐 / 黄=口头描述 /
+     红=中性默认，徽章文字只说事实、不下"像/不像"结论）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>正文共写记录 · 样例</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 页面骨架 === */
+  body {
+    background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page::before {
+    content: "paper-draft · 正文共写记录档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 四层语义徽章族 === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === draft 专属：段落卡片 === */
+  .paragraph {
+    margin-left: 0;
+    border-left: 3px solid #c9bfa8;
+    padding: 1rem 0 1rem 1.4rem;
+    margin-bottom: 1.8rem;
+    position: relative;
+  }
+  .paragraph:first-of-type { padding-top: 0; }
+  .paragraph + .paragraph { border-top: 1px solid #c9bfa8; padding-top: 1.2rem; }
+
+  /* === draft 专属：段落辅助标签轴 === */
+  .para-tags {
+    margin: 0 0 0.6rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 1px dashed #c9bfa8;
+    font-size: 0.8rem;
+    line-height: 1.6;
+  }
+  .para-tags .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    margin-right: 0.35rem;
+    margin-bottom: 0.25rem;
+    border-radius: 2px;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .tag.user        { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .tag.literature  { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .tag.style       { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .tag.warn        { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+  .tag.ai-default { background: transparent; color: #8a8071; border: 1px dashed #8a8071; font-style: italic; }
+
+  /* === draft 专属：风格来源块 === */
+  .style-source {
+    background: #e4ece8;
+    border-left: 3px solid #4a6b5c;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0 2rem;
+    font-size: 0.92rem;
+    color: #5a5247;
+  }
+  .style-source .ss-label {
+    display: block;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #4a6b5c;
+    margin-bottom: 0.4rem;
+    font-weight: 700;
+  }
+
+  /* === draft 专属：成句辅助度堆叠条 === */
+  .assist-bar {
+    display: flex;
+    width: 100%;
+    height: 1.4rem;
+    margin: 0.6rem 0 0.4rem;
+    border-radius: 2px;
+    overflow: hidden;
+    border: 1px solid #c9bfa8;
+  }
+  .assist-bar .seg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #1f1b16;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .assist-bar .seg.accepted     { background: #d8e6c6; }
+  .assist-bar .seg.rewritten    { background: #f0e3b8; }
+  .assist-bar .seg.user-written { background: #c6d9e6; }
+  .assist-bar .seg.unsupported  { background: #ecc8c0; }
+
+  /* === draft 专属：风格对齐徽章 === */
+  .badge {
+    display: inline-block;
+    padding: 0.3rem 0.7rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600;
+    margin-top: 0.5rem;
+    white-space: nowrap;
+  }
+  .badge.style-badge-green  { background: #d8e6c6; color: #2f4a1c; border: 1px solid #a8c08e; }
+  .badge.style-badge-yellow { background: #f0e3b8; color: #5a4710; border: 1px solid #cbb564; }
+  .badge.style-badge-red    { background: #ecc8c0; color: #6e2317; border: 1px solid #c98a7c; }
+
+  /* === draft 专属：诚信披露脚注 === */
+  .draft-footer-note {
+    margin-top: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    background: rgba(154, 59, 46, 0.06);
+    border-left: 3px solid #9a3b2e;
+    font-size: 0.82rem;
+    color: #5a5247;
+    line-height: 1.65;
+  }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(7) { animation-delay: .47s; }
+    .page > *:nth-child(8) { animation-delay: .54s; }
+    .page > *:nth-child(n+9) { animation-delay: .61s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body class="font-serif text-ink text-base leading-[1.85] antialiased">
+<article class="page max-w-[880px] mx-auto mt-12 mb-20 bg-paper border border-rule border-t-[6px] border-t-ink px-16 py-14 relative shadow-[0_1px_0_#ece5d6,0_30px_60px_-30px_rgba(60,45,20,0.25)]">
+
+  <header class="doc-head mb-10">
+    <div class="font-sans text-[11px] tracking-[0.28em] uppercase text-ink-faint mb-[0.6rem]">
+      Paper-Draft · 正文共写记录档案
+    </div>
+    <h1 class="font-serif text-[2.1rem] font-bold leading-[1.25] mt-0 mb-4 tracking-[0.01em]">
+      正文共写记录 <em class="italic font-medium text-ink-soft" style="font-family:Georgia,'Songti SC',serif">Manuscript Co-writing Log</em>
+    </h1>
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-2 pt-4 border-t border-rule text-ink-soft text-[0.9rem]">
+      <span><b class="text-ink-faint font-medium mr-1.5">日期</b>2026-07-26</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">章节范围</b>第 1 章 §1.1 - §1.3（引言）</span>
+      <span class="badge style-badge-green">风格来源：样本对齐（用户已粘贴过往论文 2 篇）</span>
+    </div>
+
+    <!-- 成句辅助度堆叠条：本草稿 3 段 -->
+    <div class="assist-bar mt-4" title="成句辅助度：客观陈列、不下结论">
+      <span class="seg accepted"     style="width: 45%">AI 接受 45%</span>
+      <span class="seg rewritten"    style="width: 25%">AI 改写 25%</span>
+      <span class="seg user-written" style="width: 20%">用户自写 20%</span>
+      <span class="seg unsupported"  style="width: 10%">未经支撑 10%</span>
+    </div>
+    <p class="text-[0.85rem] text-ink-soft mt-[0.3rem] mb-[0.5rem] leading-[1.7]">
+      本草稿 3 段中：<b class="text-ink font-semibold">1</b> 段 AI 起草被用户接受、<b class="text-ink font-semibold">1</b> 段 AI 起草被用户改写、<b class="text-ink font-semibold">1</b> 段用户自写、<b class="text-ink font-semibold">1</b> 段含未经文献支撑的细节（段间有重叠）。
+    </p>
+  </header>
+
+  <section class="legend my-7 px-5 py-4 bg-white/40 border border-dashed border-rule text-[0.85rem]">
+    <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-ink-faint mb-2">
+      段落辅助标签 · Paragraph Provenance
+    </div>
+    <ul class="m-0 p-0 list-none flex flex-wrap gap-x-6 gap-y-2">
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l1"></span>👤 用户原话（含改写 / 自写）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l2"></span>📋 基于大纲与文献</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l3"></span>✍️ 模仿用户风格</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l4"></span>⚠️ 未经文献支撑</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-ink-faint"></span>🤖 中性默认 / AI 未起草</li>
+    </ul>
+    <div class="mt-2 text-[0.78rem] text-ink-faint">本报告不含"AI 的新判断"层 —— 凡段落里某句找不到上述归属、或其实是 AI 自行生成的研究判断即越界、不得写入。</div>
+  </section>
+
+  <!-- 第 1 块：章节范围 -->
+  <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+    章节范围 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Scope</span>
+  </h2>
+  <div class="bg-l1-bg border-l-[3px] border-l1 pl-4 py-2 mb-2">
+    <span class="font-sans text-[10px] tracking-[0.2em] uppercase text-l1 font-bold">👤 用户拍板</span>
+    <p class="text-l1 font-semibold mt-1 mb-0">"先写引言前三段：背景切入 + 概念界定 + RQ 引出，其他章节先放。"</p>
+  </div>
+
+  <!-- 第 2 块：风格来源 -->
+  <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+    风格来源 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Style Source</span>
+  </h2>
+  <div class="style-source">
+    <span class="ss-label">✍️ 风格样本对齐声明</span>
+    📋 用户粘贴本科毕业论文 1 篇 + 课程论文 1 篇 · 已提取句长分布（均 24.3 字、长短句比 2:1）、引用习惯（句末括注、多为 APA 7）、被动/主动语态比（3:7）。起草时对齐以上统计特征，未模仿具体句式。
+  </div>
+
+  <!-- 第 3 块：段落草稿 -->
+  <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+    段落草稿 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Draft</span>
+  </h2>
+
+  <article class="paragraph">
+    <div class="para-tags">
+      <span class="tag user">👤 用户已确认</span>
+      <span class="tag literature">📋 基于大纲与文献</span>
+      <span class="tag style">✍️ 模仿用户风格</span>
+    </div>
+    <h3 class="font-sans text-[1.04rem] font-bold mt-0 mb-[0.6rem] leading-[1.45] text-l3">第 1 段 背景切入：短视频在初中生群体中的普及 · 🪞 系统归纳（用户已确认）</h3>
+    <p class="text-ink mt-[0.3rem] mb-0 leading-[1.85]">短视频平台（抖音、快手）已成为中国青少年日常数字媒体消费的主要形式之一。根据 CNNIC 2024 报告，12-15 岁初中生群体的短视频日均使用时长已超过 90 分钟（<a class="text-l1 underline underline-offset-2" href="../literature/笔记表.md#cnnic2024">CNNIC 2024</a>），显著高于其他年龄段。这一使用强度引发学界对其心理与行为影响的持续关注（<a class="text-l1 underline underline-offset-2" href="../literature/笔记表.md#twenge2018">Twenge 2018</a>）。</p>
+  </article>
+
+  <article class="paragraph">
+    <div class="para-tags">
+      <span class="tag user">👤 用户改写</span>
+      <span class="tag literature">📋 基于大纲与文献</span>
+      <span class="tag warn">⚠️ 未经文献支撑</span>
+      <span class="tag style">✍️ 模仿用户风格</span>
+    </div>
+    <h3 class="font-sans text-[1.04rem] font-bold mt-0 mb-[0.6rem] leading-[1.45] text-l3">第 2 段 概念界定：考试焦虑的多维结构 · 🪞 系统归纳（用户改写）</h3>
+    <p class="text-ink mt-[0.3rem] mb-0 leading-[1.85]">考试焦虑并非单一维度，Spielberger 将其区分为特质考试焦虑（稳定的个体差异）与状态考试焦虑（情境驱动的即时反应）（<a class="text-l1 underline underline-offset-2" href="../literature/笔记表.md#spielberger1980">Spielberger 1980</a>）。前者在初中阶段开始稳定显现，并显著预测应试时的认知与生理反应。推送算法的高频刺激可能加剧状态焦虑的波动幅度，<span class="text-l4 italic">尤其在临考阶段</span>（Lee 2024 尚未纳入 literature/ 笔记表、暂标「⚠️ 未经文献支撑」）。</p>
+  </article>
+
+  <article class="paragraph">
+    <div class="para-tags">
+      <span class="tag user">👤 用户原话</span>
+      <span class="tag ai-default">🤖 AI 未起草</span>
+    </div>
+    <h3 class="font-sans text-[1.04rem] font-bold mt-0 mb-[0.6rem] leading-[1.45] text-l3">第 3 段 RQ 引出：本研究关注推送算法高频使用与考试焦虑的相关性 · 👤 用户原话</h3>
+    <p class="text-ink mt-[0.3rem] mb-0 leading-[1.85]">基于上述背景，本研究关注的核心问题是：短视频推送算法的高频次使用，是否与初中生（12-15 岁）的考试焦虑存在相关性？研究将区分特质与状态考试焦虑，并控制睡眠时长与家庭社会经济地位两个潜在混淆变量。</p>
+  </article>
+
+  <!-- 第 4 块：下一步验证清单 -->
+  <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+    下一步验证清单 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ To Verify · 仅疑问句</span>
+  </h2>
+  <ul class="text-l4">
+    <li>❓ 第 2 段提到的 "Lee 2024" 你能拿到原文吗？是否补进 literature/笔记表.md？</li>
+    <li>❓ CNNIC 2024 的 90 分钟数据是日均还是中位数？原文怎么界定的？</li>
+    <li>❓ 用户改写的部分里"尤其在临考阶段"这个时间维度是否要在 RQ 中明示？</li>
+    <li>❓ 第 3 段你写"控制睡眠时长与 SES"——这两个变量的测量工具你选好了吗？</li>
+  </ul>
+
+  <!-- 第 5 块：页脚 -->
+  <footer class="mt-14 pt-5 border-t-2 border-double border-rule text-ink-soft text-[0.85rem] leading-[1.7]">
+    <div class="font-sans text-[10px] tracking-[0.22em] uppercase text-ink-faint mb-2">Paper-Draft · 成句生成级披露（PRD 第三级）</div>
+    <p>本草稿由 AI 起草段落初稿、用户逐段改写或自写。AI 承担起草效率（挂锚点、对齐风格、降低空白页负担）；研究判断（段落去留、改写程度、引用准确性、数据真伪）全部由用户决定。</p>
+    <div class="draft-footer-note">
+      <b class="text-ink">诚信披露：</b>本草稿属 PRD 披露第三级「成句生成」辅助——比"大纲结构"级（paper-outline）高一档风险。导师与 AIGC 检测对成句辅助最敏感。本草稿顶部的成句辅助度声明与 .paper/ 留痕均<b class="text-ink">逐段可追溯</b>：哪段 AI 接受、哪段 AI 改写、哪段用户自写、哪段含未经支撑细节，一一记明、不假装全自写。
+    </div>
+  </footer>
+
+</article>
+</body>
+</html>

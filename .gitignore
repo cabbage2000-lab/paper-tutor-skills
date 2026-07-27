@@ -1,0 +1,21 @@
+# 系统与编辑器杂项
+.DS_Store
+Thumbs.db
+*.swp
+sync_skills.py
+
+# Python 字节码缓存
+__pycache__/
+*.pyc
+
+/.claude/
+.superpowers/
+
+# 内部设计文档（本地维护，不入库）
+# 入库的只有 docs/prd/ 与 docs/examples/——README·仓库结构对外声明的口径就是这两个。
+# plans/ 于 2026-07-27 移出索引：过程稿，且含 39 处本机绝对路径。
+docs/plans/
+docs/reports/
+docs/reviews/
+docs/specs/
+docs/superpowers/

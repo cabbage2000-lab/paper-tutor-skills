@@ -1,0 +1,11 @@
+{
+  "status": "ok",
+  "message": {
+    "DOI": "10.1038/nature12373",
+    "title": ["Nanometre-scale thermometry in a living cell"],
+    "author": [{"given": "G.", "family": "Kucsko"}, {"given": "P. C.", "family": "Maurer"}],
+    "issued": {"date-parts": [[2013, 8, 1]]},
+    "container-title": ["Nature"],
+    "type": "journal-article"
+  }
+}

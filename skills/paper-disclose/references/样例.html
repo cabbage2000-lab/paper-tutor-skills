@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-disclose 产物「研究披露报告.html」的样式权威）
+  ====================================================================
+  本文件是「样例 HTML」——用真实感模拟数据填充模板全部占位，
+  供人工视觉验收排版、配色、四层色、读者切换器交互、打印预览。
+  宿主 agent 生成真实产物时以「报告样式模板.html」为权威，本文件仅供对照。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+     参照学术期刊内页与档案馆检索卡。禁营销页/仪表盘语汇。
+  2. 四层语义色是「摆事实非推荐」死线，四色须一眼可辨：
+     👤 用户原话=靛蓝(#2b4a6f, 最重) / 📋 常见事实=赭石(#7a6230) /
+     🪞 系统归纳=青灰(#4a6b5c) / ❓ 待用户验证=砖红(#9a3b2e)。
+     四色低饱和、从纸面浮起、不抢正文。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）
+     所有模板必备；本模板不引入 ECharts——disclose 无图表。读者切换器的 <script>
+     是 disclose 专属交互逻辑（纯静态 DOM 操作、过滤段落高亮），与 Tailwind/ECharts
+     无关、保留在 <script> 段不内联到 utility。宿主 agent 生成产物时须原样保留
+     外部引用 + <script> 段、不得内联替代、不得删减。断网时产物降级为无样式 HTML
+     （内容可读、读者切换器失效）——这是可接受的折衷。
+  4. 陈列型可视化边界（图表与「不下结论」死线的共存规则）：
+     - 图表只客观投影表格/列表已有数据，不得引入派生指标（均值、排名、达标线、基准线）。
+     - 禁视觉倾斜：不用面积大小暗示优劣、不用颜色深浅暗示高低、不用动画放大某点、
+       不用 split area 分区暗示达标带。
+     - 图表配色限定：四层语义色 + 两档墨色。禁红绿灯色板延伸到图表数据。
+     - 每张图必须带说明性 caption：写明"陈列什么、不下什么结论"。
+     （本模板无图表，此条对后续可能的可视化扩展约束。）
+  5. disclose 专属元素：段落级读者标签轴（[data-readers] 属性 + 四枚 r1-r4 读者色：
+     👤 导师带教=靛紫 #6b4a8f / 📋 研究生院合规=橄榄 #6b7a3a / 🔎 期刊投稿=海蓝
+     #2a6b7a / 🛡️ AIGC 检测应对=暗红 #8f4a5a · 与 topic 四层来源轴 l1-l4 并列共存、
+     用 r1-r4 色系避免撞色）、顶部读者切换器（.reader-switcher · 4 checkbox + 纯静态
+     JS 过滤高亮、未命中段降透明度 .25 不删除）、四级辅助级别骨架（.level · 左侧色带缩进）、
+     顶部强制覆盖徽章（汇编 X 条 / 覆盖 N 级 / 隐去 M 条 · 客观陈列、不下"够/不够"结论）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>研究披露报告 · 样例</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 页面骨架 === */
+  body {
+    background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page::before {
+    content: "paper-disclose · 研究披露档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 四层语义徽章族 === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === topic .rebuttal（disclose 复用） === */
+  .rebuttal-row { display: flex; gap: .6rem; align-items: flex-start; margin-bottom: .55rem; }
+  .rebuttal-row:last-child { margin-bottom: 0; }
+  .rebuttal-row .role {
+    flex-shrink: 0; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    padding: 2px 7px; border-radius: 2px; margin-top: 2px;
+  }
+  .role-user { background: #2b4a6f; color: #f6f2ea; }
+  .role-ai    { background: #9a3b2e; color: #f6f2ea; }
+  .role-back  { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+
+  /* === 疑问句清单 === */
+  .verify { list-style: none; margin: 1rem 0; padding: 0; }
+  .verify li {
+    background: #f3e3df; border-left: 3px solid #9a3b2e;
+    padding: .8rem 1rem .8rem 2rem; margin-bottom: .6rem;
+    color: #1f1b16; position: relative;
+  }
+  .verify li::before {
+    content: "?"; position: absolute; left: -3px; top: .8rem;
+    background: #9a3b2e; color: #f6f2ea;
+    width: 16px; height: 16px; border-radius: 50%;
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* === disclose 专属：读者标签轴 r1-r4 色系 === */
+  .rs-tag.r1 { color: #6b4a8f; background: rgba(107,74,143,.08); }
+  .rs-tag.r2 { color: #6b7a3a; background: rgba(107,122,58,.08); }
+  .rs-tag.r3 { color: #2a6b7a; background: rgba(42,107,122,.08); }
+  .rs-tag.r4 { color: #8f4a5a; background: rgba(143,74,90,.08); }
+
+  /* === disclose 专属：读者切换器 === */
+  .reader-switcher {
+    margin-top: 1.4rem; padding-top: 1rem;
+    border-top: 1px dashed #c9bfa8;
+    display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem;
+    font-size: .85rem;
+  }
+  .reader-switcher .rs-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: #8a8071; margin-right: .3rem;
+  }
+  .reader-switcher label {
+    display: inline-flex; align-items: center; cursor: pointer;
+    user-select: none;
+  }
+  .reader-switcher input[type=checkbox] {
+    margin-right: .35rem; cursor: pointer;
+  }
+  .reader-switcher .rs-tag {
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: .82rem; padding: 2px 8px; border-radius: 2px;
+    border: 1px solid currentColor;
+  }
+
+  [data-readers].rs-dim { opacity: .25; transition: opacity .2s ease; }
+
+  /* === disclose 专属：四级辅助级别骨架 === */
+  .level {
+    margin-left: 0;
+    border-left: 3px solid #c9bfa8;
+    padding-left: 1.2rem;
+    margin-bottom: 1.4rem;
+  }
+  .level h3.l3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.02rem;
+  }
+
+  [data-readers] { position: relative; }
+  [data-readers]::after {
+    content: attr(data-readers-label);
+    position: absolute; top: 0; right: 0;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 9px; letter-spacing: .14em;
+    color: #8a8071;
+  }
+
+  /* === disclose 专属：顶部强制覆盖徽章 === */
+  .cover-badge {
+    display: inline-block;
+    padding: 0.3rem 0.7rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600;
+    background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c;
+    margin-top: 0.5rem;
+  }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(7) { animation-delay: .47s; }
+    .page > *:nth-child(8) { animation-delay: .54s; }
+    .page > *:nth-child(9) { animation-delay: .61s; }
+    .page > *:nth-child(n+10) { animation-delay: .68s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+    [data-readers].rs-dim { opacity: 1 !important; }
+  }
+</style>
+</head>
+<body class="font-serif text-ink text-base leading-[1.85] antialiased">
+<article class="page max-w-[880px] mx-auto mt-12 mb-20 bg-paper border border-rule border-t-[6px] border-t-ink px-16 py-14 relative shadow-[0_1px_0_#ece5d6,0_30px_60px_-30px_rgba(60,45,20,0.25)]">
+
+  <header class="doc-head mb-10">
+    <div class="font-sans text-[11px] tracking-[0.28em] uppercase text-ink-faint mb-[0.6rem]">
+      Paper-Disclose · 研究披露档案
+    </div>
+    <h1 class="font-serif text-[2.1rem] font-bold leading-[1.25] mt-0 mb-4 tracking-[0.01em]">
+      研究披露报告 <em class="italic font-medium text-ink-soft" style="font-family:Georgia,'Songti SC',serif">Research Disclosure</em>
+    </h1>
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-2 pt-4 border-t border-rule text-ink-soft text-[0.9rem]">
+      <span><b class="text-ink-faint font-medium mr-1.5">日期</b>2026-07-26</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">项目</b>翻转课堂对高中生数学学业成绩的影响研究</span>
+    </div>
+    <div class="bg-l1-bg border-l-[3px] border-l1 pl-4 py-2 mt-4 mb-2">
+      <span class="font-sans text-[10px] tracking-[0.2em] uppercase text-l1 font-bold">👤 研究问题（RQ）· 用户原话</span>
+      <p class="text-l1 font-semibold mt-1 mb-0">"翻转课堂（flipped classroom）对高中生数学学业成绩的影响是否优于传统讲授式课堂？"</p>
+    </div>
+    <div class="cover-badge">
+      汇编 8 条 · 覆盖 3 级 · 隐去 0 条
+    </div>
+
+    <div class="reader-switcher" id="readerSwitcher">
+      <span class="rs-label">读者切换</span>
+      <label><input type="checkbox" data-reader="r1"><span class="rs-tag r1">👤 导师带教</span></label>
+      <label><input type="checkbox" data-reader="r2"><span class="rs-tag r2">📋 研究生院合规</span></label>
+      <label><input type="checkbox" data-reader="r3"><span class="rs-tag r3">🔎 期刊投稿</span></label>
+      <label><input type="checkbox" data-reader="r4"><span class="rs-tag r4">🛡️ AIGC 检测应对</span></label>
+    </div>
+  </header>
+
+  <section class="legend my-7 px-5 py-4 bg-white/40 border border-dashed border-rule text-[0.85rem]">
+    <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-ink-faint mb-2">
+      内容标注 · Content Provenance
+    </div>
+    <ul class="m-0 p-0 list-none flex flex-wrap gap-x-6 gap-y-2">
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l1"></span>👤 用户原话</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l2"></span>📋 常见事实（非推荐）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l3"></span>🪞 系统归纳（可追溯）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l4"></span>❓ 待用户验证</li>
+    </ul>
+    <div class="mt-2 text-[0.78rem] text-ink-faint">本说明不含"AI 的新判断"层 —— 凡无法归入上述四层者即越界。</div>
+  </section>
+
+  <!-- 第 1 块：AI 辅助分级陈列 -->
+  <section class="levels" data-readers="r2 r3" data-readers-label="📋 🔎">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      AI 辅助分级陈列 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Levels · PRD 四级</span>
+    </h2>
+
+    <article class="level" data-readers="r4">
+      <h3 class="l3 font-sans font-bold text-ink">构思讨论级</h3>
+      <ul class="bullets mt-1 pl-5 list-none">
+        <li class="text-ink-soft mb-1.5"><span class="tag-inline t2">📋</span>2026-05-12 · paper-topic 选题澄清：AI 承担摆 5 阶段引导漏斗 + 摆常见子方向；用户决定从"教学信息化"收窄到"翻转课堂 vs 传统课堂"；产物 .paper/topic/留痕.md</li>
+        <li class="text-ink-soft mb-1.5"><span class="tag-inline t2">📋</span>2026-05-15 · paper-search 文献检索：AI 承担按"翻转课堂 + 学业成绩 + 高中"三关键词检索 6 个数据库；用户决定纳入 Bishop 2013、Song 2016、Chen 2022 等 18 篇；产物 .paper/literature/笔记表.md</li>
+      </ul>
+    </article>
+
+    <article class="level" data-readers="r1">
+      <h3 class="l3 font-sans font-bold text-ink">大纲结构级</h3>
+      <ul class="bullets mt-1 pl-5 list-none">
+        <li class="text-ink-soft mb-1.5"><span class="tag-inline t2">📋</span>2026-05-20 · paper-outline 论文大纲：AI 承担摆 IMRaD 5 章常见结构 + 文献锚点匹配建议；用户决定调整结果章顺序为"定量 → 质性 → 混合"、删第 6 章独立讨论章合并到结论；产物 .paper/outline/大纲.md</li>
+        <li class="text-ink-soft mb-1.5"><span class="tag-inline t2">📋</span>2026-06-02 · paper-logic 论证链检查：AI 承担四链对应图陈列 + 段落级增强；用户决定补方法章"参与度量表"与"访谈大纲"设计说明、删结论 3 条超范围陈述；产物 .paper/logic/检查.md</li>
+      </ul>
+    </article>
+
+    <article class="level" data-readers="r2">
+      <h3 class="l3 font-sans font-bold text-ink">成句生成级</h3>
+      <ul class="bullets mt-1 pl-5 list-none">
+        <li class="text-ink-soft mb-1.5"><span class="tag-inline t2">📋</span>2026-06-10 · paper-draft 正文共写：AI 承担方法章 §3.1-§3.3 起草 3 段；用户决定改写 §3.2 实施细节段（"协作练习"模块的分组规则由用户亲笔）、§3.4 测量工具段由用户自写；产物 .paper/draft/方法章.md</li>
+        <li class="text-ink-soft mb-1.5"><span class="tag-inline t2">📋</span>2026-06-15 · paper-verify 引用核验：AI 承担 18 篇文献的五字段交叉核验；用户决定替换 2 篇无法溯源的文献、补 1 篇 Chen 2024；产物 .paper/verify/核验.md</li>
+      </ul>
+    </article>
+
+    <article class="level">
+      <h3 class="l3 font-sans font-bold text-ink">语言润色级</h3>
+      <ul class="bullets mt-1 pl-5 list-none">
+        <li class="text-ink-soft mb-1.5 pl-3 border-l-[3px] border-l4 -ml-3"><span class="tag-inline t2">📋</span>⚠️ 本档案未记录此级 AI 辅助（用户未跑 paper-revise 等润色命令；摘要 / 讨论部分将由用户自写、不计划用 AI 润色）</li>
+      </ul>
+    </article>
+  </section>
+
+  <!-- 第 2 块：人机分工总览 -->
+  <section class="division" data-readers="r1" data-readers-label="👤">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      人机分工总览 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Division · 汇总陈列 · 不下结论</span>
+    </h2>
+    <div class="grid gap-5 my-4">
+      <div class="border border-rule bg-white/35 px-5 py-4">
+        <div class="rebuttal-row">
+          <span class="role role-ai">🪞 AI 承担</span>
+          <span class="txt text-ink">选题引导漏斗摆常见选项、文献检索与五字段核验、IMRaD 大纲结构建议、方法章 §3.1-§3.3 共写起草、四链对应图客观陈列</span>
+        </div>
+        <div class="rebuttal-row">
+          <span class="role role-user">👤 用户决定</span>
+          <span class="txt text-ink">研究方向收窄、文献纳入取舍、章节顺序与讨论合并决策、§3.2 改写与 §3.4 自写、3 条超范围结论删减、统计方法选择</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 第 3 块：边界守护清单 -->
+  <section class="guardrails" data-readers="r1 r2 r4" data-readers-label="👤 📋 🛡️">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      边界守护清单 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Guardrails · 三条不变</span>
+    </h2>
+    <ul class="verify">
+      <li>不编造：留痕均指向真实 paper 命令执行，无凭记忆补全条目</li>
+      <li>不替判断：每条留痕的「用户决定」字段证明研究决策归用户</li>
+      <li>留痕如实：本说明按用户选择隐去 0 条，顶部强制声明、未抹除痕迹</li>
+    </ul>
+  </section>
+
+  <!-- 第 4 块：读者导引 -->
+  <section class="reader-guide" data-readers="r3" data-readers-label="🔎">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      读者导引 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Reader Guide · 各读者重点关注</span>
+    </h2>
+    <ul class="body-list pl-6 my-2 list-disc">
+      <li class="text-ink-soft mb-2.5">👤 导师带教：看「人机分工总览」+「边界守护清单」（学生成长证据）</li>
+      <li class="text-ink-soft mb-2.5">📋 研究生院合规：看「AI 辅助分级陈列」+「边界守护清单」（制度合规）</li>
+      <li class="text-ink-soft mb-2.5">🔎 期刊投稿：看「元信息」+「AI 辅助分级陈列」（字段对齐）</li>
+      <li class="text-ink-soft mb-2.5">🛡️ AIGC 检测应对：看「留痕时间线」+「边界守护清单」（过程证据）</li>
+    </ul>
+  </section>
+
+  <!-- 第 5 块：页脚 -->
+  <footer class="mt-14 pt-5 border-t-2 border-double border-rule text-ink-soft text-[0.85rem] leading-[1.7]">
+    <div class="font-sans text-[10px] tracking-[0.22em] uppercase text-ink-faint mb-2">Human–AI Division of Labor</div>
+    <p>本说明由 AI 汇编 .paper/ 留痕生成、用户逐条确认取舍。AI 承担汇编与整理；留痕取舍、对外披露口径全部由用户决定。</p>
+  </footer>
+
+</article>
+
+<script>
+  // 读者切换器：disclose 专属交互逻辑，纯静态 DOM 操作、无外部依赖、不发网络请求
+  (function() {
+    var boxes = document.querySelectorAll('#readerSwitcher input[type=checkbox]');
+    var targets = document.querySelectorAll('[data-readers]');
+    function apply() {
+      var checked = Array.prototype.map.call(boxes, function(b){ return b.checked ? b.dataset.reader : null; })
+                           .filter(Boolean);
+      if (checked.length === 0) {
+        targets.forEach(function(t){ t.classList.remove('rs-dim'); });
+      } else {
+        targets.forEach(function(t){
+          var rs = (t.dataset.readers || '').split(/\s+/);
+          var hit = rs.some(function(r){ return checked.indexOf(r) >= 0; });
+          t.classList.toggle('rs-dim', !hit);
+        });
+      }
+    }
+    boxes.forEach(function(b){ b.addEventListener('change', apply); });
+  })();
+</script>
+</body>
+</html>

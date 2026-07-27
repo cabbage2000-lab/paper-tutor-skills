@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "若 Paper-Tutor-Skills 在你的研究中有所帮助，请按如下方式引用。"
+type: software
+title: "Paper-Tutor-Skills"
+abstract: >-
+  面向科研新手与带教者的学术辅导 skills 套件，装进编程智能体
+  （Claude Code / Codex / WorkBuddy）。AI 管效率（检索、整理、核对、结构化），
+  人管研究决策（想法、判断、数据、结论）。双重受众：学生自助学研究、教师带教。
+  辅导，不是代笔。
+keywords:
+  - academic-research
+  - tutor
+  - agent-skills
+  - citation-verification
+  - literature-search
+license: PolyForm-Noncommercial-1.0.0
+authors:
+  - name: "程序员大白菜"
+repository-code: "https://github.com/cabbage2000-lab/paper-tutor-skills"

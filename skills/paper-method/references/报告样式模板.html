@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-method 产物「研究设计参谋报告.html」的样式权威）
+  ====================================================================
+  宿主 agent 生成产物时：把本文件整段复制为产物，再把 <body> 里的
+  <尖括号占位> 替换为真实实例内容（删掉未触发的块，如引导模式删 .dims 整段、
+  检查模式删 .methods 整段；伦理检测未命中则把 .ethics 整段替换为自检声明）。
+  <style> 段原样保留、勿改配色（四层语义色是产品死线）。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+     参照学术期刊内页与档案馆检索卡。禁营销页/仪表盘语汇。
+  2. 四层语义色是「摆事实非推荐」死线，四色须一眼可辨：
+     👤 用户原话=靛蓝(#2b4a6f, 最重) / 📋 常见事实=赭石(#7a6230) /
+     🪞 系统归纳=青灰(#4a6b5c) / ❓ 待用户验证=砖红(#9a3b2e)。
+     四色低饱和、从纸面浮起、不抢正文。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）
+     所有模板必备；本模板不引入 ECharts——method 无图表。宿主 agent 生成产物时须
+     原样保留外部引用、不得内联替代、不得删减。断网时产物降级为无样式 HTML
+     （内容可读、排版失效）——这是可接受的折衷。
+  4. 陈列型可视化边界（图表与「不下结论」死线的共存规则）：
+     - 图表只客观投影表格/列表已有数据，不得引入派生指标（均值、排名、达标线、基准线）。
+     - 禁视觉倾斜：不用面积大小暗示优劣、不用颜色深浅暗示高低、不用动画放大某点、
+       不用 split area 分区暗示达标带。
+     - 图表配色限定：四层语义色 + 两档墨色。禁红绿灯色板延伸到图表数据。
+     - 每张图必须带说明性 caption：写明"陈列什么、不下什么结论"。
+     （本模板无图表，此条对后续可能的可视化扩展约束。）
+  5. method 专属元素：方法-RQ 匹配维度卡片（.chain-card · 复用 logic 手法）、
+     方法类陈列卡片网格（.method-card · 引导模式）、模式标识徽章（.mode-badge · 不下优劣）、
+     检查范围与学科声明（.scope-block · 与 logic 共用手法、border-left-width 统一 4px）、
+     伦理审查清单表格（.ethics-table · 6 行 + 末尾红框警示"须机构确认，AI 不能替代"）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>研究设计参谋报告</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 页面骨架（通用组件，保留 <style> 因伪元素/多层背景 Tailwind 难以表达） === */
+  body {
+    background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page::before {
+    content: "paper-method · 研究设计参谋档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 四层语义徽章族（.tag-inline.t1-t4） === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === method 专属：模式标识徽章（.mode-badge · 检查/引导、中性色、不下优劣） === */
+  .mode-badge {
+    display: inline-block; padding: 0.3rem 0.8rem; border-radius: 3px;
+    font-size: 0.85rem; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600; margin-top: .8rem;
+    background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c;
+  }
+
+  /* === method 专属：检查范围与学科声明（.scope-block · 与 logic 共用、border-left-width 统一 4px） === */
+  .scope-block {
+    background: #f0e9d8; border: 1px solid #7a6230; border-left-width: 4px;
+    padding: 1rem 1.2rem; margin: .6rem 0; color: #5a5247;
+    font-size: .95rem; line-height: 1.75;
+  }
+  .scope-block .scope-label {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: #7a6230; margin-bottom: .5rem; font-weight: 700;
+  }
+  .scope-block.alert {
+    background: #f3e3df; border-color: #9a3b2e;
+  }
+  .scope-block.alert .scope-label { color: #9a3b2e; }
+
+  /* === method 专属：方法-RQ 匹配维度卡片（.chain-card · 复用 logic 手法） === */
+  .chain-card {
+    border: 1px solid #c9bfa8; border-left: 4px solid #4a6b5c;
+    background: rgba(255,255,255,.35);
+    padding: 1.2rem 1.4rem; margin: 0 0 1.4rem;
+  }
+  .chain-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 1rem; margin-bottom: .8rem; padding-bottom: .5rem;
+    border-bottom: 1px dashed #c9bfa8;
+  }
+  .chain-name {
+    font-family: "PingFang SC", "Source Han Sans SC", sans-serif;
+    font-weight: 700; font-size: 1rem; color: #1f1b16;
+  }
+
+  /* === 对应度徽章族（.badge.green/.yellow/.red/.miss · 与 outline/draft 复用） === */
+  .badge {
+    display: inline-block; padding: 0.3rem 0.7rem; border-radius: 3px;
+    font-size: 0.85rem; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-weight: 600; white-space: nowrap;
+  }
+  .badge.green  { background: #d8e6c6; color: #2f4a1c; border: 1px solid #a8c08e; }
+  .badge.yellow { background: #f0e3b8; color: #5a4710; border: 1px solid #cbb564; }
+  .badge.red    { background: #ecc8c0; color: #6e2317; border: 1px solid #c98a7c; }
+  .badge.miss   { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+
+  /* === .chain-tree === */
+  .chain-tree { margin: 0; padding: 0; list-style: none; }
+  .chain-tree > li {
+    position: relative; padding: .35rem 0 .35rem 5.5rem; margin-bottom: .3rem;
+    line-height: 1.7;
+  }
+  .chain-tree > li .role {
+    position: absolute; left: 0; top: .35rem;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    color: #8a8071; width: 4.5rem; text-align: right;
+  }
+  .chain-tree .endpoints { padding-left: 0; list-style: none; margin: .2rem 0; }
+  .chain-tree .endpoints li {
+    padding: .15rem 0 .15rem 1rem; position: relative; color: #5a5247;
+    font-size: .94rem;
+  }
+  .chain-tree .endpoints li::before {
+    content: "·"; position: absolute; left: 0; color: #8a8071;
+  }
+  .chain-tree .missing { color: #7a6230; font-style: italic; }
+  .chain-tree .gap { color: #9a3b2e; font-size: .9rem; }
+  .chain-tree .question { color: #1f1b16; font-weight: 500; }
+  .chain-tree .question::before { content: "❓ "; color: #9a3b2e; }
+
+  /* === method 专属：方法类陈列卡片网格（.method-card · 引导模式、摆常见事实非推荐） === */
+  .method-grid {
+    display: grid; grid-template-columns: 1fr; gap: 1rem; margin: 1rem 0;
+  }
+  .method-card {
+    background: #f0e9d8; border: 1px solid #7a6230; border-left-width: 3px;
+    padding: 1rem 1.2rem;
+  }
+  .method-card .mc-head {
+    font-family: "PingFang SC", "Source Han Sans SC", sans-serif;
+    font-weight: 700; font-size: .98rem; color: #7a6230; margin-bottom: .5rem;
+    display: flex; align-items: baseline; justify-content: space-between; gap: .8rem;
+  }
+  .method-card .mc-stamp {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 9px; letter-spacing: .18em; text-transform: uppercase;
+    color: #8a8071; font-weight: 600;
+  }
+  .method-card .mc-fields { color: #5a5247; font-size: .92rem; line-height: 1.7; }
+  .method-card .mc-fields p { margin: .2rem 0; }
+  .method-card .mc-fields b { color: #8a8071; font-weight: 500; margin-right: .3rem; }
+  .method-card.else-none {
+    background: rgba(255,255,255,.4); border-style: dashed; border-left-style: solid;
+  }
+
+  /* === method 专属：伦理审查提示清单表格（.ethics-table · 涉人类被试检测命中时陈列） === */
+  .ethics-table {
+    width: 100%; border-collapse: collapse; margin: 1rem 0;
+    font-size: .92rem;
+  }
+  .ethics-table th, .ethics-table td {
+    border: 1px solid #c9bfa8; padding: .7rem .9rem; text-align: left;
+    vertical-align: top; line-height: 1.7;
+  }
+  .ethics-table th {
+    background: #f0e9d8; color: #7a6230; font-weight: 700;
+    font-family: "PingFang SC", sans-serif; font-size: .88rem;
+  }
+  .ethics-table td:first-child {
+    font-weight: 600; color: #1f1b16; width: 8rem;
+    font-family: "PingFang SC", sans-serif;
+  }
+  .ethics-table td.et-q { color: #9a3b2e; }
+  .ethics-table td.et-q::before { content: "❓ "; }
+  /* === 末尾红框警示（.ethics-warning · 须机构确认，AI 不能替代） === */
+  .ethics-warning {
+    margin: 1.4rem 0 .6rem; padding: 1rem 1.2rem;
+    background: #f3e3df; border: 2px solid #9a3b2e; border-radius: 3px;
+    color: #1f1b16; font-size: .92rem; line-height: 1.75;
+  }
+  .ethics-warning strong { color: #9a3b2e; }
+  .ethics-warning .ew-stamp {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+    color: #9a3b2e; font-weight: 700; display: block; margin-bottom: .4rem;
+  }
+  /* === 伦理检测未命中时的自检声明（.ethics-selfcheck） === */
+  .ethics-selfcheck {
+    background: #e4ece8; border: 1px solid #4a6b5c; border-left-width: 3px;
+    padding: 1rem 1.2rem; margin: 1rem 0; color: #5a5247;
+    font-size: .92rem; line-height: 1.7;
+  }
+
+  /* === 疑问句清单（.verify · 复用 topic/outline/draft 同款） === */
+  .verify { list-style: none; margin: 1rem 0; padding: 0; }
+  .verify li {
+    background: #f3e3df; border-left: 3px solid #9a3b2e;
+    padding: .8rem 1rem .8rem 2rem; margin-bottom: .6rem;
+    color: #1f1b16; position: relative;
+  }
+  .verify li::before {
+    content: "?"; position: absolute; left: -3px; top: .8rem;
+    background: #9a3b2e; color: #f6f2ea;
+    width: 16px; height: 16px; border-radius: 50%;
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(7) { animation-delay: .47s; }
+    .page > *:nth-child(8) { animation-delay: .54s; }
+    .page > *:nth-child(n+9) { animation-delay: .61s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body class="font-serif text-ink text-base leading-[1.85] antialiased">
+<article class="page max-w-[880px] mx-auto mt-12 mb-20 bg-paper border border-rule border-t-[6px] border-t-ink px-16 py-14 relative shadow-[0_1px_0_#ece5d6,0_30px_60px_-30px_rgba(60,45,20,0.25)]">
+
+  <header class="doc-head mb-10">
+    <div class="font-sans text-[11px] tracking-[0.28em] uppercase text-ink-faint mb-[0.6rem]">
+      Paper-Method · 研究设计参谋档案
+    </div>
+    <h1 class="font-serif text-[2.1rem] font-bold leading-[1.25] mt-0 mb-4 tracking-[0.01em]">
+      研究设计参谋报告 <em class="italic font-medium text-ink-soft" style="font-family:Georgia,'Songti SC',serif">Research Design Advisory</em>
+    </h1>
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-2 pt-4 border-t border-rule text-ink-soft text-[0.9rem]">
+      <span><b class="text-ink-faint font-medium mr-1.5">日期</b><日期></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">学科梯队</b><实证 / 理论型 / 规范文本型></span>
+      <span><b class="text-ink-faint font-medium mr-1.5">伦理检测</b><命中：已陈列六项 / 未命中：已出自检声明></span>
+    </div>
+    <span class="mode-badge">模式：<检查模式 / 引导模式></span>
+  </header>
+
+  <section class="legend my-7 px-5 py-4 bg-white/40 border border-dashed border-rule text-[0.85rem]">
+    <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-ink-faint mb-2">
+      内容标注 · Content Provenance
+    </div>
+    <ul class="m-0 p-0 list-none flex flex-wrap gap-x-6 gap-y-2">
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l1"></span>👤 用户原话</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l2"></span>📋 常见事实（非推荐）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l3"></span>🪞 系统归纳（可追溯）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l4"></span>❓ 待用户验证</li>
+    </ul>
+    <div class="mt-2 text-[0.78rem] text-ink-faint">本报告不含"AI 的新判断"层 —— 凡无法归入上述四层者即越界。匹配度徽章只陈列 X/Y 对应、不下"够/不够"结论；伦理审查清单是提示非结论，须机构确认。</div>
+  </section>
+
+  <!-- 第 1 块：研究问题（RQ） -->
+  <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+    研究问题（RQ） <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ RQ</span>
+  </h2>
+  <div class="bg-l1-bg border-l-[3px] border-l1 pl-4 py-2 mb-2">
+    <span class="font-sans text-[10px] tracking-[0.2em] uppercase text-l1 font-bold">👤 用户拍板的原话</span>
+    <p class="text-l1 font-semibold mt-1 mb-0">"<用户拍板的原话 RQ，不改写>"</p>
+  </div>
+
+  <!-- 第 2 块：检查范围与学科声明 -->
+  <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+    检查范围与学科声明 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Scope · 学科适配</span>
+  </h2>
+  <div class="scope-block">
+    <div class="scope-label">📋 模式与检查范围</div>
+    <检查模式：方法-RQ 匹配维度（变量对应 / 数据类型 / 解释力 / 样本与总体）/ 引导模式：摆该方向常见方法类、用户选定后回切检查。>
+  </div>
+  <div class="scope-block <alert（理论型时）/ 普通（实证型时）>">
+    <div class="scope-label"><学科适配声明></div>
+    <实证型：四维度全核 / 理论型：按纯理论调整（概念∩推理工具、不强套实证模板、跳过样本维度）、仅核 RQ—方法结构对应不核验证明数学正确性 / 规范文本型：实证部分照查、纯规范分析按文本分析引导。>
+  </div>
+
+  <!-- 第 3 块（检查模式）：方法-RQ 匹配维度陈列（引导模式则删整段 .dims、改用 .methods） -->
+  <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+    方法-RQ 匹配维度陈列 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Match · 🪞 检查模式</span>
+  </h2>
+
+  <article class="chain-card">
+    <div class="chain-head">
+      <span class="chain-name">维度 1：变量对应</span>
+      <span class="badge <green/yellow/red/miss>">匹配度：<X> / <Y></span>
+    </div>
+    <ul class="chain-tree">
+      <li><span class="role">RQ 端</span><span class="t1 tag-inline">👤</span><用户原话 RQ 的核心变量></li>
+      <li><span class="role">方法端</span><span class="t3 tag-inline">🪞</span>方法可操作化变量：
+        <ul class="endpoints">
+          <li><变量> · 文献先例 <a class="text-l1 underline underline-offset-2" href="../literature/笔记表.md#smith2023">Smith 2023</a>（方法=问卷, 测量=X 量表）</li>
+          <li><变量> · <span class="missing">无先例参照</span></li>
+        </ul>
+      </li>
+      <li><span class="role">缺口</span><span class="t2 tag-inline">📋</span><无 / RQ 的 Y 变量方法未覆盖></li>
+      <li><span class="role">疑问句</span><span class="question"><只许疑问句，如"RQ 问的是 X 对 Y 的影响，你的方法能测量 X 和 Y 吗？"></span></li>
+    </ul>
+  </article>
+
+  <article class="chain-card">
+    <div class="chain-head">
+      <span class="chain-name">维度 2：数据类型</span>
+      <span class="badge <green/yellow/red/miss>">匹配度：<X> / <Y></span>
+    </div>
+    <ul class="chain-tree">
+      <li><span class="role">RQ 端</span><span class="t1 tag-inline">👤</span><RQ 分析需要的数据类型></li>
+      <li><span class="role">方法端</span><span class="t3 tag-inline">🪞</span>方法产出的数据类型：
+        <ul class="endpoints">
+          <li><数据类型> · 对应 RQ 需要</li>
+          <li><数据类型> · <span class="gap">不直接对应 RQ 因果 / 长期分析需要</span></li>
+        </ul>
+      </li>
+      <li><span class="role">缺口</span><span class="t2 tag-inline">📋</span><无 / 方法产出的数据不支撑 RQ 的某项分析></li>
+      <li><span class="role">疑问句</span><span class="question"><只许疑问句></span></li>
+    </ul>
+  </article>
+
+  <article class="chain-card">
+    <div class="chain-head">
+      <span class="chain-name">维度 3：解释力</span>
+      <span class="badge <green/yellow/red/miss>">匹配度：<X> / <Y></span>
+    </div>
+    <ul class="chain-tree">
+      <li><span class="role">RQ 意图</span><span class="t1 tag-inline">👤</span><描述 / 相关 / 因果 / 机制 / 探索></li>
+      <li><span class="role">方法解释力</span><span class="t2 tag-inline">📋</span>该方法的解释力层级：
+        <ul class="endpoints">
+          <li><能回答的意图> · 与 RQ 意图对应</li>
+          <li><方法的解释力边界> · <span class="gap">RQ 意图超出方法解释力</span></li>
+        </ul>
+      </li>
+      <li><span class="role">缺口</span><span class="t2 tag-inline">📋</span><无 / RQ 问"为什么"方法只答"是否"></li>
+      <li><span class="role">疑问句</span><span class="question"><只许疑问句></span></li>
+    </ul>
+  </article>
+
+  <article class="chain-card">
+    <div class="chain-head">
+      <span class="chain-name">维度 4：样本与总体 <span class="t2 tag-inline">📋 实证型</span></span>
+      <span class="badge <green/yellow/red/miss>">匹配度：<X> / <Y></span>
+    </div>
+    <ul class="chain-tree">
+      <li><span class="role">RQ 总体</span><span class="t1 tag-inline">👤</span><RQ 关心的总体></li>
+      <li><span class="role">方法样本</span><span class="t3 tag-inline">🪞</span>方法选取的样本：
+        <ul class="endpoints">
+          <li><样本范围> · 陈列常见样本量区间（不判"够不够"）</li>
+          <li><样本范围> · <span class="gap">与 RQ 总体外推有风险</span></li>
+        </ul>
+      </li>
+      <li><span class="role">缺口</span><span class="t2 tag-inline">📋</span><无 / 理论型无样本维度、跳过></li>
+      <li><span class="role">疑问句</span><span class="question"><只许疑问句></span></li>
+    </ul>
+  </article>
+
+  <!-- 第 4 块（引导模式）：方法类陈列（检查模式则删整段 .methods、改用 .dims） -->
+  <section class="methods" data-optional>
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      该方向常见方法类陈列 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Methods · 📋 引导模式 · 常见事实（非推荐）</span>
+    </h2>
+    <div class="method-grid">
+
+      <article class="method-card">
+        <div class="mc-head"><实验法 / 准实验 / 问卷调查 / 深度访谈 等><span class="mc-stamp">常见事实 · 非推荐</span></div>
+        <div class="mc-fields">
+          <p><b>研究什么</b><一句话></p>
+          <p><b>常见于</b><学科></p>
+          <p><b>能回答什么 RQ</b><RQ 类型></p>
+          <p><b>局限</b><一句话></p>
+        </div>
+      </article>
+
+      <article class="method-card">
+        <div class="mc-head"><方法类 2><span class="mc-stamp">常见事实 · 非推荐</span></div>
+        <div class="mc-fields">
+          <p><b>研究什么</b><...></p>
+          <p><b>常见于</b><...></p>
+          <p><b>能回答什么 RQ</b><...></p>
+          <p><b>局限</b><...></p>
+        </div>
+      </article>
+
+      <article class="method-card else-none">
+        <div class="mc-head">以上都不是，我自己说<span class="mc-stamp">用户自填入口</span></div>
+        <div class="mc-fields text-ink-faint italic">用户任何一步都能弃选、自己给；系统以用户自填为准继续（回切检查模式对该方法跑匹配维度）。</div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- 第 5 块：伦理审查提示清单（涉人类被试检测命中时陈列；未命中则整段替换为 .ethics-selfcheck 自检声明） -->
+  <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+    伦理审查提示清单 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Ethics · 📋 常见关注点 · 非结论</span>
+  </h2>
+
+  <table class="ethics-table">
+    <thead>
+      <tr><th>项</th><th>常见关注点</th><th>你的研究（疑问句交回用户）</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>知情同意</td>
+        <td>研究对象是否充分知情并自愿同意参与；未成年人需监护人同意</td>
+        <td class="et-q"><被试如何被告知目的 / 风险 / 退出权？知情同意书拟了吗？></td>
+      </tr>
+      <tr>
+        <td>匿名化 / 去标识</td>
+        <td>个人可识别信息是否去标识化；小样本罕见特征是否仍能追溯个人</td>
+        <td class="et-q"><数据如何去标识？间接识别风险排查了吗？></td>
+      </tr>
+      <tr>
+        <td>机构审批</td>
+        <td>是否须经学校 IRB / 伦理委员会审批；学位论文涉人研究通常必审</td>
+        <td class="et-q"><你所在机构是否要求伦理审批？审批号 / 豁免函拿到了吗？></td>
+      </tr>
+      <tr>
+        <td>风险评估</td>
+        <td>身体 / 心理 / 社会 / 经济风险（含敏感话题引发情绪、数据泄露污名化）</td>
+        <td class="et-q"><参与可能面临哪些风险？如何缓解？></td>
+      </tr>
+      <tr>
+        <td>数据安全</td>
+        <td>原始数据存储 / 传输 / 销毁 / 访问控制；可识别数据不应输入 AI 工具</td>
+        <td class="et-q"><数据存哪、谁能访问、保留多久？含不应输入 AI 的可识别信息吗？></td>
+      </tr>
+      <tr>
+        <td>脆弱人群保护</td>
+        <td>未成年人 / 患者 / 囚犯 / 权力弱势方额外保护</td>
+        <td class="et-q"><被试是否含脆弱人群？是否需要额外保护？></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="ethics-warning">
+    <span class="ew-stamp">⚠️ 须机构确认 · AI 不能替代</span>
+    本清单是研究伦理常见关注点的<strong>提示</strong>，不是伦理审查结论，更不是豁免判断。
+    <strong>最终是否需要伦理审批、审批流程、合规标准，一律以你所在机构（学校 IRB / 伦理委员会 / 院系）的规定为准——此项须经机构确认，AI 不能替代。</strong>
+    如有疑问，请咨询你的导师或机构伦理审查委员会。涉个人可识别信息的原始数据（访谈转录、问卷原始记录）<strong>不应输入本工具</strong>。
+  </div>
+
+  <!-- 伦理检测未命中时的自检声明（命中时删此 section、用上面的 .ethics） -->
+  <section class="ethics-selfcheck" data-optional>
+    <strong>本 RQ 与方法描述未检出涉人类被试 / 个人数据信号。</strong>
+    自动检测基于关键词 + 学科 + RQ 形态、<strong>可能漏判</strong>——若你的研究实际涉人类被试（即使未在 RQ 中明示），请主动按伦理审查提示清单（references/伦理审查提示清单.md）六项自查。
+  </section>
+
+  <!-- 第 6 块：疑问句汇总清单 -->
+  <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+    疑问句汇总清单 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ To Verify · 仅疑问句</span>
+  </h2>
+  <ul class="verify">
+    <li><疑问句 1，从匹配维度 / 方法类选择 / 伦理清单汇总，只许疑问句></li>
+    <li><疑问句 2></li>
+  </ul>
+
+  <!-- 第 7 块：页脚 -->
+  <footer class="mt-14 pt-5 border-t-2 border-double border-rule text-ink-soft text-[0.85rem] leading-[1.7]">
+    <p>本参谋由 AI 陈列方法-RQ 匹配维度 / 该方向常见方法类、强制提示伦理审查关注点；选哪个方法、方法行不行、伦理合规判断、是否回 topic 修订——全部由用户决定（<strong class="text-l4">伦理审批须机构确认，AI 不能替代</strong>）。</p>
+  </footer>
+
+</article>
+</body>
+</html>

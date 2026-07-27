@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-screen 产物「系统综述筛选报告.html」的样式权威）
+  ====================================================================
+  宿主 agent 生成产物时：把本文件整段复制为产物，再把 <body> 里的
+  <尖括号占位> 替换为真实实例内容（正文未涉及的要素标 ⚠️、不删整段）。
+  <style> 段原样保留、勿改配色（四层语义色是产品死线）。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+     参照学术期刊内页与档案馆检索卡。禁营销页/仪表盘语汇。
+  2. 四层语义色是「摆事实非推荐」死线，四色须一眼可辨：
+     👤 用户原话=靛蓝(#2b4a6f, 最重) / 📋 常见事实=赭石(#7a6230) /
+     🪞 系统归纳（可追溯）=青灰(#4a6b5c) / ❓ 待用户决定=砖红(#9a3b2e)。
+     四色低饱和、从纸面浮起、不抢正文。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）
+     所有模板必备；本模板不引入 ECharts——PRISMA 流程图是 scripts/screen.py 产出的
+     静态 SVG，不需要图表库。宿主 agent 生成产物时须原样保留外部引用、不得内联替代、
+     不得删减。断网时产物降级为无样式 HTML（内容可读、排版失效）——这是可接受的
+     折衷，与仓库其余 14 个报告模板一致（依据 _shared/references/报告组件库.md §0.2）。
+     下方 <style> 段保留的是 Tailwind 难以表达的部分（伪元素角标、多层网格背景）
+     与命名语义组件的定义，走组件库 §0.1 的「路径 B：保留命名」；其色值与
+     tailwind.config.js 的设计 token 逐一同值，不构成第二套平行配色。
+  4. 陈列型可视化边界（PRISMA 流程图与「不下结论」死线的共存规则）：
+     - 流程图只陈列 `scripts/screen.py` 从筛选台账机械算出、且已通过三条守恒
+       等式校验的计数，不得引入派生指标（占比、达标线、基准线）。
+     - **本模板任何位置都不得出现硬编码的 PRISMA 计数数字**——哪怕是示意用
+       的假数字也不行：下游实现者会把模板里出现的任何数字误当成"照抄格式"，
+       进而在真实产物里留下与台账对不上的死数字。数字槽位一律用 `<数>` 占位，
+       由 `render_svg()` 的输出或 `count_stages()` 的返回值在生成产物时真正
+       填入。
+     - 每张图必须带说明性 caption：写明"陈列什么、不下什么结论"。
+  5. screen 专属元素：纳排判定声明徽章（.decision-badge · 顶部固定"纳入 /
+     排除 100% 由用户拍板、AI 不代判"）、纳排标准表（.criteria-table · 👤
+     用户原话标注逐条标准）、PRISMA 流程图槽位（.prisma-figure · 内嵌
+     screen.py --svg 的输出，模板本身只留注释占位、不写数字）、筛选台账
+     摘要表（.ledger-summary-table / .reason-dist-table · 🪞 系统归纳，数字
+     来自 screen.py 机械计算）、偏倚评估与 PRISMA 2020 自查（.bias-table /
+     .prisma27-table · ❓ 待用户决定；理论型 / 人文梯队时偏倚评估工具清单
+     整段省略、不产空表，PRISMA 27 项自查仍全学科呈现、仅第 11/18 两行可
+     自评"不适用"——两种让路粒度不是一回事，勿混淆）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>系统综述筛选报告</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 设计 token（与 _shared/tailwind.config.js 逐一同值；该文件已在上方
+         引入，此处的 CSS 变量供下方命名语义组件使用，不是第二套平行配色） === */
+  :root {
+    /* 纸面与墨色（学术档案基底） */
+    --paper: #f6f2ea;
+    --paper-edge: #ece5d6;
+    --rule: #c9bfa8;
+    --ink: #1f1b16;
+    --ink-soft: #5a5247;
+    --ink-faint: #8a8071;
+    /* 四层语义色 —— 产品死线，色值不得改 */
+    --l1: #2b4a6f; --l1-bg: #e6edf4; /* 👤 用户原话（最重） */
+    --l2: #7a6230; --l2-bg: #f0e9d8; /* 📋 常见事实（非推荐） */
+    --l3: #4a6b5c; --l3-bg: #e4ece8; /* 🪞 系统归纳（可追溯） */
+    --l4: #9a3b2e; --l4-bg: #f3e3df; /* ❓ 待用户决定 */
+    /* 字体栈——全部本机已装字体，零 web 字体请求 */
+    --font-serif: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong",
+                  "PingFang SC", "Microsoft YaHei", Georgia, serif;
+    --font-sans: "PingFang SC", "Source Han Sans SC", "Microsoft YaHei",
+                 "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Consolas, Menlo, monospace;
+  }
+
+  /* === 全局重置（与 Tailwind preflight 同向，显式写出以免依赖加载顺序） === */
+  *, *::before, *::after { box-sizing: border-box; }
+  body, h1, h2, h3, p, ul, ol, dl, dd, figure, table, th, td { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+  a { color: inherit; }
+
+  /* === 页面骨架 === */
+  body {
+    font-family: var(--font-serif);
+    color: var(--ink);
+    font-size: 1rem;
+    line-height: 1.85;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--paper-edge) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper-edge) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page {
+    max-width: 880px;
+    margin: 3rem auto 5rem;
+    position: relative;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-top: 6px solid var(--ink);
+    padding: 3.5rem 4rem;
+    box-shadow: 0 1px 0 var(--paper-edge), 0 30px 60px -30px rgba(60, 45, 20, 0.25);
+  }
+  .page::before {
+    content: "paper-screen · 系统综述筛选档案";
+    position: absolute; top: -6px; right: 0;
+    background: var(--ink); color: var(--paper);
+    font-family: var(--font-sans);
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 档案头（.doc-head 族） === */
+  .doc-head { margin-bottom: 2.5rem; }
+  .doc-eyebrow {
+    font-family: var(--font-sans); font-size: 11px; letter-spacing: .28em;
+    text-transform: uppercase; color: var(--ink-faint); margin-bottom: .6rem;
+  }
+  .doc-title {
+    font-family: var(--font-serif); font-size: 2.1rem; font-weight: 700;
+    line-height: 1.25; margin-bottom: 1rem; letter-spacing: .01em;
+  }
+  .doc-meta {
+    display: flex; flex-wrap: wrap; gap: .5rem 1.5rem;
+    padding-top: 1rem; border-top: 1px solid var(--rule);
+    color: var(--ink-soft); font-size: .9rem;
+  }
+  .doc-meta b { color: var(--ink-faint); font-weight: 500; margin-right: .375rem; }
+  .decision-badge {
+    display: inline-block; margin-top: .75rem; padding: .375rem .875rem;
+    border-radius: 2px; font-family: var(--font-sans); font-size: .85rem;
+    font-weight: 600; line-height: 1.5;
+    background: var(--l4-bg); color: var(--l4); border: 1px solid var(--l4);
+  }
+
+  /* === 四层语义色图例（.legend，全部报告模板必备） === */
+  .legend {
+    margin: 1.75rem 0; padding: 1rem 1.25rem;
+    background: rgba(255, 255, 255, .4); border: 1px dashed var(--rule);
+    font-size: .85rem;
+  }
+  .legend-title {
+    font-family: var(--font-sans); font-size: 10px; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--ink-faint); margin-bottom: .5rem;
+  }
+  .legend ul { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; }
+  .legend li { display: flex; align-items: center; color: var(--ink-soft); }
+  .sw { width: .625rem; height: .625rem; border-radius: 2px; margin-right: .45rem; display: inline-block; }
+  .sw-l1 { background: var(--l1); }
+  .sw-l2 { background: var(--l2); }
+  .sw-l3 { background: var(--l3); }
+  .sw-l4 { background: var(--l4); }
+  .legend-note { margin-top: .5rem; font-size: .78rem; color: var(--ink-faint); }
+
+  /* === 四层语义徽章族（.tag-inline.t1-t4，行内来源标签） === */
+  .tag-inline {
+    display: inline-block; font-family: var(--font-sans);
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: var(--l1-bg); color: var(--l1); border: 1px solid var(--l1); }
+  .t2 { background: var(--l2-bg); color: var(--l2); border: 1px solid var(--l2); }
+  .t3 { background: var(--l3-bg); color: var(--l3); border: 1px solid var(--l3); }
+  .t4 { background: var(--l4-bg); color: var(--l4); border: 1px solid var(--l4); }
+
+  /* === 章节标题（h2.section + .sec-no） === */
+  h2.section {
+    font-family: var(--font-sans); font-size: 1.05rem; font-weight: 700;
+    letter-spacing: .04em; margin-top: 2.75rem; margin-bottom: 1.25rem;
+    padding-bottom: .5rem; border-bottom: 1px solid var(--rule);
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .sec-no {
+    font-family: var(--font-serif); font-style: italic; font-weight: 400;
+    font-size: .85rem; color: var(--ink-faint); letter-spacing: normal;
+  }
+  section h3 {
+    font-family: var(--font-sans); font-size: .98rem; font-weight: 700;
+    color: var(--ink); margin-top: 1.75rem; margin-bottom: .75rem;
+  }
+  p.section-intro {
+    color: var(--ink-soft); font-size: .92rem; line-height: 1.75; margin: .75rem 0;
+  }
+  p.table-note {
+    color: var(--ink-faint); font-size: .85rem; font-style: italic; margin: .5rem 0 1.5rem;
+  }
+
+  /* === 检查范围 / 让路声明块（.scope-block · 与 logic / method 共用手法，
+         此处新增 .mech 第三色变体供"机械计算声明"使用） === */
+  .scope-block {
+    background: var(--l2-bg); border: 1px solid var(--l2); border-left: 4px solid var(--l2);
+    padding: 1rem 1.25rem; margin: .75rem 0; color: var(--ink-soft);
+    font-size: .92rem; line-height: 1.75;
+  }
+  .scope-block p { margin: .4rem 0; }
+  .scope-block .scope-label {
+    font-family: var(--font-sans); font-size: 10px; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--l2); margin-bottom: .5rem; font-weight: 700;
+  }
+  .scope-block.alert { background: var(--l4-bg); border-color: var(--l4); }
+  .scope-block.alert .scope-label { color: var(--l4); }
+  .scope-block.mech { background: var(--l3-bg); border-color: var(--l3); }
+  .scope-block.mech .scope-label { color: var(--l3); }
+
+  /* === 表格共用基础（criteria / ledger-summary / reason-dist / bias / prisma27 共用） === */
+  table { width: 100%; margin: 1rem 0; font-size: .92rem; }
+  th, td {
+    border: 1px solid var(--rule); padding: .625rem .75rem;
+    text-align: left; vertical-align: top; line-height: 1.7;
+  }
+  thead th {
+    background: var(--l2-bg); color: var(--l2); font-family: var(--font-sans);
+    font-weight: 700; font-size: .88rem;
+  }
+  td.count {
+    text-align: center; font-family: var(--font-serif); font-weight: 700;
+    color: var(--l2); font-size: 1rem;
+  }
+  tr.total td { background: var(--l3-bg); color: var(--l3); font-weight: 700; border-color: var(--l3); }
+  td.continuation { text-align: center; color: var(--ink-faint); font-style: italic; }
+  /* PRISMA 27 项自查表：板块分隔行 + 第 11/18 行让路提示 */
+  tr.group-row td {
+    background: var(--l2-bg); color: var(--l2); font-family: var(--font-sans);
+    font-size: .8rem; font-weight: 700; letter-spacing: .08em; padding: .4rem .75rem;
+  }
+  tr.tier-note td:first-child { border-left: 3px solid var(--l4); }
+
+  /* === PRISMA 流程图槽位容器 === */
+  .prisma-figure {
+    border: 1px solid var(--rule); background: rgba(255, 255, 255, .5);
+    padding: 1.25rem; margin: 1rem 0;
+  }
+  .prisma-figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+  .prisma-caption {
+    margin-top: .75rem; font-size: .85rem; color: var(--ink-faint); line-height: 1.7;
+  }
+
+  /* === 页脚（footer + .seal） === */
+  footer {
+    margin-top: 3.5rem; padding-top: 1.25rem; border-top: 2px double var(--rule);
+    color: var(--ink-soft); font-size: .85rem; line-height: 1.7;
+  }
+  footer .seal {
+    font-family: var(--font-sans); font-size: 10px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--ink-faint); margin-bottom: .5rem;
+  }
+
+  /* === 行内链接 / 代码 === */
+  a { color: var(--l1); text-decoration: underline; text-underline-offset: 2px; }
+  code {
+    font-family: var(--font-mono); font-size: .85em; background: rgba(31, 27, 22, .06);
+    padding: .05em .35em; border-radius: 2px;
+  }
+
+  /* === 入场动画：page 内子元素逐个 8px 上浮 + 淡入（7 个直接子元素） === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(n+7) { animation-delay: .47s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  /* === 打印规则 === */
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<article class="page">
+
+  <header class="doc-head">
+    <div class="doc-eyebrow">Paper-Screen · 系统综述筛选档案</div>
+    <h1 class="doc-title">系统综述筛选报告</h1>
+    <div class="doc-meta">
+      <span><b>日期</b><日期></span>
+      <span><b>研究问题（RQ）</b><从 /paper-topic 澄清结果或纳排标准框架提取></span>
+      <span><b>学科梯队</b><第一梯队实证型 / 第二梯队理论型 / 第三梯队人文，按 project.paper.yaml 或你的判定填写></span>
+      <span><b>纳排标准框架</b><你选定的框架，如 PICO / PICoS / SPIDER></span>
+    </div>
+    <div class="decision-badge">纳入 / 排除判定 100% 由你逐篇拍板 · AI 只按你选定的标准与理由码机械统计，不越界代下判断</div>
+  </header>
+
+  <section class="legend">
+    <div class="legend-title">内容标注 · Content Provenance</div>
+    <ul>
+      <li><span class="sw sw-l1"></span>👤 用户原话</li>
+      <li><span class="sw sw-l2"></span>📋 常见事实（非推荐）</li>
+      <li><span class="sw sw-l3"></span>🪞 系统归纳（可追溯）</li>
+      <li><span class="sw sw-l4"></span>❓ 待用户决定</li>
+    </ul>
+    <div class="legend-note">本报告不含"AI 的新判断"层——凡无法归入上述四层者即越界；纳入 / 排除判定同样不例外，拍板人是你，不是 AI。</div>
+  </section>
+
+  <section class="criteria-section">
+    <h2 class="section">一、纳排标准 <span class="sec-no">§ Eligibility Criteria</span></h2>
+    <div class="scope-block">
+      <div class="scope-label">📋 框架陈列（非推荐）</div>
+      <p>PICO（干预性研究）/ PICoS（定性研究）/ SPIDER（混合方法）三套框架的常见要素与适用场景，完整陈列见 <a href="纳排标准与排除理由码.md">纳排标准与排除理由码.md</a>「二、三个纳排标准框架」——本表不重复陈列三套框架的通用要素，只登记你已经逐条拍板的标准内容。</p>
+    </div>
+    <table class="criteria-table">
+      <thead>
+        <tr><th>要素</th><th>纳入标准（👤 用户原话）</th><th>排除标准（👤 用户原话）</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><要素 1，如 PICO 的 P·研究对象></td>
+          <td><span class="tag-inline t1">👤</span><纳入标准原话></td>
+          <td><span class="tag-inline t1">👤</span><排除标准原话></td>
+        </tr>
+        <tr>
+          <td><要素 2></td>
+          <td><span class="tag-inline t1">👤</span><纳入标准原话></td>
+          <td><span class="tag-inline t1">👤</span><排除标准原话></td>
+        </tr>
+        <tr><td class="continuation" colspan="3">……（按所选框架要素数逐行续填）</td></tr>
+      </tbody>
+    </table>
+    <p class="table-note">⚠️ 要素数量与名称随所选框架变化（PICO / PICoS 各 4 项、SPIDER 5 项），按实际选定框架增删表格行；选用哪个框架、每条标准的具体内容，均由你决定，本表不预设默认框架。</p>
+  </section>
+
+  <section class="prisma-section">
+    <h2 class="section">二、PRISMA 2020 筛选流程图 <span class="sec-no">§ Flow Diagram</span></h2>
+    <div class="scope-block mech">
+      <div class="scope-label">🪞 机械计算声明</div>
+      <p>本图各级数字由 <code>scripts/screen.py</code> 从筛选台账机械算出、并经三条守恒等式校验；<b>若手工改动此处数字，图与台账即刻脱节</b>。生成命令示例：<code>python3 skills/paper-screen/scripts/screen.py --ledger literature/筛选台账.md --svg <输出路径></code>。</p>
+    </div>
+    <figure class="prisma-figure">
+<!-- PRISMA_SVG_SLOT：此处内嵌 screen.py --svg 的输出，勿手写数字。
+     render_svg() 产出一个完整、自包含的 <svg>…</svg> 字符串（含 SVG 命名空间
+     声明、箭头 marker 定义、主链与侧支的圆角框与文字），宿主 agent 生成产物时
+     把该字符串原样粘贴替换本注释——不改写其中任何数字、不为排版好看补充示意
+     用的假数字、不删减命名空间声明。 -->
+      <figcaption class="prisma-caption">📋 陈列识别 / 标题摘要筛选 / 寻求全文 / 全文评估合格性 / 纳入综述五级主链条，及去重删除 / 标题摘要阶段排除 / 全文不可得 / 全文阶段排除四项侧支计数，不下"筛选是否充分"的结论。</figcaption>
+    </figure>
+  </section>
+
+  <section class="ledger-section">
+    <h2 class="section">三、筛选台账摘要 <span class="sec-no">§ Ledger Summary</span></h2>
+    <p class="section-intro"><span class="tag-inline t3">🪞</span>下表计数与理由码分布均由 <code>count_stages()</code> 从 <code>literature/筛选台账.md</code> 机械算出，人工不得改写；如与流程图数字不一致，以重新运行脚本为准。</p>
+    <table class="ledger-summary-table">
+      <thead><tr><th>阶段</th><th>计数</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>识别（数据库检索记录）</td><td class="count"><数></td><td>台账总行数</td></tr>
+        <tr><td>去重删除</td><td class="count"><数></td><td></td></tr>
+        <tr><td>去重后 · 进入标题摘要筛选</td><td class="count"><数></td><td></td></tr>
+        <tr><td>标题摘要阶段排除</td><td class="count"><数></td><td></td></tr>
+        <tr><td>寻求全文</td><td class="count"><数></td><td></td></tr>
+        <tr><td>全文不可得</td><td class="count"><数></td><td>Reports not retrieved</td></tr>
+        <tr><td>全文评估合格性</td><td class="count"><数></td><td>= 寻求全文 − 全文不可得</td></tr>
+        <tr><td>全文阶段排除</td><td class="count"><数></td><td>理由码分布见下表</td></tr>
+        <tr class="total"><td>纳入综述</td><td class="count"><数></td><td></td></tr>
+      </tbody>
+    </table>
+    <table class="reason-dist-table">
+      <thead><tr><th>排除理由码</th><th>含义</th><th>计数</th></tr></thead>
+      <tbody>
+        <tr><td>E1</td><td>人群不符</td><td class="count"><数></td></tr>
+        <tr><td>E2</td><td>干预不符</td><td class="count"><数></td></tr>
+        <tr><td>E3</td><td>结局不符</td><td class="count"><数></td></tr>
+        <tr><td>E4</td><td>研究设计不符</td><td class="count"><数></td></tr>
+        <tr><td>E5</td><td>语言不符</td><td class="count"><数></td></tr>
+        <tr><td>E7</td><td>重复报告</td><td class="count"><数></td></tr>
+        <tr><td>E9</td><td>其他（备注列写具体理由）</td><td class="count"><数></td></tr>
+      </tbody>
+    </table>
+    <p class="table-note">⚠️ 理由码含义见 <a href="纳排标准与排除理由码.md">纳排标准与排除理由码.md</a>「三、排除理由码表」（编号不连续，无 E6 / E8）；只陈列台账里实际出现、计数大于零的理由码行，未出现的码不必列出。</p>
+  </section>
+
+  <section class="bias-section">
+    <h2 class="section">四、偏倚评估与 PRISMA 2020 自查 <span class="sec-no">§ Risk of Bias &amp; Checklist</span></h2>
+
+    <h3>4.1 偏倚评估工具清单</h3>
+    <div class="scope-block alert">
+      <div class="scope-label">学科让路声明</div>
+      <p>第二梯队理论型研究<b>不适用</b>本节（理论综述无"研究偏倚"之说）；第三梯队人文学科整体让路。不适用时，<b>本节连同下方表格整段省略，不产一张字段全空的表</b>——判定依据同 <a href="偏倚评估工具条目.md">偏倚评估工具条目.md</a> 的学科让路声明。</p>
+    </div>
+    <p class="section-intro">📋 第一梯队实证型研究适用本节。RoB 2（随机对照试验）/ NOS（队列与病例对照）/ AMSTAR 2（既有系统综述）三工具怎么选、每条怎么评级，见 <a href="偏倚评估工具条目.md">偏倚评估工具条目.md</a>；本表只示意结构，按纳入研究的实际设计类型选定工具后，把该工具完整的域 / 条目清单展开填入。</p>
+    <table class="bias-table">
+      <thead><tr><th>纳入研究</th><th>适用工具</th><th>域 / 条目评级</th><th>依据</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><题录锚点，如 #3></td>
+          <td><工具：RoB 2 / NOS / AMSTAR 2，按研究设计选定></td>
+          <td><span class="tag-inline t4">❓</span><按工具域名逐条评级，评级由你判定></td>
+          <td><简述依据></td>
+        </tr>
+        <tr><td class="continuation" colspan="4">……（按纳入研究逐条续填）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>4.2 PRISMA 2020 二十七项自查</h3>
+    <p class="section-intro">📋 27 项完整的"一句话要求"见 <a href="PRISMA2020清单.md">PRISMA2020清单.md</a>，本表只留自评栏；第 11、18 项（偏倚评估相关）在第二梯队理论型 / 第三梯队人文可自评为"不适用"，判定依据同上方 4.1 学科让路声明——这两行是"该行标不适用"，不是整块省略，与 4.1 的整段让路不是一回事。</p>
+    <table class="prisma27-table">
+      <thead><tr><th>#</th><th>条目名</th><th>自评（符合 / 部分符合 / 不符合 / 不适用）</th><th>依据（简述）</th></tr></thead>
+      <tbody>
+        <tr class="group-row"><td colspan="4">标题</td></tr>
+        <tr><td>1</td><td>标题</td><td></td><td></td></tr>
+        <tr class="group-row"><td colspan="4">摘要</td></tr>
+        <tr><td>2</td><td>摘要</td><td></td><td></td></tr>
+        <tr class="group-row"><td colspan="4">引言</td></tr>
+        <tr><td>3</td><td>原理</td><td></td><td></td></tr>
+        <tr><td>4</td><td>目标</td><td></td><td></td></tr>
+        <tr class="group-row"><td colspan="4">方法</td></tr>
+        <tr><td>5</td><td>纳入排除标准</td><td></td><td></td></tr>
+        <tr><td>6</td><td>信息源</td><td></td><td></td></tr>
+        <tr><td>7</td><td>检索策略</td><td></td><td></td></tr>
+        <tr><td>8</td><td>选择过程</td><td></td><td></td></tr>
+        <tr><td>9</td><td>数据收集过程</td><td></td><td></td></tr>
+        <tr><td>10</td><td>数据条目</td><td></td><td></td></tr>
+        <tr class="tier-note"><td>11</td><td>研究偏倚风险评估方法</td><td></td><td></td></tr>
+        <tr><td>12</td><td>效应指标</td><td></td><td></td></tr>
+        <tr><td>13</td><td>综合方法</td><td></td><td></td></tr>
+        <tr><td>14</td><td>报告偏倚评估方法</td><td></td><td></td></tr>
+        <tr><td>15</td><td>证据确定性评估方法</td><td></td><td></td></tr>
+        <tr class="group-row"><td colspan="4">结果</td></tr>
+        <tr><td>16</td><td>研究选择</td><td></td><td></td></tr>
+        <tr><td>17</td><td>研究特征</td><td></td><td></td></tr>
+        <tr class="tier-note"><td>18</td><td>研究的偏倚风险</td><td></td><td></td></tr>
+        <tr><td>19</td><td>单个研究的结果</td><td></td><td></td></tr>
+        <tr><td>20</td><td>综合结果</td><td></td><td></td></tr>
+        <tr><td>21</td><td>报告偏倚</td><td></td><td></td></tr>
+        <tr><td>22</td><td>证据确定性</td><td></td><td></td></tr>
+        <tr class="group-row"><td colspan="4">讨论</td></tr>
+        <tr><td>23</td><td>讨论</td><td></td><td></td></tr>
+        <tr class="group-row"><td colspan="4">其他信息</td></tr>
+        <tr><td>24</td><td>注册与方案</td><td></td><td></td></tr>
+        <tr><td>25</td><td>资助</td><td></td><td></td></tr>
+        <tr><td>26</td><td>利益冲突</td><td></td><td></td></tr>
+        <tr><td>27</td><td>数据、代码与材料的可得性</td><td></td><td></td></tr>
+      </tbody>
+    </table>
+    <p class="table-note">⚠️ 27 项条目名与板块归属摘自 <a href="PRISMA2020清单.md">PRISMA2020清单.md</a>（该文档是唯一权威，本表若与其不一致以该文档为准）；「自评」「依据」两列按该文档「自评方式」一节留空交你逐条填写，本模板不预填、不代评。</p>
+  </section>
+
+  <footer>
+    <div class="seal">Human–AI Division of Labor</div>
+    <p>本报告的计数与流程图数字由 <code>scripts/screen.py</code> 从筛选台账机械算出并做守恒校验；纳排标准内容、每一篇文献的纳入或排除判定、偏倚评估的每一条评级、PRISMA 27 项自查的每一档自评——全部由你决定。AI 不越界代下纳入 / 排除的判断，只负责把你已经拍板的判定结果汇总陈列。</p>
+  </footer>
+
+</article>
+</body>
+</html>

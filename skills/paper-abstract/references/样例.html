@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<!--
+  报告样式模板（paper-abstract 产物「摘要.html」的样式权威）
+  ====================================================================
+  本文件是「样例 HTML」——用真实感模拟数据填充模板全部占位，
+  供人工视觉验收排版、配色、四层色、打印预览。
+  宿主 agent 生成真实产物时以「报告样式模板.html」为权威，本文件仅供对照。
+
+  设计底线（改样式时不得破坏）：
+  1. 学术档案气质：米白纸（#f6f2ea，非纯白）+ 墨色正文（#1f1b16，非纯黑）+
+     衬线宋体正文（Source Han Serif / Songti SC 栈）+ 无衬线黑体标题（PingFang SC 栈）。
+  2. 四层语义色是「摆事实非推荐」死线，四色须一眼可辨：
+     👤 用户正文原话要点=靛蓝(#2b4a6f, 最重) / 📋 摘要常见式=赭石(#7a6230) /
+     🪞 AI 重组生成（可追溯）=青灰(#4a6b5c) / ❓ 待用户确认=砖红(#9a3b2e)。
+  3. CDN 依赖声明：基础层（Tailwind CDN + typography 插件 + _shared/tailwind.config.js）。
+     本模板不引入 ECharts——abstract 无图表。
+  4. 陈列型可视化边界（图表与「不下结论」死线的共存规则）：
+     - 图表只客观投影表格/列表已有数据，不得引入派生指标（均值、排名、达标线、基准线）。
+     - 禁视觉倾斜：不用面积大小暗示优劣、不用颜色深浅暗示高低、不用动画放大某点、
+       不用 split area 分区暗示达标带。
+     - 图表配色限定：四层语义色 + 两档墨色，即 echarts-theme.js 注册的 paper 主题色板。
+       禁红绿灯色板延伸到图表数据。
+     - 每张图必须带说明性 caption：写明"陈列什么、不下什么结论"。
+     本模板不含图表，此条作为产品死线保留、约束未来可能的可视化扩展。
+  5. abstract 专属元素：摘要正文句区块、成句生成声明徽章、要素区块、关键词节。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>摘要报告 · 样例</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script src="../../_shared/tailwind.config.js"></script>
+<style>
+  /* === 页面骨架（通用组件，保留 <style> 因伪元素/多层背景 Tailwind 难以表达） === */
+  body {
+    background-color: #f6f2ea;
+    background-image:
+      linear-gradient(#ece5d6 1px, transparent 1px),
+      linear-gradient(90deg, #ece5d6 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-position: -1px -1px;
+  }
+  .page::before {
+    content: "paper-abstract · 摘要档案";
+    position: absolute; top: -6px; right: 0;
+    background: #1f1b16; color: #f6f2ea;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    padding: 5px 12px 4px; font-weight: 600;
+  }
+
+  /* === 四层语义徽章族（.tag-inline.t1-t4） === */
+  .tag-inline {
+    display: inline-block; font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; margin-right: .4rem; vertical-align: 2px;
+  }
+  .t1 { background: #e6edf4; color: #2b4a6f; border: 1px solid #2b4a6f; }
+  .t2 { background: #f0e9d8; color: #7a6230; border: 1px solid #7a6230; }
+  .t3 { background: #e4ece8; color: #4a6b5c; border: 1px solid #4a6b5c; }
+  .t4 { background: #f3e3df; color: #9a3b2e; border: 1px solid #9a3b2e; }
+
+  /* === abstract 专属：摘要正文句区块（.abstract-body） === */
+  .abstract-body {
+    background: rgba(255,255,255,.4); border-left: 4px solid #4a6b5c;
+    padding: 1.6rem 1.8rem; margin: 1rem 0 2.5rem; line-height: 1.95;
+  }
+  .abstract-body p { margin: .5rem 0; color: #1f1b16; }
+  .abstract-body p .anchor {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: .78rem; color: #4a6b5c;
+    text-decoration: underline; text-underline-offset: 2px;
+    margin-left: .3rem;
+  }
+  .abstract-body p .miss { color: #9a3b2e; font-style: italic; font-size: .9rem; }
+
+  /* === abstract 专属：要素区块（.element-row） === */
+  .elements { display: grid; grid-template-columns: 1fr; gap: .8rem; margin: 1rem 0; }
+  .element-row {
+    display: flex; gap: .8rem; align-items: baseline;
+    padding: .5rem 0; border-bottom: 1px dashed #c9bfa8;
+  }
+  .element-row:last-child { border-bottom: none; }
+  .element-row .el-name {
+    flex-shrink: 0; width: 5rem; font-family: "PingFang SC", sans-serif;
+    font-weight: 700; font-size: .9rem; color: #7a6230;
+  }
+  .element-row .el-content { color: #5a5247; font-size: .94rem; line-height: 1.75; }
+  .element-row .el-content a { color: #2b4a6f; text-decoration: underline; text-underline-offset: 2px; }
+
+  /* === abstract 专属：关键词节（.keywords 锚点 + .kw-list span 行距） === */
+  .keywords .kw-list span { display: inline-block; margin-right: .6rem; }
+
+  /* === 入场动画 === */
+  @media (prefers-reduced-motion: no-preference) {
+    .page > * { opacity: 0; transform: translateY(8px); animation: rise .6s ease forwards; }
+    .page > *:nth-child(1) { animation-delay: .05s; }
+    .page > *:nth-child(2) { animation-delay: .12s; }
+    .page > *:nth-child(3) { animation-delay: .19s; }
+    .page > *:nth-child(4) { animation-delay: .26s; }
+    .page > *:nth-child(5) { animation-delay: .33s; }
+    .page > *:nth-child(6) { animation-delay: .40s; }
+    .page > *:nth-child(n+7) { animation-delay: .47s; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .page { box-shadow: none; margin: 0; max-width: none; border: none; border-top: 6px solid #000; }
+    .page::before { display: none; }
+    .page > * { opacity: 1 !important; transform: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body class="font-serif text-ink text-base leading-[1.85] antialiased">
+<article class="page max-w-[880px] mx-auto mt-12 mb-20 bg-paper border border-rule border-t-[6px] border-t-ink px-16 py-14 relative shadow-[0_1px_0_#ece5d6,0_30px_60px_-30px_rgba(60,45,20,0.25)]">
+
+  <header class="doc-head mb-10">
+    <div class="font-sans text-[11px] tracking-[0.28em] uppercase text-ink-faint mb-[0.6rem]">
+      Paper-Abstract · 摘要档案
+    </div>
+    <h1 class="font-serif text-[2.1rem] font-bold leading-[1.25] mt-0 mb-4 tracking-[0.01em]">
+      摘要报告
+    </h1>
+    <div class="flex flex-wrap gap-x-6 gap-y-2 pt-4 border-t border-rule text-ink-soft text-[0.9rem]">
+      <span><b class="text-ink-faint font-medium mr-1.5">日期</b>2026-07-26</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">研究问题（RQ）</b>社交媒体使用强度与青少年焦虑症状之间是否存在剂量-反应关系？</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">摘要式</b>结构化</span>
+      <span><b class="text-ink-faint font-medium mr-1.5">字数</b>287 字（期刊常见：150-300）</span>
+    </div>
+    <span class="gen-badge inline-block px-3.5 py-1.5 rounded-sm font-sans text-[0.85rem] font-semibold mt-3 bg-l3-bg text-l3 border border-l3">
+      AI 从正文重组生成 · 每句可追溯回正文（成句生成级）
+    </span>
+  </header>
+
+  <section class="legend my-7 px-5 py-4 bg-white/40 border border-dashed border-rule text-[0.85rem]">
+    <div class="font-sans text-[10px] tracking-[0.2em] uppercase text-ink-faint mb-2">
+      内容标注 · Content Provenance
+    </div>
+    <ul class="m-0 p-0 list-none flex flex-wrap gap-x-6 gap-y-2">
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l1"></span>👤 用户正文原话要点</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l2"></span>📋 摘要常见式（非推荐）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l3"></span>🪞 AI 重组生成（可追溯回正文）</li>
+      <li class="flex items-center text-ink-soft"><span class="w-2.5 h-2.5 rounded-sm mr-[0.45rem] bg-l4"></span>❓ 待用户确认</li>
+    </ul>
+    <div class="mt-2 text-[0.78rem] text-ink-faint">本摘要不含"AI 的新判断"层 —— 每句可追溯回正文、不添加正文没有的内容、不夸大结果。定稿由用户确认。</div>
+  </section>
+
+  <section class="abstract">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      摘要正文 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Abstract Body</span>
+    </h2>
+    <div class="abstract-body">
+      <p><span class="t2 tag-inline">📋 背景</span>随着 Instagram、TikTok 等图片与短视频平台在 13-18 岁群体中的渗透率超过 85%，屏幕时间与情绪健康之间的潜在关联已成为发展心理学与公共卫生交叉领域的焦点议题。<a class="anchor" href="正文.md#引言">[正文锚点：引言段]</a></p>
+      <p><span class="t2 tag-inline">📋 目的</span>本研究旨在检验每日社交媒体使用时长与青少年自评焦虑症状之间的剂量-反应关系，并探索性别与家庭沟通模式在其中的调节作用。<a class="anchor" href="正文.md#引言末">[正文锚点：引言末/RQ]</a></p>
+      <p><span class="t2 tag-inline">📋 方法</span>采用纵向问卷设计，对 6 所中学的 842 名 13-18 岁学生进行为期 12 个月的 3 波追踪，使用 SAS-SR 量表测焦虑、自报使用时长；多层线性模型（HLM）分析。<a class="anchor" href="正文.md#方法章">[正文锚点：方法章]</a></p>
+      <p><span class="t2 tag-inline">📋 结果</span>发现日均使用时长每增加 30 分钟，SAS-SR 分数上升 0.42 分（95% CI: 0.18-0.66）；该效应在女生（β=0.51）与低家庭沟通组（β=0.61）中显著更强。<a class="anchor" href="正文.md#结果章">[正文锚点：结果章]</a></p>
+      <p><span class="t2 tag-inline">📋 结论</span>研究表明社交媒体使用强度与青少年焦虑呈中等强度正相关，且受性别与家庭沟通调节；建议后续干预研究在家庭层面切入。<a class="anchor" href="正文.md#结论章">[正文锚点：结论章]</a></p>
+      <p class="miss">⚠️ 正文讨论章未明确"剂量-反应关系"的临床意义阈值，摘要暂不含该阈值讨论。</p>
+    </div>
+  </section>
+
+  <section class="elements-section" data-optional>
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      要素拆解 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Elements · 结构化式</span>
+    </h2>
+    <div class="elements">
+      <div class="element-row"><span class="el-name">背景</span><span class="el-content">社交媒体在 13-18 岁群体渗透率超 85%，屏幕时间与情绪健康的关联成为焦点。锚点 <a href="正文.md#引言">引言段</a></span></div>
+      <div class="element-row"><span class="el-name">目的</span><span class="el-content">检验使用时长与焦虑的剂量-反应关系、探索性别与家庭沟通的调节。锚点 <a href="正文.md#引言末">引言末</a></span></div>
+      <div class="element-row"><span class="el-name">方法</span><span class="el-content">纵向 3 波追踪、842 名学生、SAS-SR 量表 + 自报时长、HLM 分析。锚点 <a href="正文.md#方法章">方法章</a></span></div>
+      <div class="element-row"><span class="el-name">结果</span><span class="el-content">日均 +30min → SAS-SR +0.42 分；女生与低家庭沟通组效应更强。锚点 <a href="正文.md#结果章">结果章</a></span></div>
+      <div class="element-row"><span class="el-name">结论</span><span class="el-content">中等强度正相关、受性别与家庭沟通调节；建议家庭层面干预。锚点 <a href="正文.md#结论章">结论章</a></span></div>
+    </div>
+  </section>
+
+  <section class="keywords-section">
+    <h2 class="section font-sans text-[1.05rem] font-bold tracking-[0.04em] mt-11 mb-5 pb-2 border-b border-rule flex items-baseline justify-between">
+      关键词 <span class="sec-no font-serif italic font-normal text-[0.85rem] text-ink-faint tracking-normal">§ Keywords · 待用户确认</span>
+    </h2>
+    <div class="keywords bg-l1-bg border-l-[3px] border-l1 px-5 py-4 my-4">
+      <div class="kw-label font-sans text-[10px] tracking-[0.2em] uppercase text-l1 mb-2 font-bold">❓ 关键词（待用户确认 · 从正文提取）</div>
+      <div class="kw-list text-ink">
+        <span>社交媒体</span>
+        <span>青少年焦虑</span>
+        <span>剂量-反应关系</span>
+        <span>家庭沟通</span>
+        <span>纵向研究</span>
+        <span>性别差异</span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="mt-14 pt-5 border-t-2 border-double border-rule text-ink-soft text-[0.85rem] leading-[1.7]">
+    <div class="font-sans text-[10px] tracking-[0.22em] uppercase text-ink-faint mb-2">Human–AI Division of Labor</div>
+    <p>本摘要由 AI 从用户已完成的正文要点重组生成（成句生成级）、每句可追溯回正文出处；
+       不含正文未涉及的内容、不夸大结果。摘要定稿、正文修订、关键词选择——全部由用户决定。</p>
+  </footer>
+
+</article>
+</body>
+</html>

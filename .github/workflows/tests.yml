@@ -1,0 +1,41 @@
+# 唯一的 CI workflow——有意只有一个。
+#
+# 加它的理由只有一条：**防「忘了跑测试」**。测试套件 2 秒跑完，本地跑一遍的成本
+# 几乎为零，但「记得跑」这件事靠人是不可靠的——尤其是跨 skill 结构守卫
+# （test_manifest_consistency / test_shared_conventions / test_boundary_registry），
+# 它们抓的正是「改了 A 忘了同步 B」这类无声漂移，而会忘记同步的人同样会忘记跑测试。
+#
+# 有意不做的（不是遗漏）：
+#   - 多 Python 版本矩阵：生产代码只用标准库，3.9+ 行为一致，跑一个 3.11 足够。
+#   - 覆盖率门：CLAUDE.md·开发流程明文「不追覆盖率」。
+#   - lint / 格式化门：仓库无统一格式化配置，加了只会制造噪声。
+#   - eval / 量化门槛：不在 CLAUDE.md 的发布门三条内，按需手工补跑。
+#
+# 排除 tests/datasources/smoke_real_api.py：它打真实 API（Crossref / OpenAlex 等），
+# 有网络依赖与配额，不适合放进每次推送都跑的门。本地按需手工跑。
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 仓库无 requirements.txt / pyproject.toml——生产代码零第三方依赖
+      # （数据源层只用 urllib + sqlite3）。这两个包纯粹是测试期需要。
+      - name: 装测试依赖
+        run: python -m pip install --upgrade pip pytest pyyaml
+
+      - name: 跑测试
+        run: python -m pytest tests/ -q --ignore=tests/datasources/smoke_real_api.py
