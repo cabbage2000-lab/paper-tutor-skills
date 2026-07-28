@@ -15,6 +15,25 @@
 
 ---
 
+## [0.1.3] — 2026-07-28
+
+**安装后可查看版本。** 新增 `skills/_shared/VERSION` 文件（随 `skills/` 安装走），
+`/paper-help` 会话首次回复时在顶部显示版本号行。此前散装安装（`sync_skills.py`）
+后项目里无任何文件携带版本号，用户无法确认装的是哪个版本；插件市场安装虽在清单
+里有版本、但依赖宿主 UI 暴露、不可控。命令与 skill 目录数不变（仍是 25 个命令入口 /
+23 个 skill 目录）。
+
+### 新增（Added）
+
+- `skills/_shared/VERSION` 纯文本版本标识文件（一行版本号），随所有安装方式走
+  （散装 `sync_skills.py` + 插件市场都复制 `skills/`）。
+- `/paper-help` 会话首次回复时在输出顶部显示 `📄 Paper-Tutor-Skills v<版本>` 行，
+  版本号读 `_shared/VERSION`；读不到则省略版本行、不凭记忆编版本号。
+- [`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 新增守卫：
+  `_shared/VERSION` 与 CHANGELOG 最新版本一致（发版漏改 VERSION 会被测试拦下）。
+
+---
+
 ## [0.1.2] — 2026-07-28
 
 **核验准确性修复。** 四个 bug 都落在 `/paper-verify` 的判定链路上：三个让完全正确的引用
