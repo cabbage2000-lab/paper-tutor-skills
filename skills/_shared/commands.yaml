@@ -390,6 +390,13 @@
   # 同 search/topic 惯例标"待跑"）；② claim 过程中立性门（独立跑 N 次不下定论）N≥3 runner 待实跑；
   # ③ 引用解析器启发式，作者/venue 提取不保证准确（DOI/year 为主、第一作者姓比对容错）；
   # ④ 跨宿主验证未做（第二宿主待跑）。详见 tests/paper-verify/、evals/paper-verify/README.md。
+  # 2026-07-28 增 HTML 报告视图（scripts/report_html.py，默认生成、--no-html 关）：
+  # 与 MD/JSON 同源一份 payload，加裁决横幅 / 六态筛选轨 / 字段对照表 / 锚点直达 / 可点 DOI。
+  # 两个决策别推翻：① 样式走 Tailwind CDN（同其余报告模板），但 _shared/tailwind.config.js
+  # 必须原样内联进产物——产物落用户项目后相对路径指不到 skill 包（路径问题、与有无网络无关）；
+  # 内联时须转义 </，否则 config 注释里的 </script> 提前闭合标签、整份 config 静默失效
+  # （四层色全回落默认主题、页面照样出，极难自查——实际踩过）。② 文件名 report_html.py
+  # 不叫 render_html.py——paper-search 已占该模块名，pytest 同进程会被 sys.modules 顶替。
 
 - name: paper-format
   phase: D

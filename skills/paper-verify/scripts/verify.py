@@ -3,12 +3,14 @@
 
 编排：解析输入（文本 / .bib / 单条 DOI|标题）→ fetch_batch 取证（复用 _shared，
 带断点续验）→ judge 六态判定 → format_check 格式检查（默认开）→ report 组装
-JSON + Markdown → 落盘 → stdout 输出摘要 JSON。
+JSON + Markdown、report_html 渲染 HTML 视图（默认开）→ 落盘 → stdout 输出摘要 JSON。
+三份产物同源于一份 payload：HTML 给人读（六态筛选 + 证据链折叠 + 可点 DOI）、
+Markdown 给纯文本环境与 diff、JSON 给机器（断点续验、manual_result 回填）。
 
 与 paper-search「脚本只吐 stdout」惯例不同：verify 的产物是「报告 artifact」
 （含断点续验 progress.json，必须脚本管理），故脚本带 --out-dir 直接落盘——定位同
-render_html：把已判定的证据渲染成最终报告，不产生研究内容。stdout 吐摘要
-（六态分布 + 报告路径），供宿主向用户呈现。
+paper-search 的 render_html.py：把已判定的证据渲染成最终报告，不产生研究内容。
+stdout 吐摘要（六态分布 + 三份报告路径），供宿主向用户呈现。
 
 run() 接受 fetch 注入（测试用，默认门面 fetch_batch），便于离线确定性测编排。
 """
@@ -31,6 +33,7 @@ import format_check  # noqa: E402
 import judge  # noqa: E402
 import parse_refs  # noqa: E402
 import report  # noqa: E402
+import report_html  # noqa: E402
 
 
 def _now_iso() -> str:
@@ -87,7 +90,7 @@ def _sources_checked() -> list:
 
 def _parse_args(argv):
     p = argparse.ArgumentParser(
-        description="paper-verify 引用核验：真实 API 取证 + 六态判定 + JSON/Markdown 报告。")
+        description="paper-verify 引用核验：真实 API 取证 + 六态判定 + HTML/Markdown/JSON 报告。")
     g = p.add_mutually_exclusive_group()
     g.add_argument("--input", help="参考文献文件路径（.bib / .md / .txt）")
     g.add_argument("--text", help="直接粘贴的参考文献文本")
@@ -97,6 +100,8 @@ def _parse_args(argv):
     p.add_argument("--apply-manual", help="读旧报告 JSON 的 manual_result 回填（重跑升级 PENDING）")
     p.add_argument("--no-format", action="store_true", help="跳过 GB/T 7714 格式检查")
     p.add_argument("--no-cache", action="store_true", help="强制刷新缓存（投稿前终检）")
+    p.add_argument("--no-html", action="store_true",
+                   help="跳过 HTML 视图（默认生成，是给人读的主产物）")
     return p.parse_args(argv)
 
 
@@ -114,6 +119,7 @@ def run(args, fetch=None) -> int:
     state_path = out_dir / f"{run_id}.progress.json"
     json_path = out_dir / f"{run_id}.json"
     md_path = out_dir / f"{run_id}.md"
+    html_path = out_dir / f"{run_id}.html"
 
     shared_refs = [Ref(**r.to_ref_dict()) for r in refs]
 
@@ -155,6 +161,8 @@ def run(args, fetch=None) -> int:
 
     out_dir.mkdir(parents=True, exist_ok=True)
     report.write_outputs(payload, json_path, md_path)
+    if not args.no_html:
+        report_html.write_html(payload, html_path)
     try:
         state_path.unlink()      # 断点续验状态文件完成后清理
     except OSError:
@@ -163,6 +171,8 @@ def run(args, fetch=None) -> int:
     summary = {"run_id": run_id, "network_status": batch.network_status,
                "total": len(refs), "by_status": by_status,
                "report_md": str(md_path), "report_json": str(json_path)}
+    if not args.no_html:
+        summary["report_html"] = str(html_path)   # 人读主产物，宿主优先指向它
     json.dump(summary, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
     return 0
