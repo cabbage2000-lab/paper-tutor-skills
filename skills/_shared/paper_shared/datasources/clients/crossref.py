@@ -1,4 +1,4 @@
-"""Crossref 客户端：DOI 元数据 + 内置 Retraction Watch 撤稿数据（update-to）。"""
+"""Crossref 客户端：DOI 元数据 + 内置 Retraction Watch 撤稿数据（updated-by）。"""
 from __future__ import annotations
 
 import urllib.parse
@@ -83,10 +83,18 @@ class CrossrefClient(SourceClient):
 
     @staticmethod
     def _retraction(msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        for upd in msg.get("update-to") or []:
+        """本文是否**被**撤稿——读 updated-by，不是 update-to。
+
+        两个字段方向相反，读错则 RETRACTED 态永不触发：
+          update-to  = 本文更新了别人（本文自己是那份撤稿声明，极罕见）
+          updated-by = 本文被别人更新（本文被撤稿，这才是要查的）
+        实测 Wakefield 1998（10.1016/s0140-6736(97)11096-0）：update-to 为 None，
+        updated-by 含 {type: retraction, source: retraction-watch, 2010-02-06}。
+        """
+        for upd in msg.get("updated-by") or []:
             label = f"{upd.get('type', '')} {upd.get('label', '')}".lower()
             if "retract" in label:
                 return {"type": "retraction", "label": upd.get("label"),
                         "date_parts": (upd.get("updated") or {}).get("date-parts"),
-                        "doi": upd.get("DOI")}
+                        "source": upd.get("source"), "doi": upd.get("DOI")}
         return None

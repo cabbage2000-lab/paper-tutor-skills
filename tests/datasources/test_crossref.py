@@ -59,11 +59,28 @@ class TestCrossref(unittest.TestCase):
         self.assertIsNone(client.lookup_doi("10.9999/nonexistent"))
 
     def test_retraction_extracted(self):
+        """被撤稿的论文：撤稿信息在 updated-by（fixture 按真实响应形状构造）。"""
         client, _ = make_client([FakeResponse(200, load_fixture("crossref_retracted.json"))],
                                 tmpdir=self.tmp.name)
         hit = client.lookup_doi("10.5555/retracted-example")
         self.assertIsNotNone(hit.retraction)
         self.assertEqual(hit.retraction["type"], "retraction")
+        self.assertEqual(hit.retraction["date_parts"], [[2021, 3, 2]])
+        self.assertEqual(hit.retraction["source"], "retraction-watch")
+        # updated-by 指向的是撤稿声明，不是本文自己
+        self.assertEqual(hit.retraction["doi"], "10.5555/the-retraction-notice")
+
+    def test_retraction_notice_itself_not_flagged(self):
+        """反向回归：本文**是**那份撤稿声明（只有 update-to）→ 不得判为已撤稿。
+
+        update-to 与 updated-by 方向相反，读错会让 RETRACTED 态永不触发；这条锁住
+        方向，防止改回 update-to（那样只有本用例的撤稿声明会被误标为已撤稿）。
+        """
+        client, _ = make_client(
+            [FakeResponse(200, load_fixture("crossref_retraction_notice.json"))],
+            tmpdir=self.tmp.name)
+        hit = client.lookup_doi("10.5555/the-retraction-notice")
+        self.assertIsNone(hit.retraction)
 
     def test_lookup_uses_cache_second_call(self):
         body = load_fixture("crossref_hit.json")

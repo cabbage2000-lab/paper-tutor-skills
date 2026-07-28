@@ -1,0 +1,10 @@
+{
+  "id": "https://openalex.org/W2100995118",
+  "doi": "https://doi.org/10.5555/retracted-example",
+  "display_name": "RETRACTED: A retracted study",
+  "publication_year": 2019,
+  "type": "article",
+  "is_retracted": true,
+  "authorships": [{"author": {"display_name": "J. Doe"}}],
+  "primary_location": {"source": {"display_name": "Journal of Examples"}}
+}

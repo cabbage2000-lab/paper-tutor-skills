@@ -79,9 +79,38 @@ class TestJudgeSixStates(unittest.TestCase):
     # 4. 撤稿
     def test_retracted(self):
         p = _parsed(doi="10.1/a")
-        h = _hit(doi="10.1/a", retraction={"reason": "misconduct"})
+        h = _hit(doi="10.1/a", retraction={"type": "retraction", "label": "Retraction",
+                                           "date_parts": [[2010, 2, 6]],
+                                           "source": "retraction-watch"})
         rec = judge.judge(p, _ev(doi_ra="Crossref", hits=[h], doi="10.1/a"))
         self.assertEqual(rec.status, "RETRACTED")
+        self.assertIn("2010-02-06", rec.evidence_summary)
+        self.assertIn("retraction-watch", rec.evidence_summary)
+
+    def test_retracted_provenance_not_hardcoded(self):
+        """OpenAlex 只给布尔标记（无日期、非 Retraction Watch）→ 不得谎称来自它。"""
+        p = _parsed(doi="10.1/a")
+        h = _hit(source="openalex", doi="10.1/a",
+                 retraction={"type": "retraction", "label": "Retraction",
+                             "date_parts": None, "source": "openalex", "doi": None})
+        rec = judge.judge(p, _ev(doi_ra="Crossref", hits=[h], doi="10.1/a"))
+        self.assertEqual(rec.status, "RETRACTED")
+        self.assertNotIn("Retraction Watch", rec.evidence_summary)
+        self.assertNotIn("撤稿日期", rec.evidence_summary)
+
+    def test_retracted_prefers_hit_with_date(self):
+        """多源都报撤稿 → 展示信息最全的那条（带日期的 Crossref），但列出全部源。"""
+        p = _parsed(doi="10.1/a")
+        oa = _hit(source="openalex", doi="10.1/a",
+                  retraction={"type": "retraction", "date_parts": None, "source": "openalex"})
+        cr = _hit(source="crossref", doi="10.1/a",
+                  retraction={"type": "retraction", "date_parts": [[2010, 2, 6]],
+                              "source": "retraction-watch"})
+        rec = judge.judge(p, _ev(doi_ra="Crossref", hits=[oa, cr], doi="10.1/a"))
+        self.assertEqual(rec.status, "RETRACTED")
+        self.assertIn("2010-02-06", rec.evidence_summary)
+        self.assertIn("crossref", rec.evidence_summary)
+        self.assertIn("openalex", rec.evidence_summary)
 
     # 5a. 字段全一致 → VERIFIED
     def test_verified_consistent(self):
@@ -90,6 +119,28 @@ class TestJudgeSixStates(unittest.TestCase):
         rec = judge.judge(p, _ev(doi_ra="Crossref", hits=[h], doi="10.1/a"))
         self.assertEqual(rec.status, "VERIFIED")
         self.assertEqual(rec.field_notes, [])
+
+    def test_verified_given_first_source_authors(self):
+        """回归：Crossref / OpenAlex / S2 / arXiv 的作者是 given-first（'Yann LeCun'），
+        引用是 'LeCun, Yann'。同一个人，绝不能误报 first_author 不符——否则任何一条
+        正确引用只要走这些源命中就落 METADATA_MISMATCH，VERIFIED 态几乎不可达。"""
+        for src_author in ("Yann LeCun", "Y. LeCun", "LeCun Y.", "LeCun, Yann"):
+            with self.subTest(src_author=src_author):
+                p = _parsed(doi="10.1/a", title="Deep learning",
+                            authors=["LeCun, Yann"], year=2015)
+                h = _hit(doi="10.1/a", title="Deep learning",
+                         authors=[src_author], year=2015)
+                rec = judge.judge(p, _ev(doi_ra="Crossref", hits=[h], doi="10.1/a"))
+                self.assertEqual(rec.status, "VERIFIED")
+
+    def test_verified_retracted_prefix_in_source_title(self):
+        """回归：撤稿论文的 Crossref 标题带 'RETRACTED: ' 前缀，不得因此误报标题不符。"""
+        p = _parsed(doi="10.1/a", title="A retracted study",
+                    authors=["Doe, J."], year=2019)
+        h = _hit(doi="10.1/a", title="RETRACTED: A retracted study",
+                 authors=["J. Doe"], year=2019)
+        rec = judge.judge(p, _ev(doi_ra="Crossref", hits=[h], doi="10.1/a"))
+        self.assertEqual(rec.status, "VERIFIED")
 
     # 5b. 年份差 ≥ 2 → MISMATCH
     def test_mismatch_year(self):
@@ -178,10 +229,25 @@ class TestCompareHelpers(unittest.TestCase):
     def test_title_overlap_disjoint_is_zero(self):
         self.assertEqual(judge._title_overlap("Deep Learning", "Quantum Computing"), 0.0)
 
-    def test_first_author_surname(self):
-        self.assertEqual(judge._first_author_surname("Smith, John"), "smith")
-        self.assertEqual(judge._first_author_surname("Smith John"), "smith")
-        self.assertEqual(judge._first_author_surname("王明, 李华"), "王明")
+    def test_surname_candidates_comma_form_is_exact(self):
+        # 有逗号 → 逗号前即姓，候选唯一
+        self.assertEqual(judge._surname_candidates("Smith, John"), {"smith"})
+        self.assertEqual(judge._surname_candidates("王明, 李华"), {"王明"})
+
+    def test_surname_candidates_drops_initials(self):
+        # 缩写必是名 → 剔除后候选精确，given-first / family-first 都对
+        self.assertEqual(judge._surname_candidates("AJ Wakefield"), {"wakefield"})
+        self.assertEqual(judge._surname_candidates("Wakefield AJ"), {"wakefield"})
+        self.assertEqual(judge._surname_candidates("A. J. Wakefield"), {"wakefield"})
+
+    def test_surname_candidates_keeps_short_cjk_romanized(self):
+        # 中文罗马化姓多为 2 字符，不得当成缩写丢掉（故按大写判断而非长度）
+        self.assertIn("li", judge._surname_candidates("Li Wang"))
+        self.assertIn("wang", judge._surname_candidates("Li Wang"))
+
+    def test_surname_candidates_full_names_ambiguous(self):
+        # 两个都是全名 → 顺序无从判断，两者皆为候选
+        self.assertEqual(judge._surname_candidates("Yann LeCun"), {"yann", "lecun"})
 
 
 if __name__ == "__main__":
