@@ -52,6 +52,25 @@ class TestOpenAlex(unittest.TestCase):
         url, _ = transport._opener.calls[0]
         self.assertIn("/works/doi:10.1038/nature12373", url)
 
+    def test_no_retraction_on_normal_work(self):
+        client, _ = make(OpenAlexClient, "openalex",
+                         [FakeResponse(200, load_fixture("openalex_hit.json"))],
+                         self.tmp.name)
+        self.assertIsNone(client.lookup_doi("10.1038/nature12373").retraction)
+
+    def test_is_retracted_extracted(self):
+        """OpenAlex is_retracted → retraction，给撤稿检测加一路不依赖 Crossref 的冗余。"""
+        client, _ = make(OpenAlexClient, "openalex",
+                         [FakeResponse(200, load_fixture("openalex_retracted.json"))],
+                         self.tmp.name)
+        hit = client.lookup_doi("10.5555/retracted-example")
+        self.assertIsNotNone(hit.retraction)
+        self.assertEqual(hit.retraction["type"], "retraction")
+        self.assertEqual(hit.retraction["source"], "openalex")
+        # 布尔标记而已：无撤稿日期、无撤稿声明 DOI，不可伪造
+        self.assertIsNone(hit.retraction["date_parts"])
+        self.assertIsNone(hit.retraction["doi"])
+
 
 class TestSemanticScholar(unittest.TestCase):
     def setUp(self):

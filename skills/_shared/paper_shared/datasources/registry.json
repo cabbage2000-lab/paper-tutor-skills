@@ -22,7 +22,7 @@
       "kind": "api",
       "role": "core",
       "base_url": "https://api.openalex.org",
-      "capabilities": ["lookup_doi", "match_title", "search"],
+      "capabilities": ["lookup_doi", "match_title", "search", "retraction"],
       "rate_limit": {"anonymous": {"min_interval_s": 1.0},
                      "with_credential": {"min_interval_s": 0.5}},
       "auth": {"key_env": null, "mailto_env": "PAPER_MAILTO"},

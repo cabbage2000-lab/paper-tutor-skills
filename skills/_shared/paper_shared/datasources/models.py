@@ -72,7 +72,9 @@ class SourceHit:
     source: str
     metadata: Dict[str, Any]   # title / authors[] / year / venue / doi / type
     fetched_at: str            # ISO 8601（UTC）
-    retraction: Optional[Dict[str, Any]] = None   # Crossref update-to（Retraction Watch）
+    # 撤稿标记：Crossref updated-by（Retraction Watch）/ OpenAlex is_retracted。
+    # 键：type / label / date_parts / source / doi，source 缺失表示源未给出溯源。
+    retraction: Optional[Dict[str, Any]] = None
     raw: Dict[str, Any] = field(default_factory=dict)
     from_cache: bool = False   # 本次命中是否来自本地缓存（供 stats 缓存命中率统计）
 

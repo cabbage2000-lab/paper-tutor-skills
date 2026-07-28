@@ -19,7 +19,8 @@ class OpenAlexClient(SourceClient):
             data = self._cached_json(f"doi:{d}", url)
         except NotFoundError:
             return None
-        return self._hit(self._metadata(data), raw=self._trim(data))
+        return self._hit(self._metadata(data), raw=self._trim(data),
+                         retraction=self._retraction(data))
 
     def match(self, title: str, authors: Optional[List[str]] = None,
               year: Optional[int] = None, limit: int = 5) -> List[SourceHit]:
@@ -29,7 +30,8 @@ class OpenAlexClient(SourceClient):
             data = self._cached_json(f"match:{title.lower()}:{limit}", url)
         except NotFoundError:
             return []
-        return [self._hit(self._metadata(w), raw=self._trim(w))
+        return [self._hit(self._metadata(w), raw=self._trim(w),
+                          retraction=self._retraction(w))
                 for w in data.get("results") or []]
 
     def search(self, query: str, filters: Optional[Dict[str, Any]] = None,
@@ -40,7 +42,8 @@ class OpenAlexClient(SourceClient):
             data = self._cached_json(self._search_cache_key(query, limit, filters), url)
         except NotFoundError:
             return []
-        hits = [self._hit(self._metadata(w), raw=self._trim(w))
+        hits = [self._hit(self._metadata(w), raw=self._trim(w),
+                          retraction=self._retraction(w))
                 for w in data.get("results") or []]
         return self._postfilter(hits, filters)
 
@@ -76,7 +79,19 @@ class OpenAlexClient(SourceClient):
                 "type": w.get("type")}
 
     @staticmethod
+    def _retraction(w: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """OpenAlex is_retracted——给撤稿检测加一路冗余，不单点依赖 Crossref。
+
+        只有布尔标记，没有撤稿日期与撤稿声明 DOI，故 date_parts/doi 留空；
+        Crossref updated-by 命中时信息更全（带 Retraction Watch 日期与声明 DOI）。
+        """
+        if not w.get("is_retracted"):
+            return None
+        return {"type": "retraction", "label": "Retraction",
+                "date_parts": None, "source": "openalex", "doi": None}
+
+    @staticmethod
     def _trim(w: Dict[str, Any]) -> Dict[str, Any]:
         keep = ("id", "doi", "display_name", "publication_year", "type",
-                "authorships", "primary_location")
+                "authorships", "primary_location", "is_retracted")
         return {k: w[k] for k in keep if k in w}

@@ -2,12 +2,13 @@
   "status": "ok",
   "message": {
     "DOI": "10.5555/retracted-example",
-    "title": ["A retracted study"],
+    "title": ["RETRACTED: A retracted study"],
     "author": [{"given": "J.", "family": "Doe"}],
     "issued": {"date-parts": [[2019]]},
     "container-title": ["Journal of Examples"],
     "type": "journal-article",
-    "update-to": [{"DOI": "10.5555/retracted-example", "type": "retraction",
-                   "label": "Retraction", "updated": {"date-parts": [[2021, 3, 2]]}}]
+    "updated-by": [{"DOI": "10.5555/the-retraction-notice", "type": "retraction",
+                    "label": "Retraction", "source": "retraction-watch",
+                    "updated": {"date-parts": [[2021, 3, 2]]}, "record-id": "12345"}]
   }
 }

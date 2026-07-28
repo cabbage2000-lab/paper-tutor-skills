@@ -1,0 +1,14 @@
+{
+  "status": "ok",
+  "message": {
+    "DOI": "10.5555/the-retraction-notice",
+    "title": ["Retraction: A retracted study"],
+    "author": [{"given": "The", "family": "Editors"}],
+    "issued": {"date-parts": [[2021, 3, 2]]},
+    "container-title": ["Journal of Examples"],
+    "type": "journal-article",
+    "update-to": [{"DOI": "10.5555/retracted-example", "type": "retraction",
+                   "label": "Retraction", "source": "publisher",
+                   "updated": {"date-parts": [[2021, 3, 2]]}}]
+  }
+}

@@ -18,11 +18,19 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-# DOI 正则（Crossref 推荐格式简化）：10. + 4 位以上注册机构码 + / + 非空白（不含分隔符）
-_DOI_RE = re.compile(r"10\.\d{4,}/[^\s,;)\]]+", re.IGNORECASE)
+# DOI 正则（Crossref 推荐格式简化）：10. + 4 位以上注册机构码 + / + 非空白（不含分隔符）。
+# 右括号**不排除**：合法 DOI 可含成对括号（Lancet 'S0140-6736(97)11096-0'、
+# Wiley '10.1002/(SICI)…'），排除会把这类 DOI 截断、让真实文献落 NOT_FOUND
+# 「疑似不存在」。尾随的不成对括号交给 _trim_doi 回退。
+# 已知限制：分号仍排除（常用于分隔多条引用），故 Wiley SICI 式 DOI 里的 ';2-H' 尾巴会丢。
+_DOI_RE = re.compile(r"10\.\d{4,}/[^\s,;\]]+", re.IGNORECASE)
 # 四位年份（18xx-2099），前后不贴数字避免误匹配页码 / 卷期
 _YEAR_RE = re.compile(r"(?<!\d)(1[89]\d{2}|20\d{2})(?!\d)")
 _BIB_ENTRY_RE = re.compile(r"@\w+\s*\{", re.IGNORECASE)
+# APA 风格作者段的收尾锚点：'(1998).' / '（2020a）'。比句号切分可靠——APA 常把
+# 首字母缩写写成 'A. J.'（点后带空格），按句号切会切在人名中间，标题错取成
+# 'J., Murch, S'，进而让一条正确引用误报元数据不符。有此锚点时优先用它。
+_APA_YEAR_SPLIT_RE = re.compile(r"[（(]\s*(?:1[89]\d{2}|20\d{2})[a-z]?\s*[）)]\s*\.?\s*")
 # .bib 字段：key = {value} 或 key = "value"——{...} 包裹允许值内含逗号（朴素但覆盖常见 .bib）
 _BIB_FIELD_RE = re.compile(r"(\w+)\s*=\s*(?:\{(.*?)\}|\"(.*?)\")", re.DOTALL)
 _GBT_NUM_RE = re.compile(r"^\s*\[(\d+)\]\s*")           # 顺序编码标号 [1]
@@ -53,9 +61,21 @@ class ParsedRef:
         return dataclasses.asdict(self)
 
 
+def _trim_doi(s: str) -> str:
+    """剪掉 DOI 尾部的句读与**不成对**的右括号，保留成对括号（见 _DOI_RE 注释）。
+
+    'S0140-6736(97)11096-0.' → 'S0140-6736(97)11096-0'（括号成对，保留）
+    '10.1234/abc)'           → '10.1234/abc'（markdown 链接的收尾括号，剪掉）
+    """
+    s = s.rstrip(".,;:")
+    while s and s[-1] == ")" and s.count("(") < s.count(")"):
+        s = s[:-1].rstrip(".,;:")
+    return s
+
+
 def _extract_doi(text: str) -> Optional[str]:
     m = _DOI_RE.search(text or "")
-    return m.group(0).rstrip(".,;)") if m else None
+    return _trim_doi(m.group(0)) if m else None
 
 
 def _extract_year(text: str) -> Optional[int]:
@@ -108,8 +128,9 @@ def parse_single(token: str) -> ParsedRef:
 def _parse_freeform_line(line: str, idx: str) -> ParsedRef:
     """启发式解析一行自由文本（GB/T 7714 / APA 混杂）。
 
-    作者取第一个句号前的片段（两种格式作者都在开头）；标题取作者后、去年份括号、
-    到类型标识或下一个句号前。作者提取最不可靠，仅尽力——judge 比对第一作者姓时再归一化。
+    有 APA 的 '(年份).' 锚点时按它切分作者段与标题段；否则退回句号切分（GB/T 风格，
+    作者取第一个句号前的片段——两种格式作者都在开头）。标题取作者后、去年份括号、到
+    类型标识或下一个句号前。作者提取最不可靠，仅尽力——judge 比对第一作者姓时再归一化。
     """
     doi = _extract_doi(line)
     year = _extract_year(line)
@@ -118,14 +139,23 @@ def _parse_freeform_line(line: str, idx: str) -> ParsedRef:
     body = _GBT_NUM_RE.sub("", line.strip()).strip()
     body = _DOI_RE.sub("", body).strip()            # 去 DOI 串避免干扰句号定位
     authors: List[str] = []
-    first_dot = _find_dot(body)
-    if first_dot > 0:
-        head = body[:first_dot].strip(" ,，")
-        if head and not head[0].isdigit() and len(head) < 80:
+    m_apa = _APA_YEAR_SPLIT_RE.search(body)
+    if m_apa and m_apa.start() > 0:
+        # APA：作者段以 '(年份).' 收尾，不会切在 'A. J.' 中间（见 _APA_YEAR_SPLIT_RE）。
+        # 多作者段可以很长，故此路径不套用句号路径的 80 字上限。
+        head = body[:m_apa.start()].strip(" ,，.")
+        if head and not head[0].isdigit() and len(head) < 300:
             authors = [head]
-        rest = body[first_dot + 1:].strip()
+        rest = body[m_apa.end():].strip()
     else:
-        rest = body
+        first_dot = _find_dot(body)
+        if first_dot > 0:
+            head = body[:first_dot].strip(" ,，")
+            if head and not head[0].isdigit() and len(head) < 80:
+                authors = [head]
+            rest = body[first_dot + 1:].strip()
+        else:
+            rest = body
     rest = _YEAR_RE.sub("", rest).strip(" .,，()")   # 标题区去年份 / 括号
     raw_title = _take_title(rest)
     title = raw_title if _valid_title(raw_title) else None

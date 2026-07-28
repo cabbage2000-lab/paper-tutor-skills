@@ -79,16 +79,33 @@ def _normalize_str(s: str) -> str:
     return re.sub(r"[\W_]+", "", (s or ""), flags=re.UNICODE).lower()
 
 
-def _first_author_surname(raw: str) -> str:
-    """提取第一作者姓：逗号前为姓（西文 'Smith, John'）/ 第一作者（中文 '王明, 李华'）；
-    无逗号取首个 token。归一化后返回。"""
+def _is_initials(tok: str) -> bool:
+    """纯首字母缩写 token：'A' / 'A.' / 'A.J.' / 'AJ'——去点后全大写且 ≤3 字符。
+
+    不能用长度阈值替代大写判断：中文罗马化姓多为 2 字符（Li / Wu / Xu），
+    按长度切会把姓当成缩写丢掉。
+    """
+    t = tok.replace(".", "").strip()
+    return bool(t) and t.isupper() and len(t) <= 3
+
+
+def _surname_candidates(raw: str) -> set:
+    """第一作者的姓氏候选集合（归一化）。
+
+    各源作者名格式不统一且无法归一：Crossref / OpenAlex / Semantic Scholar / arXiv
+    给 given-first（'Yann LeCun'），PubMed / ERIC 给 family-first（'Wakefield AJ'）。
+    无逗号时哪个 token 是姓无从判断，故返回候选集合、比对用相交而非相等——宁可少量
+    漏报，也绝不让一条正确引用误报元数据不符（spec §4.3 以低误报为先）。
+    """
     s = (raw or "").strip()
     if not s:
-        return ""
-    before = re.split(r"[,，]", s)[0].strip()
-    parts = before.split()
-    token = parts[0] if parts else before
-    return _normalize_str(token)
+        return set()
+    if re.search(r"[,，]", s):        # 有逗号 → 逗号前即姓（'Smith, John' / '王明, 李华'）
+        s = re.split(r"[,，]", s)[0]
+    else:                             # 无逗号 → 去掉缩写 token（缩写必是名），余下皆为候选
+        full = [t for t in s.split() if not _is_initials(t)]
+        s = " ".join(full) if full else s
+    return {n for n in (_normalize_str(t) for t in s.split()) if n}
 
 
 def _title_tokens(title: str) -> set:
@@ -128,11 +145,11 @@ def compare_fields(parsed, hit) -> List[FieldNote]:
         if ov < 0.8:
             notes.append(FieldNote("title", parsed.title, meta["title"], "mismatch",
                                    f"标题重叠 {ov:.2f}（阈值 0.8）"))
-    # 第一作者姓：归一化后不等升态
+    # 第一作者姓：候选集合无交集才升态（各源 given/family 顺序不一，见 _surname_candidates）
     if parsed.authors and meta.get("authors"):
-        ref_s = _first_author_surname(parsed.authors[0])
-        src_s = _first_author_surname(str(meta["authors"][0]))
-        if ref_s and src_s and ref_s != src_s:
+        ref_c = _surname_candidates(parsed.authors[0])
+        src_c = _surname_candidates(str(meta["authors"][0]))
+        if ref_c and src_c and not (ref_c & src_c):
             notes.append(FieldNote("first_author", parsed.authors[0], meta["authors"][0],
                                    "mismatch", "第一作者姓不一致"))
     # venue：仅提示（包含关系即视为一致，容忍缩写）
@@ -154,6 +171,14 @@ def _pick_best_hit(parsed, hits) -> Any:
     if parsed.title:
         return max(hits, key=lambda h: _title_overlap(parsed.title, h.metadata.get("title") or ""))
     return hits[0]
+
+
+def _fmt_date_parts(dp: Any) -> str:
+    """Crossref date-parts（[[2010, 2, 6]]）→ '2010-02-06'；缺月日则只到已有精度。"""
+    if not isinstance(dp, list) or not dp or not isinstance(dp[0], list):
+        return ""
+    parts = [p for p in dp[0] if isinstance(p, int)]
+    return "-".join(f"{p:02d}" if i else str(p) for i, p in enumerate(parts))
 
 
 def _summarize_mismatch(notes: List[FieldNote]) -> str:
@@ -200,9 +225,17 @@ def judge(parsed, evidence: Evidence,
     # 4. 撤稿（优先于存在性：撤稿论文「存在但已撤」）
     retracted = [h for h in evidence.hits if h.retraction]
     if retracted:
-        src = retracted[0].source
+        # 溯源如实取自响应，不硬编码 Retraction Watch——OpenAlex 的 is_retracted
+        # 不经 Retraction Watch，写死会让来源标注失真（硬约束④：降级与出处不美化）。
+        best = max(retracted, key=lambda h: bool((h.retraction or {}).get("date_parts")))
+        r = best.retraction or {}
+        extra = [x for x in (f"撤稿日期 {_fmt_date_parts(r.get('date_parts'))}"
+                             if r.get("date_parts") else "",
+                             f"撤稿数据来自 {r['source']}" if r.get("source") else "") if x]
+        srcs = "、".join(sorted({h.source for h in retracted}))
         return StatusRecord(rid, "RETRACTED", [],
-                            f"该引用已被标记撤稿（数据源 {src} / Retraction Watch）",
+                            f"该引用已被标记撤稿（数据源 {srcs}"
+                            + ("；" + "；".join(extra) if extra else "") + "）",
                             "投稿前必处理：替换该引用或在文中说明撤稿情况")
 
     # 5. 有 hit → 字段比对 → VERIFIED / METADATA_MISMATCH

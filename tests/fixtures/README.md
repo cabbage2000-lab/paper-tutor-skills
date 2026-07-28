@@ -21,7 +21,7 @@
 | --- | --- | --- |
 | 虚构文献（含虚构中文文献） | 若干 | 英文及带 DOI 者标 NOT_FOUND；虚构中文者应在人工核对流程中被用户发现——核对包须可导致该结论 |
 | 真实文献 + 编造论断归因 | 若干 | 存在性通过；恰当性辅助核查把归因问题递到用户面前 |
-| 已撤稿文献 | 若干 | 标 RETRACTED（Crossref 内置 Retraction Watch 数据） |
+| 已撤稿文献 | 若干；须含**反向样本**（本文自己就是那份撤稿声明） | 标 RETRACTED（Crossref `updated-by` 内置 Retraction Watch 数据，OpenAlex `is_retracted` 冗余）；反向样本不得标 RETRACTED。**API 响应类 fixture 一律按真实响应形状构造**——`update-to`/`updated-by` 读反那次，正是因为 fixture 与实现错得一致，单测长期绿灯 |
 | 真实中文文献 | **≥ 10 条**，其中带 ISTIC（中文 DOI）注册 DOI 者 ≥ 2 条（如 10.3969 前缀） | 带 Crossref 注册 DOI 的自动 VERIFIED；ISTIC DOI 条目经注册机构判别（`doi.org/ra/`）径直落 PENDING_MANUAL——DOI 合法存在、仅元数据 API 不可达，绝不误伤；其余无法自动核验的标 PENDING_MANUAL 并附可执行的人工核对包，**绝不落 NOT_FOUND** |
 
 附加要求：断网场景下全部降级 UNVERIFIED，无一放行编造；GB/T 7714-2015 著录格式检查配顺序编码制样例一组（用中文案例的参考文献表）。

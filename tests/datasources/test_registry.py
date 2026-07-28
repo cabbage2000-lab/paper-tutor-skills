@@ -17,7 +17,9 @@ class TestRegistry(unittest.TestCase):
     def test_capability_matrix(self):
         doi_capable = {s.id for s in self.reg.with_capability("lookup_doi")}
         self.assertEqual(doi_capable, {"crossref", "openalex", "semantic_scholar", "pubmed", "arxiv"})
-        self.assertEqual({s.id for s in self.reg.with_capability("retraction")}, {"crossref"})
+        # 撤稿检测双源冗余：Crossref updated-by（Retraction Watch）+ OpenAlex is_retracted
+        self.assertEqual({s.id for s in self.reg.with_capability("retraction")},
+                         {"crossref", "openalex"})
 
     def test_guided_sources_have_no_endpoint(self):
         guided = self.reg.guided_sources()

@@ -59,29 +59,35 @@ def _build_samples():
                  "NOT_FOUND", "fabricated"))
 
     # ── 真实样本（期望 VERIFIED）——误报率分母 ──
+    # 源侧作者一律用**真实 API 的 given-first 形状**（Crossref/OpenAlex/S2/arXiv 给
+    # "John Smith"，不是 "Smith, John"），引用侧保持学术惯例的 family-first。两侧写成
+    # 同一格式会让误报率门槛虚过——这正是 given-first 误报 bug 曾逃过 42 条样本的原因。
     for i in range(8):
         doi = f"10.1000/real{i}"
         p = parse_refs.ParsedRef(id=f"rA{i}", doi=doi, title="Real Research on AI",
                                  authors=["Smith, John"], year=2020)
-        h = _hit(doi=doi, title="Real Research on AI", authors=["Smith, John"], year=2020)
+        h = _hit(doi=doi, title="Real Research on AI", authors=["John Smith"], year=2020)
         s.append((p, _ev(p.id, doi_ra="Crossref", hits=[h], doi=doi), "VERIFIED", "real"))
-    # 合法小差异（年份差 1 / 标题子集）——仍应 VERIFIED，不误报
+    # 合法小差异（年份差 1 / 标题子集 / 作者缩写写法不一）——仍应 VERIFIED，不误报
     p = parse_refs.ParsedRef(id="rB1", doi="10.1000/realB1", title="AI in Education",
                              authors=["Doe, Jane"], year=2021)
     h = _hit(doi="10.1000/realB1", title="AI in Education and Learning",
-             authors=["Doe, Jane"], year=2020)
+             authors=["Jane Doe"], year=2020)
     s.append((p, _ev(p.id, doi_ra="Crossref", hits=[h], doi="10.1000/realB1"), "VERIFIED", "real"))
     p = parse_refs.ParsedRef(id="rB2", doi="10.1000/realB2", title="Deep Learning Methods",
                              authors=["Lee, Bob"], year=2019)
-    h = _hit(doi="10.1000/realB2", title="Deep Learning Methods", authors=["Lee, Bob"], year=2019)
+    h = _hit(doi="10.1000/realB2", title="Deep Learning Methods",
+             authors=["Bob Lee"], year=2019)
     s.append((p, _ev(p.id, doi_ra="Crossref", hits=[h], doi="10.1000/realB2"), "VERIFIED", "real"))
     p = parse_refs.ParsedRef(id="rB3", doi="10.1000/realB3", title="Quantum Computing",
                              authors=["Wang, X"], year=2022)
-    h = _hit(doi="10.1000/realB3", title="Quantum Computing", authors=["Wang, X"], year=2022)
+    h = _hit(doi="10.1000/realB3", title="Quantum Computing",
+             authors=["X Wang"], year=2022)     # 缩写在前（S2 常见）
     s.append((p, _ev(p.id, doi_ra="Crossref", hits=[h], doi="10.1000/realB3"), "VERIFIED", "real"))
     p = parse_refs.ParsedRef(id="rB4", doi="10.1000/realB4", title="Climate Change Analysis",
                              authors=["Brown, K"], year=2018)
-    h = _hit(doi="10.1000/realB4", title="Climate Change Analysis", authors=["Brown, K"], year=2018)
+    h = _hit(doi="10.1000/realB4", title="Climate Change Analysis",
+             authors=["Brown K"], year=2018)    # 缩写在后（PubMed 形状）
     s.append((p, _ev(p.id, doi_ra="Crossref", hits=[h], doi="10.1000/realB4"), "VERIFIED", "real"))
 
     # ── 中文样本（期望 PENDING_MANUAL）——中文误伤分母 ──
@@ -95,11 +101,17 @@ def _build_samples():
         s.append((p, _ev(p.id, doi_ra=None), "PENDING_MANUAL", "chinese"))
 
     # ── 撤稿（期望 RETRACTED）──
+    # 源标题带 Crossref 真实的 "RETRACTED: " 前缀，retraction 用真实契约形状
+    # （type/label/date_parts/source）。注意本层在 judge 入口注入已解析好的 Evidence，
+    # **不覆盖客户端的字段解析**——updated-by 读错那类 bug 须由 tests/datasources/
+    # 的 fixture 用例（按真实响应形状构造 + 反向用例）拦住。
     for i in range(4):
         p = parse_refs.ParsedRef(id=f"rt{i}", doi=f"10.1000/retracted{i}",
-                                 title="A Retracted Study", authors=["Fraud"], year=2018)
-        h = _hit(doi=p.doi, title="A Retracted Study", authors=["Fraud"], year=2018,
-                 retraction={"reason": "misconduct"})
+                                 title="A Retracted Study", authors=["Fraud, F."], year=2018)
+        h = _hit(doi=p.doi, title="RETRACTED: A Retracted Study",
+                 authors=["F. Fraud"], year=2018,
+                 retraction={"type": "retraction", "label": "Retraction",
+                             "date_parts": [[2020, 5, 1]], "source": "retraction-watch"})
         s.append((p, _ev(p.id, doi_ra="Crossref", hits=[h], doi=p.doi), "RETRACTED", "retracted"))
 
     # ── 元数据不符（期望 METADATA_MISMATCH）──
