@@ -40,6 +40,9 @@ CODEX_PLUGIN_DIR = REPO_ROOT / ".codex-plugin"
 CODEX_PLUGIN_JSON = CODEX_PLUGIN_DIR / "plugin.json"
 CODEX_MARKETPLACE_JSON = REPO_ROOT / ".agents" / "plugins" / "marketplace.json"
 CHANGELOG = REPO_ROOT / "CHANGELOG.md"
+# skills/_shared/VERSION：随 skills/ 安装走的版本标识（散装安装无清单文件，
+# 用户装完后只能从此处确认版本）。与清单层的 version 同源、同守卫。
+SHARED_VERSION = REPO_ROOT / "skills" / "_shared" / "VERSION"
 
 # CHANGELOG 里非 Unreleased 的第一个版本标题即当前版本
 VERSION_HEADING_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
@@ -99,6 +102,22 @@ def test_两份清单存在且可解析(plugin: dict, marketplace: dict):
 def test_plugin清单必填字段齐全(plugin: dict, field: str):
     assert field in plugin, f"plugin.json 缺字段 {field}"
     assert plugin[field], f"plugin.json 的 {field} 为空"
+
+
+def test_shared_version与CHANGELOG最新版本一致(changelog_version: str):
+    """skills/_shared/VERSION 是散装安装后唯一的版本来源，须与 CHANGELOG 同步。
+
+    sync_skills.py 只复制 skills/，不带清单文件——散装安装的用户只能读此文件
+    确认版本（paper-help 会读它显示）。漏改会让用户看到旧版本号。
+    """
+    assert SHARED_VERSION.is_file(), (
+        f"{SHARED_VERSION} 不存在——paper-help 读不到版本号、散装安装后无法确认版本。"
+    )
+    version = SHARED_VERSION.read_text(encoding="utf-8").strip()
+    assert version == changelog_version, (
+        f"_shared/VERSION 的 {version!r} 与 CHANGELOG 最新版本 {changelog_version!r} "
+        f"不一致——发版时漏改 VERSION，散装安装的用户会看到旧版本号。"
+    )
 
 
 def test_marketplace恰好登记一个plugin(marketplace: dict):

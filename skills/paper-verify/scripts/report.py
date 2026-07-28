@@ -23,6 +23,16 @@ STATUS_LABEL = {
 }
 # 需优先关注的态（投稿前必处理）
 PRIORITY_STATUSES = ("NOT_FOUND", "RETRACTED", "METADATA_MISMATCH")
+# 降级明标文案（代码层红线：API 失败必须显式声明，绝不静默用模型记忆顶替）。
+# report_html 直接 import 本字典——MD 与 HTML 两版对同一次降级说同一句话。
+NETWORK_BANNER = {
+    "offline": ("核验不可用：核心数据源全不可达（疑似断网）",
+                "本次未取得有效 API 响应，报告中的判定不足以支撑任何存在性结论。"
+                "建议先跑 /paper-doctor 排查网络，再重跑核验。"),
+    "degraded": ("部分降级：有数据源未查成",
+                 "标「无法核实」的条目是「没查成」而非「查了没有」，与「疑似不存在」性质不同。"
+                 "网络恢复后重跑即可（断点续验会跳过已完成条目）。"),
+}
 
 
 def build_json_payload(meta: Dict[str, Any], items: List[Dict[str, Any]],
@@ -46,12 +56,25 @@ def build_markdown(payload: Dict[str, Any]) -> str:
     lines.append(f"# 引用核验报告 · {created[:10] if created else ''}")
     lines.append("")
 
+    _render_network(lines, payload)
     _render_distribution(lines, payload)
     _render_priority(lines, payload)
     _render_sources(lines, payload)
     _render_items(lines, payload)
     _render_footer(lines)
     return "\n".join(lines)
+
+
+def _render_network(lines, payload):
+    """降级明标——network_status 非 ok 时置于报告最前，不藏在 JSON 里。"""
+    status = payload.get("network_status", "ok")
+    banner = NETWORK_BANNER.get(status)
+    if not banner:
+        return
+    title, detail = banner
+    lines.append(f"> **⚠️ 降级声明（network_status={status}）：{title}**")
+    lines.append(f"> {detail}")
+    lines.append("")
 
 
 def _render_distribution(lines, payload):

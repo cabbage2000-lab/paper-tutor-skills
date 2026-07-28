@@ -15,6 +15,53 @@
 
 ---
 
+## [0.1.3] — 2026-07-28
+
+**核验报告有了 HTML 视图；安装后可查看版本。** 两件事都是「让已有能力真的被用上」：
+`/paper-verify` 此前只出 Markdown + JSON，40 条引用的核验结果读起来要靠肉眼扫，
+现在默认多出一份单文件 HTML 报告——顶部先说有几条要动手、六态徽章可点着筛选、
+DOI 可点开复核、待人工核对的检索词可一键复制；另新增 `skills/_shared/VERSION`
+文件（随 `skills/` 安装走），`/paper-help` 会话首次回复时在顶部显示版本号行。
+命令与 skill 目录数不变（仍是 25 个命令入口 / 23 个 skill 目录）。
+
+### 新增（Added）
+
+- **`/paper-verify` 核验报告 HTML 视图**（`skills/paper-verify/scripts/report_html.py`）：
+  与 Markdown / JSON 同源于一份 payload，默认随核验生成 `verify-<时间戳>.html`
+  （`--no-html` 可关；也能对旧报告单独重渲：`report_html.py --in verify-*.json`）。
+  为读者省时间的部分：**裁决横幅**（第一句话回答「有几条要动手」）、**六态堆叠条**、
+  分布表每态附一句「这一态意味着什么」、**需优先关注锚点直达**详情、
+  **sticky 六态筛选轨**（40 条报告里只看已撤稿）、逐条卡片按态染左色带、
+  **元数据不符逐字段对照表**（引用里写的 ↔ 数据源里的）、`<details>` 折叠证据链、
+  DOI 渲染为 doi.org 可点链接、待人工核对条目的检索词一键复制 + 知网/万方入口可点。
+- HTML 报告样式走 **Tailwind CDN + typography 插件**（与其余报告模板同一技术栈），
+  `_shared/tailwind.config.js` 由渲染脚本**原样内联**进产物：产物落在 `.paper/review/`
+  后相对路径 `../../_shared/tailwind.config.js` 指不到 skill 包（路径问题、与网络无关），
+  内联后四层语义色仍只在那份 config 里定义一次，改 config 即改报告。
+  内联时转义 `</`——config 注释里的 `</script>` 会提前闭合标签、让整份 config 静默失效。
+  打印时自动展开全部证据链并隐去筛选轨，窄屏下 4 列表格重排为卡片、不丢任何一列。
+- [`tests/paper-verify/test_report_html.py`](tests/paper-verify/test_report_html.py)
+  34 条单测：六态标签取自 `report` 模块不重复定义、降级横幅 MD 与 HTML 同文案、
+  用户粘贴内容的转义（报告会被转发，`<script>` / 属性注入必须无效）、
+  内联 config 的 `</` 转义与「四层色值不在 CSS 侧复制」、空报告与缺字段条目不炸。
+- `skills/_shared/VERSION` 纯文本版本标识文件（一行版本号），随所有安装方式走
+  （散装 `sync_skills.py` + 插件市场都复制 `skills/`）。
+- `/paper-help` 会话首次回复时在输出顶部显示 `📄 Paper-Tutor-Skills v<版本>` 行，
+  版本号读 `_shared/VERSION`；读不到则省略版本行、不凭记忆编版本号。
+- [`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 新增守卫：
+  `_shared/VERSION` 与 CHANGELOG 最新版本一致（发版漏改 VERSION 会被测试拦下）。
+
+### 变更（Changed）
+
+- **核验报告的降级声明改为报告可见**：`network_status` 为 `offline` / `degraded` 时，
+  Markdown 与 HTML 报告开头都会摆一条降级横幅（说明「核验不可用」或「没查成 ≠ 查了没有」）。
+  此前该字段只写进 JSON，人读报告里看不到——而「降级必须明标」是核验类 skill 的
+  代码层红线，藏在 JSON 里等于没标。两版共用 `report.NETWORK_BANNER` 一份文案。
+- `verify.py` 的 stdout 摘要新增 `report_html` 路径字段，`/paper-verify` 完成时
+  优先指向 HTML 报告（纯文本环境仍指 `.md`）。
+
+---
+
 ## [0.1.2] — 2026-07-28
 
 **核验准确性修复。** 四个 bug 都落在 `/paper-verify` 的判定链路上：三个让完全正确的引用

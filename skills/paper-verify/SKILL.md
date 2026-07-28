@@ -17,7 +17,7 @@ description: >-
 
 你（执行本 skill 的宿主 agent）只做三件事：**真实 API 取证 → 规则判六态 → 落可溯源报告**。存在性核验一律靠 `scripts/verify.py` 真实调用开放 API + 确定性判定，**绝不凭记忆判断某条引用存不存在**。三个子命令：`/paper-verify`（存在性 + 格式，主入口）、`/paper-claim`（结论夸大，独立入口、纯提示词）。
 
-覆盖生命周期「阶段 D·环节 17-19：评审与修订」。**不覆盖**：文献检索（`/paper-search`，只取证不核验）、写作辅助（Phase 2）。本 skill 是**产物型 + 网络型**——会落盘核验报告（JSON + Markdown），且依赖网络与核验脚本。
+覆盖生命周期「阶段 D·环节 17-19：评审与修订」。**不覆盖**：文献检索（`/paper-search`，只取证不核验）、写作辅助（Phase 2）。本 skill 是**产物型 + 网络型**——会落盘核验报告（HTML + Markdown + JSON），且依赖网络与核验脚本。
 
 ## 会话开始（读长期记忆）
 
@@ -62,15 +62,17 @@ python3 scripts/verify.py --input refs.bib --apply-manual .paper/review/verify-�
 python3 scripts/verify.py --input refs.bib --no-cache --out-dir .paper/review
 ```
 
-读回 stdout 摘要 JSON（`by_status` 六态分布 + `report_md` / `report_json` 路径 + `network_status`）。
+读回 stdout 摘要 JSON（`by_status` 六态分布 + `report_html` / `report_md` / `report_json` 路径 + `network_status`）。
 
 ### 第 3 步 · 呈摘要 + 指引处理，然后停下
-向用户呈现六态分布概览，**高亮需优先关注**（疑似不存在 / 已撤稿 / 元数据不符），指向报告文件，给出处理指引。然后**停下**等用户决定：
+向用户呈现六态分布概览，**高亮需优先关注**（疑似不存在 / 已撤稿 / 元数据不符），**指向 HTML 报告**（人读主产物；纯文本环境指 `.md`），给出处理指引。然后**停下**等用户决定：
 
 ```text
-⏸ 已完成核验，报告见 .paper/review/verify-时间戳.md
+⏸ 已完成核验，报告见 .paper/review/verify-时间戳.html（浏览器打开；纯文本版同名 .md）
 （疑似不存在 / 已撤稿的条目建议优先处理；待人工核对条目请按报告内核对包去知网/万方查证后回填 manual_result，重跑即升级为已核实）
 ```
+
+HTML 报告怎么读（一句话告诉用户，别让好东西埋着）：顶部裁决横幅先说有几条要动手 → 顶栏六态徽章可点着筛选（只看已撤稿）→「需优先关注」里点条目直达详情 → 每条可展开证据链、DOI 可点开复核、待人工核对条目的检索词可一键复制。
 
 ## `/paper-claim` 子命令（结论夸大检查——纯提示词，无脚本）
 
@@ -142,9 +144,21 @@ python3 scripts/format_check.py < refs.txt     # stdin 进、格式问题 JSON �
 
 ## 产物格式
 
-**`.paper/review/verify-<时间戳>.md`**（人读报告，结构见 `scripts/report.py`）：六态分布表 → 需优先关注 → 已查源清单 → 逐条详情（`<details>` 折叠证据链、PENDING_MANUAL 内嵌人工核对包）→ 人机分工页脚。
+三份产物**同源于一份 payload**（同一次判定的三种视图，内容不许出现分歧）：
+
+**`.paper/review/verify-<时间戳>.html`**（人读主产物，`scripts/report_html.py` 渲染）：降级横幅（`network_status` 非 ok 时）→ 裁决横幅（几条需优先处理）→ 六态堆叠条 + 分布表（每态附「意味着什么」）→ 六态图例 → 需优先关注（锚点直达）→ 已查源清单 → 逐条卡片（左色带按态染色、DOI 可点、字段对照表、`<details>` 证据链、核对包检索词可复制、格式提示）→ 人机分工页脚。可打印（打印时自动展开证据链、隐去筛选轨）、窄屏表格重排不丢列。
+
+样式走 **Tailwind CDN + typography 插件**（与其余报告模板同一技术栈），`_shared/tailwind.config.js` 原样内联进产物——产物落在 `.paper/review/` 后相对路径指不到 skill 包，故必须内联；四层语义色仍只在那份 config 里定义一次。**CDN 依赖声明**：断网时样式不加载，产物降级为无样式 HTML（内容可读、排版失效），这是可接受的折衷。
+
+**`.paper/review/verify-<时间戳>.md`**（纯文本版，`scripts/report.py`）：同样结构的 Markdown，供无浏览器环境、diff 与 grep。
 
 **`.paper/review/verify-<时间戳>.json`**（机器可读）：完整证据链 + 判定 + `manual_result` 回填字段，断点续验与下游消费的载荷。
+
+只想给旧报告重渲 HTML（改了样式、或当时用了 `--no-html`）：
+
+```bash
+python3 scripts/report_html.py --in .paper/review/verify-时间戳.json
+```
 
 **`.paper/` 留痕**（会话产出报告时纯文件追加，日期用 `date +%F` 真实值）：
 
@@ -154,7 +168,7 @@ python3 scripts/format_check.py < refs.txt     # stdin 进、格式问题 JSON �
 - 辅助级别：构思讨论（核验范围确认）+ 成句生成（报告渲染）
 - AI 承担：真实 API 取证、六态判定、格式检查、报告生成
 - 用户决定：是否编造、如何处理不符/撤稿/疑似不存在条目、结论夸大改不改
-- 产物：.paper/review/verify-时间戳.{json,md}
+- 产物：.paper/review/verify-时间戳.{html,md,json}
 ```
 
 ## 横切声明

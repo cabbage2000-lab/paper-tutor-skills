@@ -78,7 +78,7 @@ skills/
 ### 发版
 
 1. 在 `CHANGELOG.md` 写 `## [x.y.z] — 日期` 段落（Release notes 由它推导，段落缺失会让发布流程直接失败——宁可不发，也不发空白 Release）；
-2. 同步 `.claude-plugin/` 两份清单与 `.codex-plugin/plugin.json` 的 `version`（[`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 守着处处一致）；
+2. 同步 `.claude-plugin/` 两份清单、`.codex-plugin/plugin.json` 与 `skills/_shared/VERSION` 的 `version`（[`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 守着处处一致）；
 3. 合入 main 后 `git tag -a vx.y.z -m "..." && git push origin vx.y.z`；
 4. [`release.yml`](.github/workflows/release.yml) 自动跑测试并创建 Release。测试不过则不发布。
 
