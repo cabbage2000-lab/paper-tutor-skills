@@ -15,7 +15,11 @@
 
 ---
 
-## [Unreleased]
+## [0.1.1] — 2026-07-28
+
+**分发与安装体验版本。** 命令与 skill 内容不变（仍是 25 个命令入口 / 23 个 skill 目录），
+本版补齐「怎么装进宿主」：Claude Code 与 Codex 各自可一键装插件，散装安装改为逐宿主给出
+写死目标路径的提示词。已知边界与 v0.1.0 相同，见下方 [v0.1.0 已知边界](#v010-已知边界)。
 
 ### 新增（Added）
 
@@ -27,14 +31,34 @@
   跑测试 → 用 `scripts/extract_changelog_notes.py` 摘取本文件对应版本段 → 创建或更新
   GitHub Release。Release notes 自此由本文件推导，不手工抄第二份；对应版本段缺失会让
   发布直接失败，宁可不发也不发空白 Release。
+- **Codex 插件分发**——新增 `.codex-plugin/plugin.json` 与 `.agents/plugins/marketplace.json`，
+  Codex 用户可 `codex plugin marketplace add cabbage2000-lab/paper-tutor-skills` 后
+  `codex plugin add paper-tutor@paper-tutor-marketplace` 一键安装，23 个 skill 全部加载
+  （命令不带 plugin 名前缀，直接是 `/paper-init`）。两套清单格式实打实不同、不能合并：
+  Codex 的 plugin.json 多要 `skills` 指针与一整块 `interface`，marketplace 条目的
+  `source` 是对象且必带 `policy`。
 - **plugin 清单守卫** [`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py)
-  （15 项）——锁住 `plugin.json` ↔ `marketplace.json` ↔ 本文件三处的版本号与描述一致，
-  并校验 `.claude-plugin/` 只放清单文件（skill 内容塞进去会导致一个都加载不到）。
+  （35 项）——锁住两宿主四份清单 ↔ 本文件的版本号与描述处处一致，校验 Codex 的 `skills`
+  指针与 `interface` 必填字段符合官方摄取口径，并校验两个 `.*-plugin/` 只放清单文件
+  （skill 内容塞进去会导致一个都加载不到）。
+
+### 修复（Fixed）
+
+- **两个 README 给 Codex 用户的安装路径是错的**——原文让「其他宿主」把 skills 装到
+  `~/.claude/skills/` 或 `.claude/skills/`，而 Codex 根本不读这两个目录，照做的结果是
+  一个 `/paper-*` 命令都不出现，且没有任何报错提示。现改为逐宿主给出写死目标路径的
+  安装提示词（Codex 用 `~/.codex/skills/`，Claude Code 用 `~/.claude/skills/`），
+  让用户不必自己判断该装哪儿。
 
 ### 变更（Changed）
 
-- 两个 README 的安装章节增加插件安装方式，与 skills 目录安装方式并列。
-- CLAUDE.md 补「插件分发」「发版」两节，结构守卫测试表由三个更新为四个。
+- **两个 README 的安装章节改为「复制提示词交给智能体」**——按宿主各给一段可直接粘贴的
+  提示词，目标路径写死在提示词里，用户不用敲任何命令、也不用自己挑目录。提示词同时约束
+  智能体：同名目录覆盖即更新、其他来源的 skill 一个都别动（不清空目录）、`_shared/`
+  必须一起装。插件式一键安装退为次级小节，并提醒两条路别都走（会装出两份、命令重复）。
+- CLAUDE.md 补「插件分发」「发版」两节（含 Codex 的 `_shared` 预检报错说明：官方
+  `validate_plugin.py` 会因它缺 SKILL.md 报错，但运行时摄取与加载都静默忽略，**不要**
+  为讨好预检脚本给 `_shared` 改名），结构守卫测试表由三个更新为四个。
 - 移除 `docs/examples/phase2-plugin-样板/`——其 `.template` 文件已被 `.claude-plugin/`
   的实际配置取代，留着即第二份真相。
 

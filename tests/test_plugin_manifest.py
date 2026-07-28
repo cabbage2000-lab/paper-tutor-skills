@@ -1,19 +1,25 @@
-"""Claude Code plugin 清单的一致性守卫（plugin.json ↔ marketplace.json ↔ CHANGELOG）。
+"""插件清单的一致性守卫（Claude Code 与 Codex 四份清单 ↔ CHANGELOG）。
 
-启用插件分发后，版本号一下子有了三处写法：`.claude-plugin/plugin.json` 的 version、
-`.claude-plugin/marketplace.json` 里 plugin 条目的 version、CHANGELOG 的最新版本段。
-描述与许可证同理，plugin.json 与 marketplace.json 各存一份。这正是本仓库反复吃过亏的
-「第二份真相必然漂移」——`skills/README.md` 那份命令清单停在 6 个命令、漂了 14 条才被
-发现（见 test_manifest_consistency 的同款守卫）。
+启用插件分发后，版本号一下子有了多处写法：`.claude-plugin/plugin.json` 的 version、
+`.claude-plugin/marketplace.json` 里 plugin 条目的 version、`.codex-plugin/plugin.json`
+的 version、CHANGELOG 的最新版本段。描述与许可证同理，各清单各存一份。这正是本仓库
+反复吃过亏的「第二份真相必然漂移」——`skills/README.md` 那份命令清单停在 6 个命令、
+漂了 14 条才被发现（见 test_manifest_consistency 的同款守卫）。
 
 发版时最容易漏的就是 plugin.json 的 version：CHANGELOG 写了新版本、tag 也打了，
 plugin 清单还停在旧版本号，而装插件的人看到的是清单里的那个。
 
-本文件守四件事：
-  1. 两份清单可解析、必填字段齐全；
-  2. 三处版本号一致（以 CHANGELOG 最新版本段为准）；
-  3. marketplace 的 plugin 条目与 plugin.json 对同一字段的写法不背离；
-  4. plugin 根布局合规——`.claude-plugin/` 里只放清单，skills/ 必须在仓库根
+两个宿主的清单格式不同、不能共用一份：Claude Code 读 `.claude-plugin/`，Codex 读
+`.codex-plugin/plugin.json` 与 `.agents/plugins/marketplace.json`，且 Codex 的
+plugin.json 多要 `skills` 指针与一整块 `interface`，marketplace 的条目结构也不一样
+（`source` 是对象、必带 `policy`）。所以只能各写一份 + 本文件守住不背离。
+
+本文件守五件事：
+  1. 四份清单可解析、必填字段齐全；
+  2. 版本号处处一致（以 CHANGELOG 最新版本段为准）；
+  3. 同一字段在各清单里的写法不背离（跨宿主也不许漂）；
+  4. Codex plugin 的 skills 指针与 interface 必填字段符合官方摄取口径；
+  5. plugin 根布局合规——两个 `.*-plugin/` 里只放清单，skills/ 必须在仓库根
      （官方明确警告过的坑，放错位置插件加载不到任何 skill）。
 
 纯标准库，秒级跑完（CLAUDE.md·开发流程：单测只覆盖核心确定性逻辑）。
@@ -30,6 +36,9 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PLUGIN_DIR = REPO_ROOT / ".claude-plugin"
 PLUGIN_JSON = PLUGIN_DIR / "plugin.json"
 MARKETPLACE_JSON = PLUGIN_DIR / "marketplace.json"
+CODEX_PLUGIN_DIR = REPO_ROOT / ".codex-plugin"
+CODEX_PLUGIN_JSON = CODEX_PLUGIN_DIR / "plugin.json"
+CODEX_MARKETPLACE_JSON = REPO_ROOT / ".agents" / "plugins" / "marketplace.json"
 CHANGELOG = REPO_ROOT / "CHANGELOG.md"
 
 # CHANGELOG 里非 Unreleased 的第一个版本标题即当前版本
@@ -38,6 +47,16 @@ VERSION_HEADING_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
 PLUGIN_REQUIRED_FIELDS = ("name", "description", "version", "license", "author")
 # 两份清单都写、必须一字不差的字段
 MIRRORED_FIELDS = ("name", "description", "version", "license")
+# Codex 官方摄取要求的 interface 必填字段（见 plugin-creator/validate_plugin.py）
+CODEX_INTERFACE_REQUIRED = (
+    "displayName",
+    "shortDescription",
+    "longDescription",
+    "developerName",
+    "category",
+    "capabilities",
+    "defaultPrompt",
+)
 
 
 def _load(path: pathlib.Path) -> dict:
@@ -52,6 +71,16 @@ def plugin() -> dict:
 @pytest.fixture(scope="module")
 def marketplace() -> dict:
     return _load(MARKETPLACE_JSON)
+
+
+@pytest.fixture(scope="module")
+def codex_plugin() -> dict:
+    return _load(CODEX_PLUGIN_JSON)
+
+
+@pytest.fixture(scope="module")
+def codex_marketplace() -> dict:
+    return _load(CODEX_MARKETPLACE_JSON)
 
 
 @pytest.fixture(scope="module")
@@ -113,6 +142,79 @@ def test_claude_plugin目录只放清单文件():
     assert actual <= allowed, (
         f".claude-plugin/ 里出现了不该有的内容：{sorted(actual - allowed)}。"
         "该目录只放 plugin.json 与 marketplace.json，skills/ 必须在仓库根。"
+    )
+
+
+def test_codex_plugin目录只放清单文件():
+    """同 .claude-plugin：Codex 的 plugin 根也是仓库根，skills/ 不能塞进清单目录。"""
+    actual = {p.name for p in CODEX_PLUGIN_DIR.iterdir() if not p.name.startswith(".")}
+    assert actual == {"plugin.json"}, (
+        f".codex-plugin/ 里出现了不该有的内容：{sorted(actual - {'plugin.json'})}。"
+        "该目录只放 plugin.json；Codex 的 marketplace 清单在 .agents/plugins/。"
+    )
+
+
+@pytest.mark.parametrize("field", PLUGIN_REQUIRED_FIELDS)
+def test_codex_plugin清单必填字段齐全(codex_plugin: dict, field: str):
+    assert field in codex_plugin, f".codex-plugin/plugin.json 缺字段 {field}"
+    assert codex_plugin[field], f".codex-plugin/plugin.json 的 {field} 为空"
+
+
+@pytest.mark.parametrize("field", MIRRORED_FIELDS)
+def test_两宿主plugin清单同名字段不背离(
+    plugin: dict, codex_plugin: dict, field: str
+):
+    """同一个 plugin 分两个宿主发行，元信息必须是同一份事实。"""
+    assert codex_plugin.get(field) == plugin.get(field), (
+        f".codex-plugin/plugin.json 的 {field} 与 .claude-plugin/plugin.json 不一致：\n"
+        f"  codex : {codex_plugin.get(field)!r}\n  claude: {plugin.get(field)!r}"
+    )
+
+
+def test_codex_plugin指向仓库根的skills目录(codex_plugin: dict):
+    """Codex 靠 skills 指针发现 skill；指错则一个命令都不出现。"""
+    assert codex_plugin.get("skills") == "./skills/", (
+        f"Codex plugin.json 的 skills={codex_plugin.get('skills')!r}，"
+        "必须是 './skills/'——plugin 根即仓库根，skills/ 就在根下。"
+    )
+
+
+@pytest.mark.parametrize("field", CODEX_INTERFACE_REQUIRED)
+def test_codex_plugin的interface必填字段齐全(codex_plugin: dict, field: str):
+    """缺任一字段，官方摄取校验（plugin-creator/validate_plugin.py）会判整个 plugin 非法。"""
+    interface = codex_plugin.get("interface")
+    assert isinstance(interface, dict), "Codex plugin.json 缺 interface 块"
+    assert interface.get(field), f"Codex plugin.json 的 interface.{field} 缺失或为空"
+
+
+def test_codex_marketplace恰好登记一个plugin(codex_marketplace: dict):
+    plugins = codex_marketplace.get("plugins")
+    assert isinstance(plugins, list), "Codex marketplace.json 的 plugins 必须是数组"
+    assert len(plugins) == 1, (
+        f"Codex marketplace.json 登记了 {len(plugins)} 个 plugin；本仓库按设计只分发一个 "
+        "(paper-tutor)。真要加第二个，请连同本测试一起改，别默默加。"
+    )
+
+
+def test_codex_marketplace条目结构合规(
+    codex_marketplace: dict, codex_plugin: dict
+):
+    """Codex 的条目格式与 Claude 版不同：source 是对象、policy 必带，且指向仓库根。"""
+    entry = codex_marketplace["plugins"][0]
+    assert entry.get("name") == codex_plugin["name"], (
+        f"marketplace 条目名 {entry.get('name')!r} 与 plugin.json 的 "
+        f"{codex_plugin['name']!r} 不一致——`codex plugin add` 按名字找不到就装不上。"
+    )
+    source = entry.get("source")
+    assert isinstance(source, dict), "Codex marketplace 条目的 source 必须是对象"
+    assert source.get("source") == "local" and source.get("path") == "./", (
+        f"source={source!r}；仓库自身即 plugin，路径必须是 './'。"
+    )
+    policy = entry.get("policy")
+    assert isinstance(policy, dict), "Codex marketplace 条目必须带 policy 块"
+    assert policy.get("installation") == "AVAILABLE", (
+        f"policy.installation={policy.get('installation')!r}，必须是 AVAILABLE，"
+        "否则用户在市场里装不了。"
     )
 
 

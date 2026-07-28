@@ -263,6 +263,32 @@ def test_根README声明的命令数与主清单一致():
             )
 
 
+def test_两个README安装提示词里的skill数量与磁盘一致():
+    """安装提示词让智能体照数字自检「装全了没」——数字漂了，自检就成了误导。
+
+    提示词是给别的 agent 执行的，用户复制粘贴后不会逐条核对。写「23 个 paper-*」而实际
+    有 24 个，agent 装完 23 个就会报告成功，缺的那个要等用户敲命令发现不存在才暴露。
+    这类数字比命令表更容易忘同步：加 skill 时谁都会想到改命令表，没人会想到改提示词。
+    """
+    expected = len([d for d in disk_skill_dirs() if d.startswith("paper-")])
+    patterns = [
+        ("README.md", r"(\d+)\s*个 paper-\*"),
+        ("README.en.md", r"(\d+)\s*paper-\*"),
+    ]
+    for readme_name, pattern in patterns:
+        text = (REPO_ROOT / readme_name).read_text(encoding="utf-8")
+        found = re.findall(pattern, text)
+        assert found, (
+            f"{readme_name} 的安装提示词里找不到 {pattern!r} 形式的 skill 数量声明。"
+            f"若改了措辞，请同步改本守卫的正则——别让守卫失效。"
+        )
+        for n in found:
+            assert int(n) == expected, (
+                f"{readme_name} 的安装提示词声明 {n} 个 paper-* skill，磁盘实际是 "
+                f"{expected} 个——照这段提示词装的人会漏装或误判装全了。"
+            )
+
+
 def test_阶段中文名与paper_help解析器不漂移():
     """progress_parser 硬编码了一份 _PHASE_STAGE_ZH，必须与主清单一致。
 

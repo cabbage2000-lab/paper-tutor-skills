@@ -57,17 +57,28 @@ skills/
 
 其余目录：`tests/` 与 skills 平行（每个 skill 一个子目录 + `fixtures/` 共享语料）；`evals/` 放裸模型对比记录；`scripts/` 放仓库级工具（`extract_changelog_notes.py`）；入库的文档只有 `docs/prd/`（产品定位与设计理念，权威）与 `docs/examples/`。
 
-### 插件分发（Claude Code）
+### 插件分发（Claude Code 与 Codex）
 
-仓库根的 `.claude-plugin/`（`plugin.json` + `marketplace.json`）让**仓库自身成为一个插件市场**，Claude Code 用户可 `/plugin marketplace add cabbage2000-lab/paper-tutor-skills` 后安装。这是**增量增强、不替换任何东西**：`skills/` 散装主体原样保留，其他宿主照常按 SKILL.md 装载——与硬规则 3 的跨宿主中立不冲突。
+仓库根的清单文件让**仓库自身成为一个插件市场**，两个宿主都能一键装：
 
-- **plugin 根 = 仓库根**，所以 `skills/` 天然在正确位置。`.claude-plugin/` 里**只放两个清单文件**，skill 内容绝不能塞进去（官方明确的坑，放错则一个 skill 都加载不到）。
+| 宿主 | 清单文件 | 用户侧命令 |
+| --- | --- | --- |
+| Claude Code | `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` | `/plugin marketplace add cabbage2000-lab/paper-tutor-skills` |
+| Codex | `.codex-plugin/plugin.json` + `.agents/plugins/marketplace.json` | `codex plugin marketplace add cabbage2000-lab/paper-tutor-skills` |
+
+这是**增量增强、不替换任何东西**：`skills/` 散装主体原样保留，其他宿主照常按 SKILL.md 装载——与硬规则 3 的跨宿主中立不冲突。
+
+- **plugin 根 = 仓库根**，所以 `skills/` 天然在正确位置。两个 `.*-plugin/` 目录里**只放清单文件**，skill 内容绝不能塞进去（官方明确的坑，放错则一个 skill 都加载不到）。
+- **两套清单不能合并**：格式实打实不同——Codex 的 plugin.json 多要 `skills: "./skills/"` 指针与一整块 `interface`（`displayName` / `shortDescription` / `longDescription` / `developerName` / `category` / `capabilities` / `defaultPrompt` 全必填），marketplace 条目的 `source` 是对象且必带 `policy`。四份清单的公共字段由 [`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 守住不漂。
+- **`skills/_shared` 会让官方预检脚本报错，但不影响真实安装**——Codex 的 `plugin-creator/validate_plugin.py` 只跳过 `.` 开头的目录，遇到无 SKILL.md 的 `_shared` 会判 `skill '_shared' is missing 'SKILL.md'`。运行时摄取（`codex plugin add`）与 skill 加载器都只认含 SKILL.md 的目录，`_shared` 被静默忽略，23 个 skill 全部正常加载（2026-07-28 实测 codex-cli 0.145.0）。**因此不要为了讨好预检脚本去给 `_shared` 改名或补 SKILL.md**——那会同时踩中硬规则 2 与硬规则 6，换来的只是一个预检脚本的绿灯。
 - **plugin name 取 `paper-tutor`**，命令因此呈现为 `/paper-tutor:paper-init`——前缀与命令名都带 paper，确实啰嗦。更简洁的 `/paper:init` 需要把 23 个 skill 目录改名为 `init`/`verify` 等，牵动硬规则 2（`name` = 目录名 = 命令名）、主清单、两个 README 与全部内部引用。**权衡结论：不值得，保持 `paper-tutor`。** 要推翻这个结论，得连同上述几处一起改。
+
+宿主的 skills 目录各不相同，**装错位置的表现是命令一个都不出现**（不是报错，所以很难自查）：Claude Code 读 `~/.claude/skills/` 与项目级 `.claude/skills/`；Codex 读 `~/.codex/skills/` 与项目级 `.codex/skills/`、`.agents/skills/`，**不读 `.claude/skills/`**。散装安装用 `sync_skills.py --target <目录>`（本地脚本，不入库）。
 
 ### 发版
 
 1. 在 `CHANGELOG.md` 写 `## [x.y.z] — 日期` 段落（Release notes 由它推导，段落缺失会让发布流程直接失败——宁可不发，也不发空白 Release）；
-2. 同步 `.claude-plugin/` 两份清单的 `version`（[`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 守着三处一致）；
+2. 同步 `.claude-plugin/` 两份清单与 `.codex-plugin/plugin.json` 的 `version`（[`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 守着处处一致）；
 3. 合入 main 后 `git tag -a vx.y.z -m "..." && git push origin vx.y.z`；
 4. [`release.yml`](.github/workflows/release.yml) 自动跑测试并创建 Release。测试不过则不发布。
 
@@ -77,10 +88,10 @@ skills/
 
 | 测试 | 守什么 |
 | --- | --- |
-| [`test_manifest_consistency.py`](tests/test_manifest_consistency.py) | `commands.yaml` ↔ skill 目录 ↔ SKILL.md 的 `name` ↔ 两个根 README 的命令表，四处一致；`skills/README.md` 不得另存命令清单表格 |
+| [`test_manifest_consistency.py`](tests/test_manifest_consistency.py) | `commands.yaml` ↔ skill 目录 ↔ SKILL.md 的 `name` ↔ 两个根 README 的命令表，四处一致；README 正文与**安装提示词**里的各种「N 个」算得对；`skills/README.md` 不得另存命令清单表格 |
 | [`test_shared_conventions.py`](tests/test_shared_conventions.py) | 四层内容标注符号、学科三梯队、留痕契约字段在全仓库不漂移，其中的产品立场不被改写 |
 | [`test_boundary_registry.py`](tests/test_boundary_registry.py) | 边界拒绝清单 ↔ README 不做表 ↔ PRD 边界条目三处不背离，同步锚点真实存在 |
-| [`test_plugin_manifest.py`](tests/test_plugin_manifest.py) | `plugin.json` ↔ `marketplace.json` ↔ CHANGELOG 最新版本，三处版本号与描述一致；`.claude-plugin/` 里只放清单文件 |
+| [`test_plugin_manifest.py`](tests/test_plugin_manifest.py) | 两宿主四份清单 ↔ CHANGELOG 最新版本，版本号与描述处处一致；Codex 的 `skills` 指针与 `interface` 必填字段符合官方摄取口径；两个 `.*-plugin/` 里只放清单文件 |
 
 ## 硬规则
 

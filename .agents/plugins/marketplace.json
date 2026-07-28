@@ -1,0 +1,20 @@
+{
+  "name": "paper-tutor-marketplace",
+  "interface": {
+    "displayName": "Paper-Tutor-Skills"
+  },
+  "plugins": [
+    {
+      "name": "paper-tutor",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
