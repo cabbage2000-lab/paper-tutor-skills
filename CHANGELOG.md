@@ -15,6 +15,19 @@
 
 ---
 
+## [Unreleased]
+
+### 新增（Added）
+
+- **WorkBuddy 安装提示词**——两个根 README 的安装段补第三个宿主，此前只有 Claude Code 与
+  Codex 两段、WorkBuddy 用户只能自行猜路径。三处路径事实取自 WorkBuddy 的 skill 加载器
+  实现（`getHomeSkillsDir` / `getProjectSkillsDir` / `scanSkillsDirectory`）而非推测：
+  用户级 `~/.workbuddy/skills/`，**项目级却是 `.codebuddy/skills/`**（底层 CodeBuddy 内核
+  写死，与用户级目录名不对称，这是最容易写错的一处），且它**不读 `.claude/skills/`**。
+  另记两条它特有的装载行为：递归扫描到 5 层深、无 SKILL.md 的目录静默跳过（`_shared`
+  因此安全），但技能名按目录层级拼接，多套一层 `skills/` 会让命令变成 `skills:paper-init`
+  ——提示词里显式拦了这一条。
+
 ## [0.1.4] — 2026-07-29
 
 **报告 HTML 改由脚本渲染，产物断网也能正常排版。** `/paper-topic`、`/paper-logic`、
