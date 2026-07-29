@@ -2,12 +2,12 @@
 
 ![license](https://img.shields.io/badge/license-PolyForm--NC-blue)
 ![language](https://img.shields.io/badge/language-简体中文优先-green)
-![status](https://img.shields.io/badge/status-v0.1.2-blue)
+![status](https://img.shields.io/badge/status-v0.1.5-blue)
 ![host](https://img.shields.io/badge/host-Claude%20Code%20%7C%20Codex%20%7C%20WorkBuddy-grey)
 
 **简体中文** | [English](README.en.md)
 
-Paper-Tutor-Skills 是一套装进编程智能体（Claude Code / Codex / 国内 WorkBuddy）的学术辅导 skills，简体中文优先——AI 管效率（检索、整理、核对、结构化），人管研究决策（想法、判断、数据、结论）。为中文研究生与科研工作者设计——学生自助研究、导师带学生做科研训练、投稿前批量自查（工具形态不变）。当前 **v0.1.2**：25 个命令入口（`/paper-init` `/paper-help` `/paper-doctor` `/paper-daily` 四个工作台基础设施 + 选题 / 检索 / 写作 / 评审 / 投稿全链路 21 个研究命令），分布在 23 个 skill 目录，覆盖学术研究 5 阶段全生命周期。命令的准确清单与各自的已知观察项以 [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml) 为准。
+Paper-Tutor-Skills 是一套装进编程智能体（Claude Code / Codex / 国内 WorkBuddy）的学术辅导 skills，简体中文优先——AI 管效率（检索、整理、核对、结构化），人管研究决策（想法、判断、数据、结论）。为中文研究生与科研工作者设计——学生自助研究、导师带学生做科研训练、投稿前批量自查（工具形态不变）。当前 **v0.1.5**：25 个命令入口（`/paper-init` `/paper-help` `/paper-doctor` `/paper-daily` 四个工作台基础设施 + 选题 / 检索 / 写作 / 评审 / 投稿全链路 21 个研究命令），分布在 24 个 skill 目录，覆盖学术研究 5 阶段全生命周期。命令的准确清单与各自的已知观察项以 [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml) 为准。
 
 ## 设计理念
 
@@ -48,7 +48,7 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 
 ## 快速开始
 
-**25 个命令入口已发布**（v0.1.2——已知边界见 [CHANGELOG](CHANGELOG.md#012--2026-07-28)），覆盖学术研究 5 阶段全生命周期，逐命令见上表。今天就能先试一个（`/paper-doctor` 有 [验收记录](tests/paper-doctor/README.md)）。
+**25 个命令入口已发布**（v0.1.5），覆盖学术研究 5 阶段全生命周期，逐命令见上表。今天就能先试一个（`/paper-doctor` 有 [验收记录](tests/paper-doctor/README.md)）。
 
 ### 安装
 
@@ -61,7 +61,7 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 
 1. 把 https://github.com/cabbage2000-lab/paper-tutor-skills 克隆到一个临时目录
 2. 确保 ~/.claude/skills/ 存在（没有就创建），把仓库 skills/ 下的**全部子目录**
-   复制进去，一个都不能少（23 个 paper-* 加 1 个 _shared）
+   复制进去，一个都不能少（24 个 paper-* 加 1 个 _shared）
    - 同名目录直接覆盖，这就是更新
    - 该目录下其他来源的 skill 一个都别动，千万不要清空目录
    - _shared/ 没有 SKILL.md、不会显示成命令，但每个 skill 都用 ../_shared/ 引用它，
@@ -77,7 +77,7 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 
 1. 把 https://github.com/cabbage2000-lab/paper-tutor-skills 克隆到一个临时目录
 2. 确保 ~/.codex/skills/ 存在（没有就创建），把仓库 skills/ 下的**全部子目录**
-   复制进去，一个都不能少（23 个 paper-* 加 1 个 _shared）
+   复制进去，一个都不能少（24 个 paper-* 加 1 个 _shared）
    - 同名目录直接覆盖，这就是更新
    - 该目录下其他来源的 skill 一个都别动，千万不要清空目录
    - _shared/ 没有 SKILL.md、不会显示成命令，但每个 skill 都用 ../_shared/ 引用它，
@@ -86,17 +86,35 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 4. 告诉我装到了哪里、有哪些命令可用
 ```
 
-装完**新开一个会话**才会加载——已开的会话看不到新命令。
+**装到 WorkBuddy** 👇
 
-> **只想在单个项目里用？** 把提示词里的 `~/.claude/skills/` 换成该项目根目录下的 `.claude/skills/`（Codex 换成 `.codex/skills/`）。
+```text
+帮我安装 Paper-Tutor-Skills 学术辅导套件：
+
+1. 把 https://github.com/cabbage2000-lab/paper-tutor-skills 克隆到一个临时目录
+2. 确保 ~/.workbuddy/skills/ 存在（没有就创建），把仓库 skills/ 下的**全部子目录**
+   复制进去，一个都不能少（24 个 paper-* 加 1 个 _shared）
+   - 复制的是子目录本身，别把整个 skills/ 目录整体套进去——WorkBuddy 会按目录层级
+     给技能命名，多套一层命令就变成 skills:paper-init 了
+   - 同名目录直接覆盖，这就是更新
+   - 该目录下其他来源的 skill 一个都别动，千万不要清空目录
+   - _shared/ 没有 SKILL.md、不会显示成命令，但每个 skill 都用 ../_shared/ 引用它，
+     漏装会全面断链，必须一起装
+3. 删掉临时目录
+4. 告诉我装到了哪里、有哪些命令可用
+```
+
+装完**新开一个会话**才会加载——已开的会话看不到新命令。WorkBuddy 还可以在「技能」面板里核对是否装齐。
+
+> **只想在单个项目里用？** 把提示词里的用户级路径换成该项目根目录下的项目级目录：Claude Code 用 `.claude/skills/`，Codex 用 `.codex/skills/`，**WorkBuddy 用 `.codebuddy/skills/`**——注意不是 `.workbuddy/`，它的用户级目录叫 `~/.workbuddy/`，项目级目录却沿用底层 CodeBuddy 内核的 `.codebuddy/`，这一处不对称是实测结论，写错了命令一个都不出现。
 >
-> **用的是别的宿主（WorkBuddy 等）？** 同一段提示词，把目标路径换成该宿主的 skills 目录即可。装错位置的表现是命令一个都不出现、且没有任何报错——**Codex 不读 `.claude/skills/`，Claude Code 也不读 `.codex/skills/`**，两个宿主都用就各装一份。
+> **用的是别的宿主？** 同一段提示词，把目标路径换成该宿主的 skills 目录即可。装错位置的表现是命令一个都不出现、且没有任何报错——三个宿主的目录**互不读取**（**Codex 与 WorkBuddy 都不读 `.claude/skills/`，Claude Code 也不读 `.codex/skills/`**），几个宿主都用就各装一份。
 >
 > **想先只试一个？** 把第 2 步换成「只复制 skills/paper-init 和 skills/_shared」。
 
-#### 更喜欢自己敲命令？两个宿主都支持插件式一键安装
+#### 更喜欢自己敲命令？Claude Code 与 Codex 支持插件式一键安装
 
-本仓库自身就是插件市场，插件形态多一个好处：能用一条命令更新。
+本仓库自身就是插件市场，插件形态多一个好处：能用一条命令更新。WorkBuddy 走上面的提示词路径（本仓库尚未提供经实测的 WorkBuddy 插件清单）。
 
 Claude Code——在会话里依次执行：
 

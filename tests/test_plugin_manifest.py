@@ -14,13 +14,15 @@ plugin 清单还停在旧版本号，而装插件的人看到的是清单里的�
 plugin.json 多要 `skills` 指针与一整块 `interface`，marketplace 的条目结构也不一样
 （`source` 是对象、必带 `policy`）。所以只能各写一份 + 本文件守住不背离。
 
-本文件守五件事：
+本文件守六件事：
   1. 四份清单可解析、必填字段齐全；
   2. 版本号处处一致（以 CHANGELOG 最新版本段为准）；
   3. 同一字段在各清单里的写法不背离（跨宿主也不许漂）；
   4. Codex plugin 的 skills 指针与 interface 必填字段符合官方摄取口径；
   5. plugin 根布局合规——两个 `.*-plugin/` 里只放清单，skills/ 必须在仓库根
-     （官方明确警告过的坑，放错位置插件加载不到任何 skill）。
+     （官方明确警告过的坑，放错位置插件加载不到任何 skill）；
+  6. 两个根 README 的版本号跟得上发版——第 2 条原先只管清单层，README 反而漂了
+     三个版本（停在 v0.1.2 直到 0.1.5）才被发现。
 
 纯标准库，秒级跑完（CLAUDE.md·开发流程：单测只覆盖核心确定性逻辑）。
 """
@@ -44,8 +46,18 @@ CHANGELOG = REPO_ROOT / "CHANGELOG.md"
 # 用户装完后只能从此处确认版本）。与清单层的 version 同源、同守卫。
 SHARED_VERSION = REPO_ROOT / "skills" / "_shared" / "VERSION"
 
+READMES = ("README.md", "README.en.md")
+
 # CHANGELOG 里非 Unreleased 的第一个版本标题即当前版本
 VERSION_HEADING_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
+
+# 两个根 README 里三处「当前版本」的写法。每处都必须命中至少一次：
+# 句子被整段删掉也算漂移（对外的版本承诺凭空消失）。
+README_VERSION_PATTERNS = (
+    (r"status-v(\d+\.\d+\.\d+)-blue", "顶部 status badge"),
+    (r"\*\*v(\d+\.\d+\.\d+)\*\*", "简介段的「当前 vX.Y.Z」"),
+    (r"[（(]v(\d+\.\d+\.\d+)", "快速开始段的「N 个命令入口已发布（vX.Y.Z）」"),
+)
 
 PLUGIN_REQUIRED_FIELDS = ("name", "description", "version", "license", "author")
 # 两份清单都写、必须一字不差的字段
@@ -118,6 +130,28 @@ def test_shared_version与CHANGELOG最新版本一致(changelog_version: str):
         f"_shared/VERSION 的 {version!r} 与 CHANGELOG 最新版本 {changelog_version!r} "
         f"不一致——发版时漏改 VERSION，散装安装的用户会看到旧版本号。"
     )
+
+
+@pytest.mark.parametrize("readme_name", READMES)
+def test_两个README的版本号与CHANGELOG最新版本一致(readme_name: str, changelog_version: str):
+    """README 是对外门面，它写的版本号是用户判断「我装的是不是最新」的唯一依据。
+
+    这里真漂过：README 的版本号停在 v0.1.2，而 0.1.3、0.1.4 两次发版都只改了
+    CHANGELOG 与四份清单——连漂三个版本没人发现，因为当时没有守卫盯 README。
+    清单层的版本号有本文件其余测试守着，README 反而是最显眼、也最容易忘的那处。
+    """
+    text = (REPO_ROOT / readme_name).read_text(encoding="utf-8")
+    for pattern, where in README_VERSION_PATTERNS:
+        found = re.findall(pattern, text)
+        assert found, (
+            f"{readme_name} 里找不到 {pattern!r}（{where}）形式的版本声明。"
+            f"若改了措辞，请同步改本守卫的正则——别让守卫失效。"
+        )
+        for version in found:
+            assert version == changelog_version, (
+                f"{readme_name} 的{where}写着 v{version}，CHANGELOG 最新版本是 "
+                f"{changelog_version}——用户照 README 判断版本，会以为自己装旧了。"
+            )
 
 
 def test_marketplace恰好登记一个plugin(marketplace: dict):

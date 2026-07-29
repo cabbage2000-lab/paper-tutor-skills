@@ -19,8 +19,10 @@ from paper_shared.datasources.transport import Transport
 from tests.datasources.fakes import FakeOpener, FakeResponse, http_error
 
 
-def _hit(year=None, typ=None, doi=None, title="T", source="x"):
-    return SourceHit(source=source, metadata={"title": title, "year": year, "type": typ, "doi": doi},
+def _hit(year=None, typ=None, doi=None, title="T", source="x", date=None):
+    return SourceHit(source=source,
+                     metadata={"title": title, "year": year, "type": typ, "doi": doi,
+                               "date": date},
                      fetched_at="2026-01-01T00:00:00Z")
 
 
@@ -38,6 +40,23 @@ class TestSearchCacheKey(unittest.TestCase):
         key = SourceClient._search_cache_key(
             "Test", 20, {"year_from": 2018, "year_to": 2026, "type": "journal-article"})
         self.assertEqual(key, "search:test:20:f=2018-2026-journal-article")
+
+    def test_no_date_segment_when_window_absent(self):
+        """无日期窗口时不追加 `:d=` 段——否则既有缓存键整体位移、已缓存检索全失效。"""
+        self.assertEqual(SourceClient._search_cache_key("Test", 20, {"year_from": 2018}),
+                         "search:test:20:f=2018-None-None")
+
+    def test_date_window_in_fingerprint(self):
+        key = SourceClient._search_cache_key(
+            "Test", 20, {"date_from": "2026-07-28", "date_to": "2026-07-29"})
+        self.assertEqual(key, "search:test:20:f=None-None-None:d=2026-07-28-2026-07-29")
+
+    def test_date_window_differs_from_no_window(self):
+        """带窗口 / 不带窗口两次检索不得共用缓存键（否则窗口结果串味）。"""
+        base = SourceClient._search_cache_key("Q", 20, {"year_from": 2026})
+        windowed = SourceClient._search_cache_key("Q", 20, {"year_from": 2026,
+                                                            "date_from": "2026-07-29"})
+        self.assertNotEqual(base, windowed)
 
 
 class TestPostfilter(unittest.TestCase):
@@ -62,6 +81,36 @@ class TestPostfilter(unittest.TestCase):
         # 归一不了的 type 保留（宁松勿误杀）
         self.assertEqual(len(SourceClient._postfilter([_hit(typ="某中文类型")],
                                                       {"type": "journal-article"})), 1)
+
+    def test_date_range_closed_interval(self):
+        hits = [_hit(date="2026-07-27"), _hit(date="2026-07-28"), _hit(date="2026-07-29"),
+                _hit(date="2026-07-30")]
+        out = SourceClient._postfilter(hits, {"date_from": "2026-07-28",
+                                              "date_to": "2026-07-29"})
+        self.assertEqual([h.metadata["date"] for h in out], ["2026-07-28", "2026-07-29"])
+
+    def test_date_single_day_window(self):
+        """--days 1 的落地形态：起止同一天，只留当天。"""
+        hits = [_hit(date="2026-07-28"), _hit(date="2026-07-29")]
+        out = SourceClient._postfilter(hits, {"date_from": "2026-07-29",
+                                              "date_to": "2026-07-29"})
+        self.assertEqual([h.metadata["date"] for h in out], ["2026-07-29"])
+
+    def test_date_missing_excluded_when_window_set(self):
+        """日期缺失在设了窗口时排除（同 year、不同于 type）：否则窗口外文献会被当成新发。"""
+        self.assertEqual(SourceClient._postfilter([_hit(date=None)],
+                                                  {"date_from": "2026-07-29"}), [])
+
+    def test_date_accepts_full_timestamp(self):
+        """metadata.date 万一带了完整时间戳，按前 10 位比较、不误杀。"""
+        out = SourceClient._postfilter([_hit(date="2026-07-29T17:36:22Z")],
+                                       {"date_from": "2026-07-29", "date_to": "2026-07-29"})
+        self.assertEqual(len(out), 1)
+
+    def test_date_window_and_year_compose(self):
+        hits = [_hit(year=2026, date="2026-07-29"), _hit(year=2025, date="2025-07-29")]
+        out = SourceClient._postfilter(hits, {"year_from": 2026, "date_from": "2026-07-01"})
+        self.assertEqual([h.metadata["year"] for h in out], [2026])
 
 
 class _Facade(unittest.TestCase):

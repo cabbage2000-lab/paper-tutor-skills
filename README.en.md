@@ -2,12 +2,12 @@
 
 ![license](https://img.shields.io/badge/license-PolyForm--NC-blue)
 ![language](https://img.shields.io/badge/language-简体中文优先-green)
-![status](https://img.shields.io/badge/status-v0.1.2-blue)
+![status](https://img.shields.io/badge/status-v0.1.5-blue)
 ![host](https://img.shields.io/badge/host-Claude%20Code%20%7C%20Codex%20%7C%20WorkBuddy-grey)
 
 [简体中文](README.md) | **English**
 
-Paper-Tutor-Skills is a suite of academic tutoring agent skills for Chinese-speaking researchers, dropped into the coding agent you already use (Claude Code / Codex / WorkBuddy). AI handles efficiency (retrieval, organization, verification, structuring); humans handle research decisions (ideas, judgment, data, conclusions). Designed for Chinese-speaking graduate students and researchers — students self-studying research, instructors mentoring students through research training, and pre-submission batch self-checks (same tool, no behavioral change). Currently at **v0.1.2**: 25 command entry points (`/paper-init`, `/paper-help`, `/paper-doctor`, `/paper-daily` as workspace infrastructure + 21 research commands covering topic / search / writing / review / submission full lifecycle) across 23 skill directories. The authoritative command list and per-command known gaps live in [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml).
+Paper-Tutor-Skills is a suite of academic tutoring agent skills for Chinese-speaking researchers, dropped into the coding agent you already use (Claude Code / Codex / WorkBuddy). AI handles efficiency (retrieval, organization, verification, structuring); humans handle research decisions (ideas, judgment, data, conclusions). Designed for Chinese-speaking graduate students and researchers — students self-studying research, instructors mentoring students through research training, and pre-submission batch self-checks (same tool, no behavioral change). Currently at **v0.1.5**: 25 command entry points (`/paper-init`, `/paper-help`, `/paper-doctor`, `/paper-daily` as workspace infrastructure + 21 research commands covering topic / search / writing / review / submission full lifecycle) across 24 skill directories. The authoritative command list and per-command known gaps live in [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml).
 
 ## Design Philosophy
 
@@ -45,7 +45,7 @@ Paper-Tutor-Skills positions AI as a **tutor and coach**, not an executor of res
 
 ## Quick Start
 
-**25 command entry points are released** (v0.1.2 — known gaps listed in the [CHANGELOG](CHANGELOG.md#012--2026-07-28)), covering the full 5-stage academic research lifecycle; see the table above for the per-command breakdown. You can try one today (`/paper-doctor` has an [acceptance record](tests/paper-doctor/README.md)).
+**25 command entry points are released** (v0.1.5), covering the full 5-stage academic research lifecycle; see the table above for the per-command breakdown. You can try one today (`/paper-doctor` has an [acceptance record](tests/paper-doctor/README.md)).
 
 ### Installation
 
@@ -58,7 +58,7 @@ Please install the Paper-Tutor-Skills academic tutoring suite for me:
 
 1. Clone https://github.com/cabbage2000-lab/paper-tutor-skills into a temp directory
 2. Make sure ~/.claude/skills/ exists (create it if not), then copy **every subdirectory**
-   under the repo's skills/ into it — all of them, none left out (23 paper-* plus 1 _shared)
+   under the repo's skills/ into it — all of them, none left out (24 paper-* plus 1 _shared)
    - Overwrite directories of the same name; that's how updates work
    - Leave every skill from other sources alone — do NOT wipe the directory
    - _shared/ has no SKILL.md and never shows up as a command, but every skill references it
@@ -74,7 +74,7 @@ Please install the Paper-Tutor-Skills academic tutoring suite for me:
 
 1. Clone https://github.com/cabbage2000-lab/paper-tutor-skills into a temp directory
 2. Make sure ~/.codex/skills/ exists (create it if not), then copy **every subdirectory**
-   under the repo's skills/ into it — all of them, none left out (23 paper-* plus 1 _shared)
+   under the repo's skills/ into it — all of them, none left out (24 paper-* plus 1 _shared)
    - Overwrite directories of the same name; that's how updates work
    - Leave every skill from other sources alone — do NOT wipe the directory
    - _shared/ has no SKILL.md and never shows up as a command, but every skill references it
@@ -83,17 +83,36 @@ Please install the Paper-Tutor-Skills academic tutoring suite for me:
 4. Tell me where it landed and which commands are now available
 ```
 
-**Start a new session** afterwards — already-open sessions won't pick up the new commands.
+**Install into WorkBuddy** 👇
 
-> **Want it in one project only?** Replace `~/.claude/skills/` in the prompt with that project's `.claude/skills/` (or `.codex/skills/` for Codex).
+```text
+Please install the Paper-Tutor-Skills academic tutoring suite for me:
+
+1. Clone https://github.com/cabbage2000-lab/paper-tutor-skills into a temp directory
+2. Make sure ~/.workbuddy/skills/ exists (create it if not), then copy **every subdirectory**
+   under the repo's skills/ into it — all of them, none left out (24 paper-* plus 1 _shared)
+   - Copy the subdirectories themselves; do NOT nest the whole skills/ folder inside —
+     WorkBuddy names skills after their directory path, so one extra level turns the
+     commands into skills:paper-init
+   - Overwrite directories of the same name; that's how updates work
+   - Leave every skill from other sources alone — do NOT wipe the directory
+   - _shared/ has no SKILL.md and never shows up as a command, but every skill references it
+     via ../_shared/, so omitting it breaks all of them; it must be installed too
+3. Delete the temp directory
+4. Tell me where it landed and which commands are now available
+```
+
+**Start a new session** afterwards — already-open sessions won't pick up the new commands. On WorkBuddy you can also confirm the install in its Skills (技能) panel.
+
+> **Want it in one project only?** Replace the user-level path in the prompt with that project's project-level directory: `.claude/skills/` for Claude Code, `.codex/skills/` for Codex, and **`.codebuddy/skills/` for WorkBuddy** — note that's not `.workbuddy/`: its user-level directory is `~/.workbuddy/`, but the project-level one keeps the underlying CodeBuddy engine's `.codebuddy/`. That asymmetry is a measured finding, and getting it wrong means no commands appear at all.
 >
-> **On a different host (WorkBuddy, etc.)?** Same prompt, just point it at that host's skills directory. Installing to the wrong path means no commands show up at all, with no error to tell you why — **Codex does not read `.claude/skills/`, and Claude Code does not read `.codex/skills/`**, so using both hosts means installing a copy for each.
+> **On a different host?** Same prompt, just point it at that host's skills directory. Installing to the wrong path means no commands show up at all, with no error to tell you why — the three hosts' directories are **mutually invisible** (**neither Codex nor WorkBuddy reads `.claude/skills/`, and Claude Code does not read `.codex/skills/`**), so using several hosts means installing a copy for each.
 >
 > **Want to try just one first?** Replace step 2 with "only copy skills/paper-init and skills/_shared".
 
-#### Prefer typing commands yourself? Both hosts support one-shot plugin installs
+#### Prefer typing commands yourself? Claude Code and Codex support one-shot plugin installs
 
-This repo is itself a plugin marketplace. The plugin route buys you one thing extra: single-command updates.
+This repo is itself a plugin marketplace. The plugin route buys you one thing extra: single-command updates. WorkBuddy takes the prompt route above (this repo does not yet ship a WorkBuddy plugin manifest verified on that host).
 
 Claude Code — run these in a session:
 

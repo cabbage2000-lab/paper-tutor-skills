@@ -189,7 +189,7 @@ description: Paper 开题报告组装命令（多源汇聚组装器）。当用�
 - AI 承担：制度节点骨架摆出、上游片段提取（RQ / 文献 / 方法）、引导提问、产双产物
 - 用户决定：研究内容、工作计划、创新点、文献 Gap 判断、各校格式调整
 - 组装来源：topic（RQ）+ literature（X 条笔记）+ method（有/无）；节点 N 个
-- 产物：<落盘路径>/开题报告草案.md（+ .html）
+- 产物：<落盘路径>/开题报告草案.md
 ```
 
 `.paper/` 随 git 入库、绝不写进 `.gitignore`（同 topic / outline / method / logic / disclose）。
