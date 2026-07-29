@@ -45,7 +45,7 @@ Paper-Tutor-Skills positions AI as a **tutor and coach**, not an executor of res
 
 ## Quick Start
 
-**25 command entry points are released** (v0.1.5 — known gaps listed in the [CHANGELOG](CHANGELOG.md#015--2026-07-29)), covering the full 5-stage academic research lifecycle; see the table above for the per-command breakdown. You can try one today (`/paper-doctor` has an [acceptance record](tests/paper-doctor/README.md)).
+**25 command entry points are released** (v0.1.5), covering the full 5-stage academic research lifecycle; see the table above for the per-command breakdown. You can try one today (`/paper-doctor` has an [acceptance record](tests/paper-doctor/README.md)).
 
 ### Installation
 

@@ -48,7 +48,7 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 
 ## 快速开始
 
-**25 个命令入口已发布**（v0.1.5——已知边界见 [CHANGELOG](CHANGELOG.md#015--2026-07-29)），覆盖学术研究 5 阶段全生命周期，逐命令见上表。今天就能先试一个（`/paper-doctor` 有 [验收记录](tests/paper-doctor/README.md)）。
+**25 个命令入口已发布**（v0.1.5），覆盖学术研究 5 阶段全生命周期，逐命令见上表。今天就能先试一个（`/paper-doctor` 有 [验收记录](tests/paper-doctor/README.md)）。
 
 ### 安装
 

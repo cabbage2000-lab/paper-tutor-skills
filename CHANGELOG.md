@@ -39,19 +39,21 @@
 
 - **两个根 README 的版本号漂移**——此前停在 v0.1.2，而 0.1.3、0.1.4 两次发版都只改了
   CHANGELOG 与四份清单，README 连漂三个版本没被发现（用户照 README 判断版本，会以为
-  自己装旧了）。现同步为当前版本，并补守卫防复发：`test_plugin_manifest.py` 新增两项，
-  锁住两个 README 的三处版本号（badge / 简介段 / 快速开始段）与 CHANGELOG 最新版本一致，
-  且那条「已知边界见 CHANGELOG」的锚点真能跳到最新版本段——**锚点漏改是静默死链**
-  （点过去停在页面顶部，用户以为这版没有已知边界），发版时改了 CHANGELOG 日期就必须
-  同步改它。原先第 2 类守卫只管清单层，README 恰恰是最显眼、最容易忘的那处。
+  自己装旧了）。现同步为当前版本，并补守卫防复发：`test_plugin_manifest.py` 锁住两个
+  README 的三处版本号（badge / 简介段 / 快速开始段）与 CHANGELOG 最新版本一致。原先
+  第 2 类守卫只管清单层，README 恰恰是最显眼、最容易忘的那处。
+
+### 变更（Changed）
+
+- **两个 README 去掉「已知边界见 CHANGELOG」的指向**——那条锚点形如
+  `#015--2026-07-29`，随版本号与发版日期变，每次发版都得记着同步改，漏改就是静默
+  死链（点过去停在页面顶部）。对读者的价值也有限：真要看边界，CHANGELOG 本来就在
+  仓库首屏。逐命令的已知观察项仍以 `skills/_shared/commands.yaml` 为准，那条指向保留。
 
 <!-- 其他分类按需增补：### 变更（Changed）/ ### 修复（Fixed）/ ### 重构（Refactored）。
      若本版改动了命令数或 skill 目录数，记得同步两个 README 的命令表与「N 个」计数
      （test_manifest_consistency.py 守着）。
-     改本段标题的日期时，两个 README 的 CHANGELOG 锚点必须同步改
-     （test_plugin_manifest.py 守着，不改就是静默死链）。
-     两个 README 那句「已知边界见 CHANGELOG」指着本段——本版若沿用 v0.1.0 已知边界，
-     须在本段写明，否则用户点过来看不到任何边界说明。 -->
+     两个 README 的三处版本号须与本段标题一致（test_plugin_manifest.py 守着）。 -->
 
 ---
 

@@ -21,8 +21,8 @@ plugin.json 多要 `skills` 指针与一整块 `interface`，marketplace 的条�
   4. Codex plugin 的 skills 指针与 interface 必填字段符合官方摄取口径；
   5. plugin 根布局合规——两个 `.*-plugin/` 里只放清单，skills/ 必须在仓库根
      （官方明确警告过的坑，放错位置插件加载不到任何 skill）；
-  6. 两个根 README 的版本号与 CHANGELOG 锚点跟得上发版——第 2 条原先只管清单层，
-     README 反而漂了三个版本（停在 v0.1.2 直到 0.1.5）才被发现。
+  6. 两个根 README 的版本号跟得上发版——第 2 条原先只管清单层，README 反而漂了
+     三个版本（停在 v0.1.2 直到 0.1.5）才被发现。
 
 纯标准库，秒级跑完（CLAUDE.md·开发流程：单测只覆盖核心确定性逻辑）。
 """
@@ -50,17 +50,13 @@ READMES = ("README.md", "README.en.md")
 
 # CHANGELOG 里非 Unreleased 的第一个版本标题即当前版本
 VERSION_HEADING_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\]", re.MULTILINE)
-# 同一个标题连日期一起抓——README 的 CHANGELOG 锚点由「版本号去点 + -- + 日期」构成
-VERSION_HEADING_DATE_RE = re.compile(
-    r"^## \[(\d+\.\d+\.\d+)\][^\n0-9]+(\d{4}-\d{2}-\d{2})", re.MULTILINE
-)
 
 # 两个根 README 里三处「当前版本」的写法。每处都必须命中至少一次：
 # 句子被整段删掉也算漂移（对外的版本承诺凭空消失）。
 README_VERSION_PATTERNS = (
     (r"status-v(\d+\.\d+\.\d+)-blue", "顶部 status badge"),
     (r"\*\*v(\d+\.\d+\.\d+)\*\*", "简介段的「当前 vX.Y.Z」"),
-    (r"[（(]v(\d+\.\d+\.\d+)", "快速开始段的「（vX.Y.Z——已知边界见 CHANGELOG）」"),
+    (r"[（(]v(\d+\.\d+\.\d+)", "快速开始段的「N 个命令入口已发布（vX.Y.Z）」"),
 )
 
 PLUGIN_REQUIRED_FIELDS = ("name", "description", "version", "license", "author")
@@ -107,17 +103,6 @@ def changelog_version() -> str:
     m = VERSION_HEADING_RE.search(CHANGELOG.read_text(encoding="utf-8"))
     assert m is not None, "CHANGELOG.md 里找不到形如 `## [0.1.0]` 的版本标题"
     return m.group(1)
-
-
-@pytest.fixture(scope="module")
-def changelog_heading() -> tuple[str, str]:
-    """返回最新版本段的 (版本号, 日期)——README 的 CHANGELOG 锚点由这两者拼出。"""
-    m = VERSION_HEADING_DATE_RE.search(CHANGELOG.read_text(encoding="utf-8"))
-    assert m is not None, (
-        "CHANGELOG.md 里找不到形如 `## [0.1.0] — 2026-07-27` 的版本标题（含日期）。"
-        "README 的 CHANGELOG 锚点靠日期拼出，标题缺日期会让那个链接无从校验。"
-    )
-    return m.group(1), m.group(2)
 
 
 def test_两份清单存在且可解析(plugin: dict, marketplace: dict):
@@ -167,32 +152,6 @@ def test_两个README的版本号与CHANGELOG最新版本一致(readme_name: str
                 f"{readme_name} 的{where}写着 v{version}，CHANGELOG 最新版本是 "
                 f"{changelog_version}——用户照 README 判断版本，会以为自己装旧了。"
             )
-
-
-@pytest.mark.parametrize("readme_name", READMES)
-def test_两个README指向CHANGELOG的锚点有效(readme_name: str, changelog_heading: tuple[str, str]):
-    """README 那句「已知边界见 CHANGELOG」的锚点必须真能跳到最新版本段。
-
-    锚点形如 `#015--2026-07-29`，由「版本号去点 + -- + 日期」拼成（GitHub 从
-    `## [0.1.5] — 2026-07-29` 生成）。版本号改了、或发版时把骨架日期改成实际
-    发版日，这个锚点就得跟着改——不改就是一条静默死链：点过去停在页面顶部，
-    用户以为这版没有已知边界。
-    """
-    version, date = changelog_heading
-    expected = f"CHANGELOG.md#{version.replace('.', '')}--{date}"
-    text = (REPO_ROOT / readme_name).read_text(encoding="utf-8")
-
-    anchors = re.findall(r"CHANGELOG\.md#[0-9a-z-]+", text)
-    assert anchors, (
-        f"{readme_name} 里找不到指向 CHANGELOG 版本段的锚点链接。"
-        f"若有意去掉这个链接，请连同本守卫一起删——别让它空转。"
-    )
-    for anchor in anchors:
-        assert anchor == expected, (
-            f"{readme_name} 的锚点 {anchor} 跳不到 CHANGELOG 最新版本段，"
-            f"应为 {expected}（标题 `## [{version}] — {date}`）。"
-            f"发版时改了 CHANGELOG 的日期就必须同步改这里。"
-        )
 
 
 def test_marketplace恰好登记一个plugin(marketplace: dict):

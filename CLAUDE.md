@@ -78,7 +78,7 @@ skills/
 ### 发版
 
 1. 在 `CHANGELOG.md` 写 `## [x.y.z] — 日期` 段落（Release notes 由它推导，段落缺失会让发布流程直接失败——宁可不发，也不发空白 Release）；
-2. 同步 `.claude-plugin/` 两份清单、`.codex-plugin/plugin.json`、`skills/_shared/VERSION` 的 `version`，以及两个根 README 的三处版本号与那条 CHANGELOG 锚点（[`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 守着处处一致）。**README 是最容易漏的一处**——它曾停在 v0.1.2 漂过三个版本，锚点漏改则是静默死链；
+2. 同步 `.claude-plugin/` 两份清单、`.codex-plugin/plugin.json`、`skills/_shared/VERSION` 的 `version`，以及两个根 README 的三处版本号（badge / 简介段 / 快速开始段；[`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 守着处处一致）。**README 是最容易漏的一处**——它曾停在 v0.1.2 漂过三个版本；
 3. 合入 main 后 `git tag -a vx.y.z -m "..." && git push origin vx.y.z`；
 4. [`release.yml`](.github/workflows/release.yml) 自动跑测试并创建 Release。测试不过则不发布。
 
@@ -91,7 +91,7 @@ skills/
 | [`test_manifest_consistency.py`](tests/test_manifest_consistency.py) | `commands.yaml` ↔ skill 目录 ↔ SKILL.md 的 `name` ↔ 两个根 README 的命令表，四处一致；README 正文与**安装提示词**里的各种「N 个」算得对；`skills/README.md` 不得另存命令清单表格 |
 | [`test_shared_conventions.py`](tests/test_shared_conventions.py) | 四层内容标注符号、学科三梯队、留痕契约字段在全仓库不漂移，其中的产品立场不被改写 |
 | [`test_boundary_registry.py`](tests/test_boundary_registry.py) | 边界拒绝清单 ↔ README 不做表 ↔ PRD 边界条目三处不背离，同步锚点真实存在 |
-| [`test_plugin_manifest.py`](tests/test_plugin_manifest.py) | 两宿主四份清单 ↔ `_shared/VERSION` ↔ **两个根 README** ↔ CHANGELOG 最新版本，版本号与描述处处一致，README 指向 CHANGELOG 的锚点真能跳到最新版本段；Codex 的 `skills` 指针与 `interface` 必填字段符合官方摄取口径；两个 `.*-plugin/` 里只放清单文件 |
+| [`test_plugin_manifest.py`](tests/test_plugin_manifest.py) | 两宿主四份清单 ↔ `_shared/VERSION` ↔ **两个根 README** ↔ CHANGELOG 最新版本，版本号与描述处处一致；Codex 的 `skills` 指针与 `interface` 必填字段符合官方摄取口径；两个 `.*-plugin/` 里只放清单文件 |
 
 ## 硬规则
 
