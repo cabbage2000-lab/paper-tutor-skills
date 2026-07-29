@@ -149,7 +149,7 @@ description: Paper 摘要提炼命令（正文→摘要提炼器）。当用户�
 - 用户决定：摘要定稿、正文修订、关键词选择、目标场合字数调整
 - 摘要式：<结构化 / 理论型 / 诠释型>
 - 溯源：每句标正文锚点、可追溯；正文未涉及要素 N 个标 ⚠️
-- 产物：<落盘路径>/摘要.md（+ .html）
+- 产物：<落盘路径>/摘要.md
 ```
 
 `.paper/` 随 git 入库、绝不写进 `.gitignore`（同 topic / outline / draft / method / proposal / logic / disclose）。

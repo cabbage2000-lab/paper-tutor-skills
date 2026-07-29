@@ -207,3 +207,67 @@ def test_留痕契约的标题行格式与解析器一致():
     assert any(e.product_path for e in parsed), (
         "示例留痕的「产物」字段没被解析出来，契约示例格式与解析器不符"
     )
+
+
+# `- 产物：<值>` 形式的留痕模板行（缩进任意、全角或半角冒号皆可，同契约声明）
+_PRODUCT_FIELD = re.compile(r"^\s*-\s*产物[：:]\s*(.+?)\s*$")
+
+
+def test_留痕契约示例的产物路径不被解析器截断():
+    """契约示例是各 skill 的抄写源——示例错一次会传染全仓库（已实际发生）。
+
+    上一条测试只验「产物字段能被解析出来」，不验解析出的**是不是原样**。于是
+    契约示例长期写着 `manuscript/摘要.md（+ .html）`，解析器按空白切分只取到
+    `manuscript/摘要.md（+`，测试却照过——15 个 skill 抄了这个示例。本条补上
+    「解析结果必须与字面一致」这一层。
+    """
+    import sys
+
+    parser_dir = REPO_ROOT / "tests" / "paper-help"
+    sys.path.insert(0, str(parser_dir))
+    try:
+        from progress_parser import parse_trace_entries  # noqa: PLC0415
+    finally:
+        sys.path.remove(str(parser_dir))
+
+    text = TRACE_DOC.read_text(encoding="utf-8")
+    blocks = re.findall(r"```(?:md|markdown)?\n(.*?)```", text, re.S)
+    checked = 0
+    for block in blocks:
+        written = [m.group(1) for m in
+                   (_PRODUCT_FIELD.match(ln) for ln in block.splitlines()) if m]
+        if not written:
+            continue
+        entries = parse_trace_entries(block)
+        if not entries:
+            continue
+        assert entries[0].product_path == written[0], (
+            f"契约示例的产物路径被截断：字面是「{written[0]}」、"
+            f"解析出「{entries[0].product_path}」。"
+            f"这份示例是各 skill 的抄写源，错一次传染全仓库。"
+        )
+        checked += 1
+    assert checked, "留痕契约里找不到带「产物」字段的示例留痕块"
+
+
+def test_全部SKILL的产物字段不含空白():
+    """`产物` 字段被 progress_parser 按空白切分取第一段——含空白即被截断。
+
+    截断后的路径（如 `manuscript/摘要.md（+`）不存在，全貌视图照它去找产物会
+    判成「产物缺失」。2026-07-29 用真实解析器实测发现 15 个 skill 全中，统一修正。
+
+    正确写法见留痕契约「`产物` 字段为什么必须不含空白」：多产物用顿号连、
+    中间不留空格；`.html` 是 `.md` 的机械投影，不必进这个字段。
+    """
+    bad = []
+    for skill_md in sorted((REPO_ROOT / "skills").glob("*/SKILL.md")):
+        for lineno, line in enumerate(
+                skill_md.read_text(encoding="utf-8").splitlines(), 1):
+            m = _PRODUCT_FIELD.match(line)
+            if m and re.search(r"\s", m.group(1)):
+                bad.append(f"{skill_md.parent.name}/SKILL.md:{lineno} → 「{m.group(1)}」")
+    assert not bad, (
+        "这些留痕模板的「产物」字段含空白，会被 progress_parser 截断：\n  "
+        + "\n  ".join(bad)
+        + "\n\n多产物用顿号连（不留空格）；`.html` / `.md` 视图不必写进这个字段。"
+    )

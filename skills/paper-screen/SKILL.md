@@ -106,7 +106,7 @@ PRISMA 27 项自查取自 [`references/PRISMA2020清单.md`](references/PRISMA20
 - 辅助级别：构思讨论（陈列文献与纳排标准的对应事实、机械计数、产流程图；未替用户判定纳入排除）
 - AI 承担：纳排标准框架陈列、去重比对、逐篇对应事实陈列、分级计数与守恒校验、PRISMA 流程图生成
 - 用户决定：纳排标准条目、每篇文献的纳入或排除、排除理由、偏倚评级、PRISMA 27 项自评
-- 产物：literature/系统综述筛选报告.md（+ .html）、literature/筛选台账.md、literature/数据提取表.md
+- 产物：literature/系统综述筛选报告.md、literature/筛选台账.md、literature/数据提取表.md
 ```
 
 第三梯队整体让路时同样写一条，`辅助级别` 记「构思讨论（让路，未产报告）」，`AI 承担` 写明只做了梯队判定与让路说明。
