@@ -268,6 +268,19 @@ class TestLookupPayload(unittest.TestCase):
         self.assertFalse(p["found"])
         self.assertIn("人工核对", p["note"])
 
+    def test_not_registered_note_differs_from_plain_miss(self):
+        """前缀未注册与「各源未命中」证据强度不同，note 不能共用一句。"""
+        ev = Evidence(ref_id="single", input=Ref(id="single", doi="10.9999/fake"),
+                      doi_ra="not_registered",
+                      route_note="DOI 前缀未在任一注册机构注册——DOI 不存在的强信号", hits=[])
+        p = search.build_lookup_payload("10.9999/fake", ev)
+        self.assertFalse(p["found"])
+        self.assertIn("人工核对", p["note"])          # 仍不判 NOT_FOUND
+        self.assertIn("未在任一注册机构注册", p["note"])
+        miss = search.build_lookup_payload("10.9/z", Evidence(
+            ref_id="s", input=Ref(id="s", doi="10.9/z"), doi_ra="Crossref", hits=[]))
+        self.assertNotEqual(p["note"], miss["note"])
+
 
 class TestRenderHtml(unittest.TestCase):
     def test_table_link_and_coverage_class(self):

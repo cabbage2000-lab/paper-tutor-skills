@@ -186,12 +186,19 @@ def date_window_warnings(sources, date_from, date_to, query=None):
 
 
 def build_lookup_payload(doi, evidence):
-    """回填补全输出：查到则给元数据；ISTIC 中文 DOI（合法但元数据 API 不可达）标人工核对，
-    绝不 NOT_FOUND（paper-search spec 红线 3 / §8.4）。"""
+    """回填补全输出：查到则给元数据；查不到分三档如实说清证据强度——ISTIC 中文 DOI（合法但
+    元数据 API 不可达）、前缀未注册（不存在的强信号）、各源未命中（可能只是未收录）。三档
+    一律交人工核对、绝不 NOT_FOUND（paper-search spec 红线 3 / §8.4）。"""
     hit = evidence.hits[0] if evidence.hits else None
     note = None
     if evidence.doi_ra == "ISTIC":
         note = "ISTIC 注册：DOI 合法、元数据 API 不可达，请人工核对题录（不是编造嫌疑）"
+    elif evidence.doi_ra == "not_registered":
+        # 与下一档的区别：前缀未注册是「不存在」的强信号（路由压根不查任何源，见 routing.route），
+        # 各源未命中很可能只是中文库未收录。两者都交人工核对（存在性判定归 paper-verify），
+        # 但证据强度必须如实分开——共用同一句会把编造 DOI 与真实中文文献抹平。
+        note = ("DOI 前缀未在任一注册机构注册（因此未查任何元数据源）：这是 DOI 不存在的强信号，"
+                "请人工核对来源；存在性判定请走 /paper-verify")
     elif hit is None:
         note = "各开放源未命中：可能是中文库文献或元数据未收录，请人工核对，勿据此判定编造"
     return {"doi": doi, "doi_ra": evidence.doi_ra, "route_note": evidence.route_note,

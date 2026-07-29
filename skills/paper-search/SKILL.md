@@ -62,7 +62,7 @@ description: >-
 ### 第 4 步 · 落盘 + 中文回填闭环
 确认后：
 - 向 `literature/文献笔记表.md` 写入（检测到标准科研目录则归位，否则落当前目录并提示可用 `/paper-init`）；同步写 `literature/检索日志.md`（PRISMA-lite：库 + 检索式 + 日期 + 命中数 + 筛选 + 覆盖方式）。日期用 `date +%F` 的真实值。
-- 用户执行知网 / 万方检索并回填题录 → 并入**同一张**笔记表（覆盖方式记"用户回填"）+ 补检索日志行。带 DOI 的回填条目可跑 `python3 scripts/search.py --lookup-doi 10.xxxx/yyyy` 自动补全元数据；返回 `found=false` 且 `note` 提示人工核对时（含 ISTIC 中文 DOI），元数据人工填、DOI 照记、备注"人工核对"，**绝不 NOT_FOUND**。
+- 用户执行知网 / 万方检索并回填题录 → 并入**同一张**笔记表（覆盖方式记"用户回填"）+ 补检索日志行。带 DOI 的回填条目可跑 `python3 scripts/search.py --lookup-doi 10.xxxx/yyyy` 自动补全元数据；返回 `found=false` 时，元数据人工填、DOI 照记、备注"人工核对"，**绝不 NOT_FOUND**；`route_note` 与 `note` 两个字段都要读、都要原文转述——`ISTIC`（中文 DOI，合法但无免费元数据 API）、`not_registered`（前缀未注册，DOI 不存在的强信号）、各源未命中（很可能中文库未收录）三档证据强度不同，不要混为一谈。「DOI 照记」的唯一例外是 `not_registered`：**先别照记**，回读那两个字段请用户确认这条 DOI 的来源——「不判 NOT_FOUND」不等于把疑似编造的 DOI 静默收进笔记表。存在性判定归 `/paper-verify`，本命令只做回填补全。
 - 可选：`python3 scripts/render_html.py --in literature/文献笔记表.md` 生成 HTML 视图。
 - 向 `.paper/` 追加「构思讨论」级留痕（见「产物格式」，纯文件追加）。
 
@@ -92,7 +92,8 @@ description: >-
 | 情形 | 处理 |
 | --- | --- |
 | 单源限流 / 超时 / 抛错 | 门面逐源容错，如实标该源"未覆盖（网络故障）"，其余源照常返回，不拖垮整轮 |
-| ISTIC 中文 DOI 回填 | `--lookup-doi` 无元数据 → 元数据人工填、DOI 照记、备注"人工核对"，绝不 NOT_FOUND |
+| ISTIC 中文 DOI 回填 | `--lookup-doi` 的 `route_note` / `note` 标 ISTIC（无免费元数据 API）→ 元数据人工填、DOI 照记、备注"人工核对"，绝不 NOT_FOUND |
+| 回填 DOI 前缀未注册 | `--lookup-doi` 的 `route_note` / `note` 标「DOI 不存在的强信号」→ 两个字段都回读转述、请用户确认来源后再决定是否入表，别照记；存在性判定走 `/paper-verify`（此处仍不判 NOT_FOUND） |
 | 非文献引用（法条 / 判例 / 古籍 / 标准） | 单独标"非文献引用，须人工核对"，不进 API 检索 |
 | 无 `topic/` 交棒记录 | 照常工作，从用户当前给的 RQ 起 |
 | 不在标准科研目录 | 产物落当前目录 + 提示可用 `/paper-init` 归位 |

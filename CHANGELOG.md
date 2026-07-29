@@ -54,6 +54,27 @@
   `--limit 0` 重跑」；换 `--limit 0` 后 35 条全出，年份分布 2024:6 / 2023:5 / 2022:6 /
   2021:12 / 2020:6，`warnings` 空。
 
+- **回填补全把编造 DOI 与真实中文文献说成同一件事**——`/paper-search` 第 4 步的
+  `scripts/search.py --lookup-doi` 对着一个前缀根本没注册的 DOI（`10.9999/fake` 这类编造
+  强信号），给出的 `note` 与真实中文文献未被收录时**一字不差**：「各开放源未命中：可能是
+  中文库文献或元数据未收录，请人工核对，**勿据此判定编造**」——方向正好说反了。根因是
+  `build_lookup_payload()` 只分了 ISTIC 与「其余查不到」两档，而路由给 `not_registered` 的
+  `sources` 是**空列表**（前缀未注册就不浪费重试预算，见 `_shared/paper_shared/datasources/routing.py`），
+  于是 `hits` 恒空、径直落进兜底档。区分信息只剩 `route_note` 字段，而 `note` 才是给宿主读的
+  断言句。更要紧的是同一个 `not_registered` 在 `/paper-verify` 的 `judge.py` 里正是判
+  NOT_FOUND / fabricated 的最强信号——**同一个信号在两个 skill 里被读成相反的意思**。
+
+  现在 `not_registered` 单列一档：如实说「DOI 前缀未在任一注册机构注册（因此未查任何元数据源）：
+  这是 DOI 不存在的强信号，请人工核对来源；存在性判定请走 `/paper-verify`」。两处措辞是有意的
+  ——不写「元数据未命中」（一个源都没查过，说未命中不如实），仍保留「人工核对」且 `found`
+  照旧为 `false`，**存在性判定不在 paper-search 做**这条红线不动。SKILL.md 同步补两处行为
+  指令：第 4 步回填闭环明写 `route_note` 与 `note` **两个字段都要读、都要原文转述**，三档
+  证据强度不许混为一谈，并加「DOI 照记」的唯一例外（`not_registered` 一档**先别照记**，回读
+  两个字段请用户确认 DOI 来源——「不判 NOT_FOUND」不等于把疑似编造的 DOI 静默收进笔记表），
+  边界与异常对照表在 ISTIC 那行下新增对应一行。`route_note` 这处此前只有 `/paper-verify` 在
+  展示（`report.py` / `report_html.py`），paper-search 的指引漏了它，分档信息等于白传。单测
+  钉住两侧：既不许退回 NOT_FOUND，也不许与「各源未命中」共用同一句。
+
 - **开发骨架能一路留到发版、把占位符发进 GitHub Release**——0.1.5 发版时实况：CHANGELOG
   的 0.1.5 段落到打 tag 前仍顶着「⚠️ 开发中骨架，发版前必须改写」的警告块、摘要句是
   「（待填：…）」，而 `extract_changelog_notes.py` 当时只拦「段落找不到」与「段落为空」
