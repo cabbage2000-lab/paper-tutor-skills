@@ -29,6 +29,16 @@
 
 ### 修复（Fixed）
 
+- **`/paper-search` 的示例参数会让综述检索静默漏掉整整几年的文献**——SKILL.md 第 2 步
+  「英文 / 自动轨」的命令行示例写着 `--per-source 20 --limit 30`，宿主照抄就跑。实测一条
+  真实 RQ 下：74 条去重结果只呈现 30 条，**2024 与 2023 两整年、36 篇一条未进**。根因是
+  `--limit` 是**截断不是分页**（`build_payload()` 里 `ranked[:limit]`，没有 offset），默认 30
+  配默认排序 `year_desc` 恰好等于「只给最新的 30 条」——年份越早越容易被整年切掉。判据其实
+  一直在输出里（`stats.after_dedup=74` 对 `shown=30`），只是**没有一处告诉宿主要看这两个数**。
+  换 `--sort source_count` 不解决（实测两种排序前 30 条只差 3 条）。现在 SKILL.md 补一条与
+  「不加日级时间窗」并列的子项：先跑一次看 `stats.after_dedup` 是多少、按那个数调 `--limit`，
+  `shown` 明显小于 `after_dedup` 就必须调大重跑或向用户说明。
+
 - **开发骨架能一路留到发版、把占位符发进 GitHub Release**——0.1.5 发版时实况：CHANGELOG
   的 0.1.5 段落到打 tag 前仍顶着「⚠️ 开发中骨架，发版前必须改写」的警告块、摘要句是
   「（待填：…）」，而 `extract_changelog_notes.py` 当时只拦「段落找不到」与「段落为空」
