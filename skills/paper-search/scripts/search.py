@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import pathlib
 import re
@@ -21,6 +22,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "_shared"))
 from paper_shared.datasources import lookup as ds_lookup   # noqa: E402
 from paper_shared.datasources import search as ds_search   # noqa: E402
+from paper_shared.datasources.clients.arxiv import usable_terms as arxiv_usable_terms  # noqa: E402
 from paper_shared.datasources.models import normalize_doi   # noqa: E402
 
 # 跨源合并的元数据权威序（已刊元数据最权威）：crossref > openalex > s2 > arxiv > pubmed > eric
@@ -74,6 +76,9 @@ def dedup_hits(items):
         m = h.metadata
         merged.append({
             "title": m.get("title"), "authors": m.get("authors") or [], "year": m.get("year"),
+            # date = 日级日期（YYYY-MM-DD），供 paper-daily 判「今日 / 最近 N 天」时间窗。
+            # 目前只有 arXiv 提供，其余源为 null——给不出就是 null，不猜、不用 year 凑。
+            "date": m.get("date"),
             "venue": m.get("venue"), "doi": m.get("doi"), "type": m.get("type"), "url": _url(m),
             "sources": sorted(g["sources"], key=lambda s: _SOURCE_RANK.get(s, 99)),
             "primary_source": h.source, "from_cache": h.from_cache, "retraction": h.retraction,
@@ -89,7 +94,7 @@ def rank_hits(merged, sort="year_desc"):
     return sorted(merged, key=lambda m: m.get("year") or 0, reverse=True)
 
 
-def build_payload(query, filters, result, sort="year_desc", limit=30):
+def build_payload(query, filters, result, sort="year_desc", limit=30, warnings=None):
     """把门面 SearchResult 组装成脚本输出契约（paper-search spec §4.1）。"""
     merged = dedup_hits(result.items)
     ranked = rank_hits(merged, sort)
@@ -104,9 +109,65 @@ def build_payload(query, filters, result, sort="year_desc", limit=30):
         "network_status": result.network_status,
         "coverage": result.coverage,
         "results": shown,
+        "warnings": list(warnings or []),
         "stats": {"raw_hits": raw, "after_dedup": len(ranked), "shown": len(shown),
                   "cache_hit_rate": round(cached / raw, 3) if raw else 0.0, "sort": sort},
     }
+
+
+def window_from_days(days, today=None):
+    """把「最近 N 天」换成闭区间 (date_from, date_to)，含今天：days=1 就是今天当天。
+
+    宿主 agent 自己算日期极易算错（尤其跨月），所以把这一步收进脚本。today 可注入，
+    便于测试；生产调用不传，取本机当天。"""
+    if days < 1:
+        raise ValueError("--days 至少为 1")
+    end = today or datetime.date.today()
+    start = end - datetime.timedelta(days=days - 1)
+    return start.isoformat(), end.isoformat()
+
+
+def _valid_iso_date(s):
+    """只认带横线的 `YYYY-MM-DD`。不能直接用 `date.fromisoformat` 兜底：Python 3.11 起它
+    还接受无横线的 `20260729`，3.9 不接受——同一份入参在两个版本行为不同（硬规则 7 要求 3.9+）。
+    更要紧的是无横线形式会流进 `_postfilter` 做字典序比较（`2026-07-29` vs `20260729`），
+    比出来的结果是错的。"""
+    if not isinstance(s, str) or len(s) != 10 or s[4] != "-" or s[7] != "-":
+        return False
+    try:
+        datetime.date.fromisoformat(s)
+        return True
+    except ValueError:
+        return False
+
+
+# 日期窗口下 arXiv 走逐词 AND 布尔式，词越多越严。实测（2026-07-29，10 天窗口）：
+# 3 词命中 12、5 词命中 10、7 词命中 0。超过这个数就提醒，免得把「词太多」读成「当期无新发」。
+_WINDOW_TERM_WARN_AT = 5
+
+
+def date_window_warnings(sources, date_from, date_to, query=None):
+    """日期窗口的两处如实声明——都是为了不让 0 命中被误读：
+
+    ① 只有 arXiv 提供日级日期，给别的源加窗口会 0 命中（源不给日期 ≠ 该源当期无新发）；
+    ② 窗口下走逐词 AND，词太多会 0 命中（查询太严 ≠ 当期无新发）。
+    """
+    if not date_from and not date_to:
+        return []
+    out = []
+    if sources is None:
+        others_desc = "默认核心源中除 arXiv 外的源"
+    else:
+        others = [s for s in sources if s != "arxiv"]
+        others_desc = "/".join(others) if others else None
+    if others_desc:
+        out.append(f"日级时间窗当前仅 arXiv 提供日期（date 字段）；{others_desc} "
+                   f"在本次窗口下将 0 命中，这是源不给日期、不是该源当期无新发")
+    terms = len((query or "").split())
+    if terms > _WINDOW_TERM_WARN_AT:
+        out.append(f"日级时间窗下 arXiv 走逐词 AND 布尔式，本次 {terms} 个词需全部出现；"
+                   f"若 0 命中请先换 2-5 个核心概念词重试，不要据此判定当期无新发")
+    return out
 
 
 def build_lookup_payload(doi, evidence):
@@ -129,6 +190,10 @@ def _parse_args(argv):
     p.add_argument("--lookup-doi", help="回填模式：查单个 DOI 的元数据补全（与 --query 二选一）")
     p.add_argument("--year-from", type=int, help="起始年份（含）")
     p.add_argument("--year-to", type=int, help="截止年份（含）")
+    p.add_argument("--date-from", help="起始日期（含），ISO YYYY-MM-DD；日级时间窗仅 arXiv 支持")
+    p.add_argument("--date-to", help="截止日期（含），ISO YYYY-MM-DD")
+    p.add_argument("--days", type=int,
+                   help="最近 N 天（含今天）：--days 1 = 今日。与 --date-from/--date-to 互斥")
     p.add_argument("--type", help="文献类型（canonical：journal-article / conference-paper / ...）")
     p.add_argument("--sources", help="逗号分隔的源 id；缺省用核心源")
     p.add_argument("--per-source", type=int, default=20, help="每源取回上限（门面 limit）")
@@ -159,10 +224,36 @@ def main(argv=None):
         filters["year_to"] = args.year_to
     if args.type:
         filters["type"] = args.type
+    date_from, date_to = args.date_from, args.date_to
+    if args.days is not None:
+        if date_from or date_to:
+            sys.stderr.write("--days 与 --date-from/--date-to 互斥，二选一\n")
+            return 2
+        if args.days < 1:
+            sys.stderr.write("--days 至少为 1（--days 1 = 今日）\n")
+            return 2
+        date_from, date_to = window_from_days(args.days)
+    for label, value in (("--date-from", date_from), ("--date-to", date_to)):
+        if value and not _valid_iso_date(value):
+            sys.stderr.write(f"{label} 需为 ISO 日期 YYYY-MM-DD，收到：{value}\n")
+            return 2
+    if date_from and date_to and date_from > date_to:
+        sys.stderr.write(f"日期窗口起点晚于终点：{date_from} > {date_to}\n")
+        return 2
+    if (date_from or date_to) and arxiv_usable_terms(args.query) < 1:
+        # 带窗口时查询要组成逐词布尔式，一个可用词都切不出来就没法查。宁可报错，
+        # 也不能只留日期条件去查——那会把窗口内的全站新发当成用户主题的新发。
+        sys.stderr.write(f"带日期窗口时 --query 至少要有一个可用检索词，收到：{args.query}\n")
+        return 2
+    if date_from:
+        filters["date_from"] = date_from
+    if date_to:
+        filters["date_to"] = date_to
     sources = [s.strip() for s in args.sources.split(",")] if args.sources else None
     result = ds_search(args.query, filters=filters or None, sources=sources,
                        limit=args.per_source, fresh=args.no_cache)
-    _dump(build_payload(args.query, filters or None, result, sort=args.sort, limit=args.limit))
+    _dump(build_payload(args.query, filters or None, result, sort=args.sort, limit=args.limit,
+                        warnings=date_window_warnings(sources, date_from, date_to, args.query)))
     return 0
 
 

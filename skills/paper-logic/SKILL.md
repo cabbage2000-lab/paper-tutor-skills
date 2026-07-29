@@ -90,7 +90,7 @@ description: Paper 论证链检查命令（结构对应检查器）。当用户�
 2. **写 Markdown + 自检**：按下方模板由你**直接写 Markdown 文本**（纯文件写入）。落款用真实日期（`date +%F`）。写完自检 `grep '[<>]' 论证链检查.md` 无残留占位尖括号。
 3. **渲染 HTML 视图**：跑 `python3 skills/_shared/scripts/render_report.py --in manuscript/论证链检查.md --skill paper-logic`。**不要手写 HTML**——HTML 是 MD 的机械投影（详见「产物模板」）。脚本跑不了（无 `python3` / 脚本缺失）→ **只交 `.md`、显式声明「HTML 视图未生成」**，绝不手写一份顶替。
 4. **写留痕**：往 `.paper/` 追加一条「构思讨论」级使用记录（见「留痕」）。
-5. **交棒**：提示下一步——"检查结果归档了。疑问句清单里的问题，你可以：① 回 `/paper-outline` 修订大纲再查；② 用 `/paper-draft` 补正文后深入查；③ 草稿成形后用 `/paper-verify` 核引用、`/paper-review`（开发中）模拟评审。"
+5. **交棒**：提示下一步——"检查结果归档了。疑问句清单里的问题，你可以：① 回 `/paper-outline` 修订大纲再查；② 用 `/paper-draft` 补正文后深入查；③ 四链里标了「无支撑」的缺项，用 `/paper-anchor` 按论断定向补文献支撑；④ 草稿成形后用 `/paper-verify` 核引用、`/paper-review` 模拟评审。"
 
 ## 产物模板：论证链检查（`.md` 主产物 + 渲染的 `.html` 视图）
 

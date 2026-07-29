@@ -6,15 +6,29 @@
 输出里带 `approximate: true` 与中文声明，**不得被当成精确值使用**——不引 jieba
 是既定技术栈约束（`_shared/README.md`），近似就如实说近似。
 
+markdown 预处理、切句、切章与引用识别在 `_shared/paper_shared/citations.py`——
+`paper-anchor` 是第二个消费者，两处各存一份正则必然漂移（硬规则 1）。本文件只留
+风格特征专属的词表与计算。
+
 纯标准库（零第三方运行时依赖，最低 Python 3.9）。
 """
 from __future__ import annotations
 
+import pathlib
 import re
 import statistics
-import unicodedata
+import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
+
+# 标准三行引导头（同 paper-doctor/scripts/doctor.py）：parents[2] = skills/，其下 _shared/
+_SKILLS = pathlib.Path(__file__).resolve().parents[2]
+if str(_SKILLS / "_shared") not in sys.path:
+    sys.path.insert(0, str(_SKILLS / "_shared"))
+from paper_shared.citations import (  # noqa: E402
+    citation_positions, effective_chars, split_sections, split_sentences,
+    strip_markdown,
+)
 
 # ── 词表（权威在此，references 不复制副本：两份必然漂移）────────────────────
 # 选词依据：中文学术写作常见连接与限定成分，取自写作惯例；**不取自任何 AIGC
@@ -58,178 +72,10 @@ _COMMON_NOISE: Tuple[str, ...] = (
 _TRIM_HEAD = set("的了着地得和与及或把被对从向为以在是也就都而其此该那之等个们")
 _TRIM_TAIL = set("的了着地得和与及或把被对从向为以在是也就都而其此该这那之等中上下时后前里")
 
-_SENT_END = "。！？；…!?;"
-_ABBREV = frozenset(
-    ("al", "e", "g", "i", "cf", "fig", "eq", "vs", "dr", "no", "etc", "ca",
-     "approx", "ed", "eds", "vol", "pp", "st", "mr", "ms", "prof")
-)
-_OPEN_PAIRS = "「『（《〈【〔(（[{“‘"
-_CLOSE_PAIRS = "」』）》〉】〕)）]}”’"
-_LAYER_MARKS = "👤📋🪞❓⚠️✍️🤖✅❌⏸📌🔎🛡️"
-
 _MIN_SENTENCES_FOR_STD = 5  # 少于这么多句，标准差不具解释力 → reliable=False
 
 
-# ── Task 1：markdown 预处理 ────────────────────────────────────────────────
-def strip_markdown(text: str) -> str:
-    """剥离非正文噪声，返回纯正文。
-
-    为什么必须剥：本命令的输入常是 `paper-draft` 的产物，里面有元信息表格、
-    四层标注符号、`## 第 N 段` 标题。表格行的短片段会把句长均值拉低一大截，
-    而句长是本命令最基础的特征——不剥等于所有数字都偏。
-
-    **引用块（`> `）也剥掉**，理由不是"格式噪声"而是"那是别人的话"：长引文
-    算进用户风格基线会污染基线，让 `paper-draft` 去对齐被引作者的文风。
-    """
-    out: List[str] = []
-    lines = text.splitlines()
-    i = 0
-    # YAML front matter：仅当首行恰为 --- 时才算，避免把正文里的分割线当开头
-    if lines and lines[0].strip() == "---":
-        i = 1
-        while i < len(lines) and lines[i].strip() != "---":
-            i += 1
-        i += 1
-    in_fence = False
-    in_comment = False
-    while i < len(lines):
-        raw = lines[i]
-        i += 1
-        s = raw.strip()
-        if in_comment:
-            if "-->" in s:
-                in_comment = False
-            continue
-        if s.startswith("<!--"):
-            if "-->" not in s:
-                in_comment = True
-            continue
-        if s.startswith("```") or s.startswith("~~~"):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
-        if not s:
-            continue
-        if s.startswith("|"):            # 表格行
-            continue
-        if s.startswith("#"):            # ATX 标题（章节切分已在此之前做完）
-            continue
-        if s.startswith(">"):            # 引用块 = 他人文字
-            continue
-        if re.fullmatch(r"([-*_=])\1{2,}", s):   # 水平分割线
-            continue
-        s = re.sub(r"^\s*(?:[-*+]|\d+[.)])\s+", "", s)   # 列表标记
-        out.append(_strip_inline(s))
-    return "\n".join(x for x in out if x.strip())
-
-
-def _strip_inline(s: str) -> str:
-    """剥行内标记。顺序有讲究：图片必须先于链接（`![]()` 内含 `[]()`）。"""
-    s = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", s)          # 图片（alt 非正文）
-    s = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", s)      # 链接留文字
-    s = re.sub(r"\[\^[^\]]*\]", "", s)                  # 脚注引用
-    s = re.sub(r"`[^`]*`", "", s)                       # 行内代码非正文
-    s = re.sub(r"<[^>]+>", "", s)                       # 裸 HTML 标签
-    s = re.sub(r"(\*\*|__|~~|\*|_)", "", s)             # 强调标记
-    for ch in _LAYER_MARKS:
-        s = s.replace(ch, "")
-    s = s.replace("️", "")                         # emoji 变体选择符
-    return re.sub(r"[ \t]{2,}", " ", s).strip()
-
-
-# ── Task 1：引号感知切句 ───────────────────────────────────────────────────
-def split_sentences(text: str) -> List[str]:
-    """引号感知切句。返回非空句子列表（保留原标点，引用位置计算需要）。
-
-    `re.split(r"[。！？；]")` 这种一行实现会在三处出错，本函数逐一处理：
-      · 引号内的句号被当句末——「他说：「这是对的。」然后走了。」应是 2 句；
-      · 中文省略号 `……` 被切成两句；
-      · 英文小数点（3.14）与缩写（et al.）被切开。
-
-    英文单引号 `'` **不追踪**：`don't` / `researchers'` 会让配对失衡，追踪它
-    的代价大于收益。后人勿"顺手补上"。
-    """
-    sents: List[str] = []
-    buf: List[str] = []
-    depth = 0
-    dq_open = False          # 英文直双引号无开闭之分，只能 toggle
-    n = len(text)
-    i = 0
-    while i < n:
-        ch = text[i]
-        buf.append(ch)
-        if ch == '"':
-            dq_open = not dq_open
-            i += 1
-            continue
-        if ch in _OPEN_PAIRS:
-            depth += 1
-            i += 1
-            continue
-        if ch in _CLOSE_PAIRS:
-            depth = max(0, depth - 1)
-            i += 1
-            continue
-        if ch == "\n":
-            i += 1
-            continue
-        if depth > 0 or dq_open:
-            i += 1
-            continue
-        if ch == "." and not _dot_is_sentence_end(text, i):
-            i += 1
-            continue
-        if ch in _SENT_END or ch == ".":
-            j = i + 1
-            # 连续句末标点合并为一个边界：「？！」「……」「......」
-            while j < n and (text[j] in _SENT_END or text[j] == "."):
-                buf.append(text[j])
-                j += 1
-            # 句末标点后的收尾引号 / 括号归入本句
-            while j < n and text[j] in _CLOSE_PAIRS:
-                buf.append(text[j])
-                depth = max(0, depth - 1)
-                j += 1
-            sents.append("".join(buf).strip())
-            buf = []
-            i = j
-            continue
-        i += 1
-    tail = "".join(buf).strip()
-    if tail:
-        sents.append(tail)
-    return [s for s in sents if s]
-
-
-def _dot_is_sentence_end(text: str, i: int) -> bool:
-    """判断位置 i 的英文句点是不是句末。连续点（省略号）在调用方合并，此处返回 True。"""
-    nxt = text[i + 1] if i + 1 < len(text) else ""
-    if nxt == ".":
-        return True                                   # 省略号，算边界
-    prev = text[i - 1] if i else ""
-    if prev.isdigit() and nxt.isdigit():
-        return False                                  # 小数点
-    m = re.search(r"([A-Za-z]+)$", text[max(0, i - 12):i])
-    if m and m.group(1).lower() in _ABBREV:
-        return False                                  # 缩写
-    return True
-
-
-# ── 字数：统一口径 ─────────────────────────────────────────────────────────
-def effective_chars(text: str) -> int:
-    """有效字符数——剔除标点、空白、控制符。
-
-    句长若含标点，「标点多的句子」会被算成「长句子」。归一化分母（每百字 /
-    每千字）与句长必须同口径，否则两个数字不可互相印证。
-    """
-    return sum(
-        1 for c in text
-        if not unicodedata.category(c).startswith(("P", "Z", "C"))
-    )
-
-
-# ── Task 2：五类特征 ───────────────────────────────────────────────────────
+# ── 五类特征 ───────────────────────────────────────────────────────────────
 def count_words(text: str, words: Sequence[str],
                 mask: Sequence[str] = ()) -> Dict[str, int]:
     """长词优先计数：先数长词并把命中区间置为占位，再数短词。
@@ -247,35 +93,6 @@ def count_words(text: str, words: Sequence[str],
             counts[w] = c
             work = work.replace(w, "\x00" * len(w))
     return counts
-
-
-_CITE_PATTERNS = (
-    # 著者-出版年制：括号内含 4 位年份（中英文括号皆可）
-    re.compile(r"[（(][^（()）]{0,60}?(?:19|20)\d{2}[^（()）]{0,20}?[)）]"),
-    # 顺序编码制：[1] / [1,2] / [1-3]
-    re.compile(r"\[\d+(?:\s*[,\-–，]\s*\d+)*\]"),
-)
-
-
-def citation_positions(sentences: Sequence[str]) -> Dict[str, int]:
-    """统计引用在句中的位置分布。
-
-    markdown 链接 `[文字](url)` 与顺序编码 `[N]` 形似——`strip_markdown` 已把
-    链接转成纯文字，故到这里的 `[N]` 只会是真引用。这个顺序依赖要记住。
-    """
-    pos = {"句首": 0, "句中": 0, "句末": 0}
-    for s in sentences:
-        body = s.rstrip("".join(_SENT_END) + "." + _CLOSE_PAIRS)
-        span = max(1, len(body))
-        for pat in _CITE_PATTERNS:
-            for m in pat.finditer(s):
-                if len(body) - m.end() <= 2:
-                    pos["句末"] += 1          # 两端都像时算句末（更常见）
-                elif m.start() <= 8 or m.start() / span <= 0.15:
-                    pos["句首"] += 1
-                else:
-                    pos["句中"] += 1
-    return pos
 
 
 def approximate_terms(text: str, terms: Optional[Sequence[str]] = None
@@ -392,55 +209,7 @@ def _per(count: int, chars: int, base: int) -> float:
     return round(count / chars * base, 2) if chars else 0.0
 
 
-# ── Task 3：章节切分与偏移 ─────────────────────────────────────────────────
-def split_sections(text: str) -> List[Tuple[str, str]]:
-    """按 ATX 标题切章：取**第一个能切出 ≥2 节的最浅层级**。无标题则整篇一节。
-
-    不写死 `##`：`paper-draft` 产物用 `## 第 N 段`，用户手写论文常用 `# 第一章`，
-    写死任一个都会在另一种输入上切出荒谬的章节数。
-
-    但也不能一律取最浅层级——论文最常见的形态恰恰是单文件、一个 `# 论文题目`
-    带一串 `## 第 N 章`：取最浅就只有 1 节，章节间偏移直接失效（本命令模式 a
-    的全部价值所在）。故逐层下探到第一个能切出 ≥2 节的层级。
-    """
-    lines = text.splitlines()
-    start = 0
-    if lines and lines[0].strip() == "---":
-        start = 1
-        while start < len(lines) and lines[start].strip() != "---":
-            start += 1
-        start += 1
-    heads: List[Tuple[int, int, str]] = []
-    in_fence = False
-    for idx in range(start, len(lines)):
-        s = lines[idx].strip()
-        if s.startswith("```") or s.startswith("~~~"):
-            in_fence = not in_fence
-            continue
-        if in_fence:
-            continue
-        mt = re.match(r"^(#{1,6})\s+(.+)$", s)
-        if mt:
-            heads.append((idx, len(mt.group(1)), mt.group(2).strip()))
-    if not heads:
-        return [("全文", "\n".join(lines[start:]))]
-    levels = sorted({h[1] for h in heads})
-    cuts = [h for h in heads if h[1] == levels[0]]
-    for lvl in levels:
-        same = [h for h in heads if h[1] == lvl]
-        if len(same) >= 2:
-            cuts = same
-            break
-    out: List[Tuple[str, str]] = []
-    lead = "\n".join(lines[start:cuts[0][0]])
-    if strip_markdown(lead).strip():
-        out.append(("（篇首）", lead))
-    for k, (idx, _lvl, title) in enumerate(cuts):
-        end = cuts[k + 1][0] if k + 1 < len(cuts) else len(lines)
-        out.append((title, "\n".join(lines[idx:end])))
-    return out
-
-
+# ── 章节间偏移 ─────────────────────────────────────────────────────────────
 _COMPARE_FEATURES = (
     ("len_mean", "句长均值"),
     ("len_median", "句长中位数"),

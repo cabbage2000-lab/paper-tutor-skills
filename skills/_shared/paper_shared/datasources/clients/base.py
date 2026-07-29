@@ -102,22 +102,35 @@ class SourceClient:
     def _search_cache_key(query: str, limit: int,
                           filters: Optional[Dict[str, Any]] = None) -> str:
         """检索缓存键。filters 为空时退回原字面 `search:{q}:{limit}`（保证既有回放测试不破）；
-        非空时追加稳定指纹，避免带筛选 / 不带筛选两次检索在缓存里串味。"""
+        非空时追加稳定指纹，避免带筛选 / 不带筛选两次检索在缓存里串味。
+
+        日期窗口只在存在时才追加 `:d=...` 段——否则既有「年 / 类型」指纹的键会整体位移，
+        已缓存的检索全部失效。"""
         base = f"search:{query.lower()}:{limit}"
         if not filters:
             return base
         yf, yt, typ = filters.get("year_from"), filters.get("year_to"), filters.get("type")
-        return f"{base}:f={yf}-{yt}-{typ}"
+        key = f"{base}:f={yf}-{yt}-{typ}"
+        df, dt = filters.get("date_from"), filters.get("date_to")
+        if df or dt:
+            key = f"{key}:d={df}-{dt}"
+        return key
 
     @staticmethod
     def _postfilter(hits: List[SourceHit],
                     filters: Optional[Dict[str, Any]] = None) -> List[SourceHit]:
-        """客户端侧兜底过滤：解析后按 year / type 再过一遍。原生映射是提速，本函数是
-        正确性安全网。year 用数字比较（对所有源可靠）；type 归一不了则保留（宁松勿误杀）。
-        filters 空为 no-op。"""
+        """客户端侧兜底过滤：解析后按 year / date / type 再过一遍。原生映射是提速，本函数是
+        正确性安全网。year 与 date 用可靠比较（数字 / ISO 字符串字典序）；type 归一不了则保留
+        （宁松勿误杀）。filters 空为 no-op。
+
+        日期缺失的条目在设了日期边界时**排除**（同 year 的处理，不同于 type）：日期窗口是
+        「这一天有没有新发」的判断依据，把无日期的条目留在窗口内会让日报把窗口外的文献
+        当成新发。目前只有 arXiv 提供日级日期，所以给不提供日期的源加日期窗口会 0 命中——
+        门面如实记 `outcome=empty`（查过、0 命中），不是静默丢弃。"""
         if not filters:
             return hits
         yf, yt, typ = filters.get("year_from"), filters.get("year_to"), filters.get("type")
+        df, dt = filters.get("date_from"), filters.get("date_to")
         out: List[SourceHit] = []
         for h in hits:
             y = h.metadata.get("year")
@@ -125,6 +138,14 @@ class SourceClient:
                 continue
             if yt is not None and (not isinstance(y, int) or y > yt):
                 continue
+            if df or dt:
+                d = h.metadata.get("date")
+                if not isinstance(d, str) or len(d) < 10:
+                    continue
+                if df and d[:10] < df:
+                    continue
+                if dt and d[:10] > dt:
+                    continue
             if typ is not None:
                 ht = canonical_type(h.metadata.get("type"))
                 if ht is not None and ht != typ:

@@ -7,7 +7,7 @@
 
 **简体中文** | [English](README.en.md)
 
-Paper-Tutor-Skills 是一套装进编程智能体（Claude Code / Codex / 国内 WorkBuddy）的学术辅导 skills，简体中文优先——AI 管效率（检索、整理、核对、结构化），人管研究决策（想法、判断、数据、结论）。为中文研究生与科研工作者设计——学生自助研究、导师带学生做科研训练、投稿前批量自查（工具形态不变）。当前 **v0.1.5**：25 个命令入口（`/paper-init` `/paper-help` `/paper-doctor` `/paper-daily` 四个工作台基础设施 + 选题 / 检索 / 写作 / 评审 / 投稿全链路 21 个研究命令），分布在 23 个 skill 目录，覆盖学术研究 5 阶段全生命周期。命令的准确清单与各自的已知观察项以 [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml) 为准。
+Paper-Tutor-Skills 是一套装进编程智能体（Claude Code / Codex / 国内 WorkBuddy）的学术辅导 skills，简体中文优先——AI 管效率（检索、整理、核对、结构化），人管研究决策（想法、判断、数据、结论）。为中文研究生与科研工作者设计——学生自助研究、导师带学生做科研训练、投稿前批量自查（工具形态不变）。当前 **v0.1.5**：25 个命令入口（`/paper-init` `/paper-help` `/paper-doctor` `/paper-daily` 四个工作台基础设施 + 选题 / 检索 / 写作 / 评审 / 投稿全链路 21 个研究命令），分布在 24 个 skill 目录，覆盖学术研究 5 阶段全生命周期。命令的准确清单与各自的已知观察项以 [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml) 为准。
 
 ## 设计理念
 
@@ -61,7 +61,7 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 
 1. 把 https://github.com/cabbage2000-lab/paper-tutor-skills 克隆到一个临时目录
 2. 确保 ~/.claude/skills/ 存在（没有就创建），把仓库 skills/ 下的**全部子目录**
-   复制进去，一个都不能少（23 个 paper-* 加 1 个 _shared）
+   复制进去，一个都不能少（24 个 paper-* 加 1 个 _shared）
    - 同名目录直接覆盖，这就是更新
    - 该目录下其他来源的 skill 一个都别动，千万不要清空目录
    - _shared/ 没有 SKILL.md、不会显示成命令，但每个 skill 都用 ../_shared/ 引用它，
@@ -77,7 +77,7 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 
 1. 把 https://github.com/cabbage2000-lab/paper-tutor-skills 克隆到一个临时目录
 2. 确保 ~/.codex/skills/ 存在（没有就创建），把仓库 skills/ 下的**全部子目录**
-   复制进去，一个都不能少（23 个 paper-* 加 1 个 _shared）
+   复制进去，一个都不能少（24 个 paper-* 加 1 个 _shared）
    - 同名目录直接覆盖，这就是更新
    - 该目录下其他来源的 skill 一个都别动，千万不要清空目录
    - _shared/ 没有 SKILL.md、不会显示成命令，但每个 skill 都用 ../_shared/ 引用它，
@@ -93,7 +93,7 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 
 1. 把 https://github.com/cabbage2000-lab/paper-tutor-skills 克隆到一个临时目录
 2. 确保 ~/.workbuddy/skills/ 存在（没有就创建），把仓库 skills/ 下的**全部子目录**
-   复制进去，一个都不能少（23 个 paper-* 加 1 个 _shared）
+   复制进去，一个都不能少（24 个 paper-* 加 1 个 _shared）
    - 复制的是子目录本身，别把整个 skills/ 目录整体套进去——WorkBuddy 会按目录层级
      给技能命名，多套一层命令就变成 skills:paper-init 了
    - 同名目录直接覆盖，这就是更新

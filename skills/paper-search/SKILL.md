@@ -46,7 +46,8 @@ description: >-
 
 ### 第 2 步 · 双轨检索
 用户确认后：
-- **英文 / 自动轨**：跑 `python3 scripts/search.py --query "确认的查询串" [--year-from 2018 --year-to 2026 --type journal-article --sources crossref,openalex,semantic_scholar,arxiv,eric --per-source 20 --limit 30]`，读回 JSON（`coverage` / `results` / `network_status` / `stats`）。宿主无 Bash 或脚本报 `network_status=offline` 时走「降级路径」。
+- **英文 / 自动轨**：跑 `python3 scripts/search.py --query "确认的查询串" [--year-from 2018 --year-to 2026 --type journal-article --sources crossref,openalex,semantic_scholar,arxiv,eric --per-source 20 --limit 30]`，读回 JSON（`coverage` / `results` / `network_status` / `stats` / `warnings`）。宿主无 Bash 或脚本报 `network_status=offline` 时走「降级路径」。`warnings` 非空时原文呈现给用户，不要吞掉。
+  - 综述检索**不加**日级时间窗。`--days N` / `--date-from` / `--date-to` 是按时间监测用的（`/paper-daily` 的新发轨），只有 arXiv 返回日级日期，且窗口下走逐词 AND、查询词要压到 2-5 个——用在不限时间的主题检索上会大幅漏召回。
 - **中文 / 引导轨**：按 `references/知网万方检索方案模板.md` 生成知网 / 万方检索方案（库别 + 字段限定布尔式 + 筛选条件 + 检索步骤 + 回填模板）。
 
 ### 第 3 步 · 呈结果 + 覆盖声明 + 中文缺口提示，然后停下

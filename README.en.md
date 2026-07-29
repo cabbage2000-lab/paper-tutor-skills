@@ -7,7 +7,7 @@
 
 [简体中文](README.md) | **English**
 
-Paper-Tutor-Skills is a suite of academic tutoring agent skills for Chinese-speaking researchers, dropped into the coding agent you already use (Claude Code / Codex / WorkBuddy). AI handles efficiency (retrieval, organization, verification, structuring); humans handle research decisions (ideas, judgment, data, conclusions). Designed for Chinese-speaking graduate students and researchers — students self-studying research, instructors mentoring students through research training, and pre-submission batch self-checks (same tool, no behavioral change). Currently at **v0.1.5**: 25 command entry points (`/paper-init`, `/paper-help`, `/paper-doctor`, `/paper-daily` as workspace infrastructure + 21 research commands covering topic / search / writing / review / submission full lifecycle) across 23 skill directories. The authoritative command list and per-command known gaps live in [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml).
+Paper-Tutor-Skills is a suite of academic tutoring agent skills for Chinese-speaking researchers, dropped into the coding agent you already use (Claude Code / Codex / WorkBuddy). AI handles efficiency (retrieval, organization, verification, structuring); humans handle research decisions (ideas, judgment, data, conclusions). Designed for Chinese-speaking graduate students and researchers — students self-studying research, instructors mentoring students through research training, and pre-submission batch self-checks (same tool, no behavioral change). Currently at **v0.1.5**: 25 command entry points (`/paper-init`, `/paper-help`, `/paper-doctor`, `/paper-daily` as workspace infrastructure + 21 research commands covering topic / search / writing / review / submission full lifecycle) across 24 skill directories. The authoritative command list and per-command known gaps live in [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml).
 
 ## Design Philosophy
 
@@ -58,7 +58,7 @@ Please install the Paper-Tutor-Skills academic tutoring suite for me:
 
 1. Clone https://github.com/cabbage2000-lab/paper-tutor-skills into a temp directory
 2. Make sure ~/.claude/skills/ exists (create it if not), then copy **every subdirectory**
-   under the repo's skills/ into it — all of them, none left out (23 paper-* plus 1 _shared)
+   under the repo's skills/ into it — all of them, none left out (24 paper-* plus 1 _shared)
    - Overwrite directories of the same name; that's how updates work
    - Leave every skill from other sources alone — do NOT wipe the directory
    - _shared/ has no SKILL.md and never shows up as a command, but every skill references it
@@ -74,7 +74,7 @@ Please install the Paper-Tutor-Skills academic tutoring suite for me:
 
 1. Clone https://github.com/cabbage2000-lab/paper-tutor-skills into a temp directory
 2. Make sure ~/.codex/skills/ exists (create it if not), then copy **every subdirectory**
-   under the repo's skills/ into it — all of them, none left out (23 paper-* plus 1 _shared)
+   under the repo's skills/ into it — all of them, none left out (24 paper-* plus 1 _shared)
    - Overwrite directories of the same name; that's how updates work
    - Leave every skill from other sources alone — do NOT wipe the directory
    - _shared/ has no SKILL.md and never shows up as a command, but every skill references it
@@ -90,7 +90,7 @@ Please install the Paper-Tutor-Skills academic tutoring suite for me:
 
 1. Clone https://github.com/cabbage2000-lab/paper-tutor-skills into a temp directory
 2. Make sure ~/.workbuddy/skills/ exists (create it if not), then copy **every subdirectory**
-   under the repo's skills/ into it — all of them, none left out (23 paper-* plus 1 _shared)
+   under the repo's skills/ into it — all of them, none left out (24 paper-* plus 1 _shared)
    - Copy the subdirectories themselves; do NOT nest the whole skills/ folder inside —
      WorkBuddy names skills after their directory path, so one extra level turns the
      commands into skills:paper-init

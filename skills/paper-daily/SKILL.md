@@ -82,16 +82,31 @@ python3 skills/paper-search/scripts/search.py \
 **B. 新发自动轨**（只拉 arXiv 一轨，时间窗今日 / 最近 N 天）：
 
 ```bash
+# 今日：--days 1；最近 N 天：--days N（含今天，N ≤ 14）
 python3 skills/paper-search/scripts/search.py \
-  --query "<RQ 概念块组查询串>" \
+  --query "<2-5 个核心概念词>" \
   --sources arxiv \
-  --year-from <今年> --year-to <今年> \
+  --days <N> \
   --per-source 50 --limit 30
 ```
 
-读回 JSON → 作为"**今日 / 最近 N 天 arXiv 新发**"。事后按日期字段筛到时间窗内。
+读回 JSON → 作为"**今日 / 最近 N 天 arXiv 新发**"。每条结果带 `date` 字段（日级 `YYYY-MM-DD`），
+时间窗已由脚本下推到 arXiv 原生 `submittedDate` 区间并按提交时间倒序，**不需要你再算日期或二次筛**。
 
-**F4 时间窗过滤失败时的处理**：若 arXiv API 不支持按天精确过滤、只能按年——`--per-source` 调大到 200（默认 50 不够覆盖今年单类目体量），拉回今年所有结果，在内存里按 `submittedDate` 筛到时间窗内，产物顶部如实标注"已从今年前 200 篇中按日期筛到时间窗内 Z 篇，可能未覆盖全部"。**不可静默漏掉**时间窗内新发——违反"如实声明覆盖"红线 2。
+日期换算交给 `--days`、不要自己拼 `--date-from/--date-to`：跨月的日期算错是 LLM 的高频失误。
+需要指定具体区间时才用 `--date-from YYYY-MM-DD --date-to YYYY-MM-DD`（与 `--days` 互斥）。
+
+**查询词控制在 2-5 个**。带时间窗时 arXiv 走逐词 AND（每个词都得出现），词太多会 0 命中：
+2026-07-29 实测同一 10 天窗口，3 词命中 12 条、5 词命中 10 条、7 词命中 0 条。超过 5 个词时
+脚本会在 `warnings` 里提醒——**看到那条提醒就先换更短的核心词重试，不要当成"当期无新发"报给用户**。
+
+**读 `warnings` 数组**：日级日期目前只有 arXiv 提供，所以本轨只给 arXiv。若你额外加了
+crossref / openalex 等源，脚本会提醒它们在窗口下必然 0 命中——那是**源不给日期**，
+不是"该源当期无新发"，不可写成后者。
+
+**F4 时间窗为空时的处理**：窗口内确实没有新发是正常结果（arXiv 有公告排期，当天上午常为 0）。
+如实标"今日自动轨 0 篇新发"，**不要**为了凑数扩大窗口或去掉时间窗——那是把旧文章当新发。
+先按上面两条自查：是不是查询词太多（看 `warnings`）、是不是把不给日期的源也加进来了。
 
 **C. 用户补充轨**（纯提示词层处理）：
 
@@ -171,8 +186,8 @@ python3 skills/paper-search/scripts/search.py \
 |---|---|---|---|
 | **F1. search.py 不存在** | `skills/paper-search/scripts/search.py` 缺失 | 完全降级，仅用户补充轨；抢发检测整段省略 | 顶部 banner：`⚠️ 自动轨不可用：检索脚本缺失。今日仅运行用户补充轨。建议用 /paper-doctor 体检。` |
 | **F2. 网络全断** | search.py 返回 `network_status=offline` 或所有源全 timeout | 同 F1 | `⚠️ 今日自动轨不可用：网络不通。今日仅运行用户补充轨。` |
-| **F3. 部分源失败** | search.py 返回 `network_status=partial` | **不降级**，覆盖声明段如实标各源命中数与状态 | 概览段：`arXiv: ✅ 25 / Crossref: ⚠️ timeout / OpenAlex: ✅ 8` |
-| **F4. 时间窗过滤失败** | arXiv API 不支持按天精确过滤（只支持按年） | `--per-source` 调到 200、按 `submittedDate` 内存筛选、如实标"可能未覆盖全部" | 自动轨顶部：`(已从今年前 200 篇中按日期筛到时间窗内 Z 篇，可能未覆盖全部)` |
+| **F3. 部分源失败** | search.py 返回 `network_status=degraded`（取值只有 `ok` / `degraded` / `offline`） | **不降级**，覆盖声明段如实标各源命中数与状态 | 概览段：`arXiv: ✅ 25 / Crossref: ⚠️ timeout / OpenAlex: ✅ 8` |
+| **F4. 时间窗内 0 新发** | 自动轨返回 0 条 | **不扩窗、不去掉时间窗**；先查 `warnings`（词太多 / 加了不给日期的源），排除后如实报 0 | 自动轨顶部：`今日 arXiv 自动轨 0 篇新发`（若 warnings 非空，一并原文呈现） |
 | **F5. 用户补充解析失败** | LLM 无法从用户粘的文本提取结构化字段 | 标 `parse_status=parse_failed`、原文保留到 `user_supplement_raw`、**绝不凭记忆补全** | 该条：`[解析失败] <原文> — 待人工核对` |
 | **F6. 用户补充为空** | 用户在第 1 步 ③ 留空 | **不降级**，自动轨照跑，标"今日无用户补充" | 新发泛读段：`[用户补充轨] 今日无补充` |
 | **F7. RQ 缺失** | 用户未提供、且 `topic/` 也无交棒 | **不进入第 2 步**，反问"想关注什么方向？" | 直接询问，不输出空日报 |
@@ -188,7 +203,7 @@ python3 skills/paper-search/scripts/search.py \
 |---|---|
 | F1（脚本缺失） | `/paper-doctor` 体检 → 重装 / 更新 paper-search |
 | F2（断网） | 等网络恢复重跑；或仅依赖用户补充轨出当日报告 |
-| F4（时间窗过滤失败） | 仍是有效日报、只是自动轨范围扩大；可手动筛选 |
+| F4（时间窗内 0 新发） | 先看 `warnings`：词太多就换 2-5 个核心词重试；加了不给日期的源就只留 arXiv。都排除后就是当期确实没有新发，照常出报 |
 | F5（补充解析失败） | 用户重新格式化输入（每行一篇、用 DOI 或 arXiv ID 最稳） |
 | F8（概念块拆分失败） | 回 `/paper-topic` 重审 RQ，把方向说清楚 |
 
@@ -236,6 +251,6 @@ python3 skills/paper-search/scripts/search.py \
 - **已知观察项（非 blocker）**：
   1. **无 pytest**：与同构的 7 个提示词型 skill 一致：无确定性逻辑可测，行为层靠模拟脚本人工验。
   2. **依赖 paper-search/scripts/search.py**：若 search.py 接口变更需同步——这是"复用而非自建"的代价。
-  3. **时间窗过滤能力依赖 arXiv API**：按天精确过滤不可用时降级为"今年 + 内存筛选"（F4）。
+  3. **日级时间窗只有 arXiv 支持**：`search.py --days N` 走 arXiv 原生 `submittedDate` 区间 + 按提交时间倒序，结果带 `date` 字段；其余源不返回日级日期，加进本轨会 0 命中（脚本在 `warnings` 里明说）。代价是窗口下走逐词 AND，查询词需控制在 2-5 个。
   4. **跨宿主验证未做**：Claude Code 侧人工验收过，第二宿主待跑。
   5. **中文新发的自动覆盖留缺口**：arXiv 一轨不覆盖中文新发，由用户补充轨 + 中文缺口提示原文交回用户——与 paper-search 中文引导轨同款思路，Phase 2+ 可加中文新发自动轨。

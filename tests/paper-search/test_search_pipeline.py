@@ -19,10 +19,11 @@ import search  # noqa: E402
 from paper_shared.datasources.models import Evidence, Ref, SearchResult, SourceHit  # noqa: E402
 
 
-def _hit(source, doi=None, title="T", year=2020, typ="journal-article", venue="V", from_cache=False):
+def _hit(source, doi=None, title="T", year=2020, typ="journal-article", venue="V",
+         from_cache=False, date=None):
     return SourceHit(source=source,
                      metadata={"title": title, "doi": doi, "year": year, "venue": venue,
-                               "type": typ, "authors": ["X"]},
+                               "type": typ, "authors": ["X"], "date": date},
                      fetched_at="2026-01-01T00:00:00Z", from_cache=from_cache)
 
 
@@ -90,6 +91,116 @@ class TestPayload(unittest.TestCase):
         self.assertEqual(p["stats"]["shown"], 3)
         self.assertEqual(len(p["results"]), 3)
         self.assertEqual(p["filters"], {})       # None → {}
+
+    def test_result_carries_day_level_date(self):
+        """输出契约必须带 date：paper-daily 靠它判时间窗。给不出的源为 None，不用 year 凑。"""
+        items = [_hit("arxiv", doi="10.48550/arxiv.2607.00001", date="2026-07-29"),
+                 _hit("crossref", doi="10.1/b")]
+        result = SearchResult(items=items, coverage=[], network_status="ok")
+        p = search.build_payload("q", None, result)
+        by_doi = {r["doi"]: r for r in p["results"]}
+        self.assertEqual(by_doi["10.48550/arxiv.2607.00001"]["date"], "2026-07-29")
+        self.assertIsNone(by_doi["10.1/b"]["date"])
+
+    def test_warnings_default_empty(self):
+        result = SearchResult(items=[], coverage=[], network_status="ok")
+        self.assertEqual(search.build_payload("q", None, result)["warnings"], [])
+
+
+class TestDateWindow(unittest.TestCase):
+    """「最近 N 天」的换算与入参校验。宿主 agent 自己算日期易错，这一步收进脚本。"""
+
+    def test_days_one_is_today(self):
+        import datetime
+        today = datetime.date(2026, 7, 29)
+        self.assertEqual(search.window_from_days(1, today=today),
+                         ("2026-07-29", "2026-07-29"))
+
+    def test_days_seven_is_closed_interval_including_today(self):
+        import datetime
+        today = datetime.date(2026, 7, 29)
+        self.assertEqual(search.window_from_days(7, today=today),
+                         ("2026-07-23", "2026-07-29"))
+
+    def test_days_crosses_month_boundary(self):
+        import datetime
+        today = datetime.date(2026, 3, 2)
+        self.assertEqual(search.window_from_days(5, today=today),
+                         ("2026-02-26", "2026-03-02"))
+
+    def test_days_below_one_rejected(self):
+        with self.assertRaises(ValueError):
+            search.window_from_days(0)
+
+    def test_iso_date_validation(self):
+        self.assertTrue(search._valid_iso_date("2026-07-29"))
+        self.assertFalse(search._valid_iso_date("2026/07/29"))
+        self.assertFalse(search._valid_iso_date("20260729"))
+        self.assertFalse(search._valid_iso_date("2026-13-01"))    # 非法月份
+
+    def test_warning_when_window_meets_dateless_sources(self):
+        """给不提供日期的源加窗口会 0 命中——提前说清是「源不给日期」而非「当期无新发」。"""
+        w = search.date_window_warnings(["crossref", "arxiv"], "2026-07-29", "2026-07-29")
+        self.assertEqual(len(w), 1)
+        self.assertIn("crossref", w[0])
+        self.assertNotIn("arxiv 在本次窗口", w[0])
+
+    def test_no_warning_for_arxiv_only(self):
+        self.assertEqual(search.date_window_warnings(["arxiv"], "2026-07-29", "2026-07-29"), [])
+
+    def test_no_warning_without_window(self):
+        self.assertEqual(search.date_window_warnings(["crossref"], None, None), [])
+
+    def test_default_sources_warned_generically(self):
+        w = search.date_window_warnings(None, "2026-07-29", None)
+        self.assertEqual(len(w), 1)
+        self.assertIn("默认核心源", w[0])
+
+    def test_many_terms_warned_under_window(self):
+        """窗口下走逐词 AND，词太多会 0 命中——实测 7 词 0 条、5 词 10 条。
+        不提醒的话，宿主会把「查询太严」读成「当期无新发」。"""
+        w = search.date_window_warnings(["arxiv"], "2026-07-20", "2026-07-29",
+                                        "large language model feedback programming "
+                                        "assignments students")
+        self.assertEqual(len(w), 1)
+        self.assertIn("7 个词", w[0])
+
+    def test_few_terms_not_warned(self):
+        self.assertEqual(
+            search.date_window_warnings(["arxiv"], "2026-07-20", "2026-07-29",
+                                        "llm feedback programming"), [])
+
+    def test_term_warning_only_under_window(self):
+        """无窗口时逐词 AND 不生效（走松散匹配），不该提醒。"""
+        self.assertEqual(
+            search.date_window_warnings(["arxiv"], None, None,
+                                        "a b c d e f g h"), [])
+
+
+class TestCliDateArgs(unittest.TestCase):
+    """CLI 层的互斥与非法值：宁可退出码 2 报错，也不静默用一个错窗口去检索。"""
+
+    def _run(self, argv):
+        return search.main(argv)
+
+    def test_days_and_explicit_dates_are_mutually_exclusive(self):
+        self.assertEqual(self._run(["--query", "q", "--days", "3",
+                                    "--date-from", "2026-07-01"]), 2)
+
+    def test_bad_date_format_rejected(self):
+        self.assertEqual(self._run(["--query", "q", "--date-from", "2026/07/01"]), 2)
+
+    def test_reversed_window_rejected(self):
+        self.assertEqual(self._run(["--query", "q", "--date-from", "2026-07-29",
+                                    "--date-to", "2026-07-01"]), 2)
+
+    def test_days_zero_rejected(self):
+        self.assertEqual(self._run(["--query", "q", "--days", "0"]), 2)
+
+    def test_window_with_no_usable_terms_rejected(self):
+        """带窗口但切不出检索词：报错退出，不能只留日期条件去查
+        （那会把窗口内全站新发当成用户主题的新发）。"""
+        self.assertEqual(self._run(["--query", '()"', "--days", "1"]), 2)
 
 
 class TestLookupPayload(unittest.TestCase):
