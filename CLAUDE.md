@@ -77,12 +77,16 @@ skills/
 
 ### 发版
 
-1. 在 `CHANGELOG.md` 写 `## [x.y.z] — 日期` 段落（Release notes 由它推导，段落缺失会让发布流程直接失败——宁可不发，也不发空白 Release）；
+**开版本骨架**（`chore: 开 x.y.z 版本骨架`）：把 `CHANGELOG.md` 的段落标题定为 `## [x.y.z] — 待定`，段落里放一块含 `RELEASE-BLOCKER` 哨兵的 HTML 注释，并同步下面第 2 步的九处版本号。骨架期一路往段落里累加条目，CI 照常绿。
+
+**发版**：
+
+1. **收口 CHANGELOG 段落**——写摘要句（一句话说清本版让使用者多了什么能力，或哪个旧能力真的能用了）、**删掉 `RELEASE-BLOCKER` 哨兵注释块**、清掉段落里其余 HTML 注释、标题日期改为实际发版日。这四件事漏了哪样，[`extract_changelog_notes.py`](scripts/extract_changelog_notes.py) 都会让发布流程直接失败——**宁可不发，也不发空白或占位的 Release**（0.1.5 那次骨架一路留到打 tag 前，靠人肉复核才拦住，这道检查是那次的产物）。检查有意只在发版时刻生效、不做成 pytest：骨架在开发期是合法状态，长红的 CI 会让人对红灯脱敏。守卫见 [`tests/test_release_notes.py`](tests/test_release_notes.py)；
 2. 同步 `.claude-plugin/` 两份清单、`.codex-plugin/plugin.json`、`skills/_shared/VERSION` 的 `version`，以及两个根 README 的三处版本号（badge / 简介段 / 快速开始段；[`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 守着处处一致）。**README 是最容易漏的一处**——它曾停在 v0.1.2 漂过三个版本；
 3. 合入 main 后 `git tag -a vx.y.z -m "..." && git push origin vx.y.z`；
 4. [`release.yml`](.github/workflows/release.yml) 自动跑测试并创建 Release。测试不过则不发布。
 
-### 四个结构守卫测试（改动前先知道它们守什么）
+### 五个结构守卫测试（改动前先知道它们守什么）
 
 它们抓的是「改了 A 忘了同步 B」这类无声漂移，失败诊断路径各不相同：
 
@@ -92,6 +96,7 @@ skills/
 | [`test_shared_conventions.py`](tests/test_shared_conventions.py) | 四层内容标注符号、学科三梯队、留痕契约字段在全仓库不漂移，其中的产品立场不被改写 |
 | [`test_boundary_registry.py`](tests/test_boundary_registry.py) | 边界拒绝清单 ↔ README 不做表 ↔ PRD 边界条目三处不背离，同步锚点真实存在 |
 | [`test_plugin_manifest.py`](tests/test_plugin_manifest.py) | 两宿主四份清单 ↔ `_shared/VERSION` ↔ **两个根 README** ↔ CHANGELOG 最新版本，版本号与描述处处一致；Codex 的 `skills` 指针与 `interface` 必填字段符合官方摄取口径；两个 `.*-plugin/` 里只放清单文件 |
+| [`test_release_notes.py`](tests/test_release_notes.py) | `extract_changelog_notes.py` 的切段边界与发布阻塞判据（骨架哨兵 / 残留 HTML 注释）；已发布的历史 CHANGELOG 段落全部处于可发布状态。**有意不断言最新段落可发布**——骨架在开发期合法，那道检查只在打 tag 时刻由 `release.yml` 生效 |
 
 ## 硬规则
 
