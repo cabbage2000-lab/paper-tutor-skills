@@ -8,7 +8,7 @@
     {
       "name": "paper-tutor",
       "description": "学术辅导 skill 套件：选题 → 检索 → 成文 → 评审 → 投稿全链路 25 个命令。AI 负责效率（检索、整理、核对、结构化），人负责研究决策（想法、判断、数据、结论）——辅导，不代笔。引用核验以真实 API 响应为准，API 失败时明确标注降级，不凭模型记忆编造。",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "license": "PolyForm-Noncommercial-1.0.0",
       "source": "./",
       "author": {

@@ -99,6 +99,9 @@
   # 2026-07-25 后续增强（呈现层增量，不触发重跑）：报告产物从五块升六块（新增「下一步验证清单」、
   # 只许疑问句）、引入四层内容标注（👤/📋/🪞/❓，无"AI 新判断"层）、HTML 样式系统拆到
   # references/报告样式模板.html（学术档案风、四层语义色、离线单文件）。核心机制与发布门判据未变。
+  # 2026-07-29 起 HTML 不再由模型手写：写 .md 后跑 _shared/scripts/render_report.py 渲染
+  # （与 paper-logic / paper-revise 同批试点。产物内容不变、四层色不变，但放弃 skill 专属
+  # 视觉组件——那些信息在 .md 里由 emoji 与文字完整保留，颜色只是第二种编码）。
 
 - name: paper-search
   phase: A
@@ -271,8 +274,11 @@
   dir: manuscript/
   status: released
   guidance_zh: 初稿成形、要查论证链是否闭环时用。
-  # 2026-07-25 发布。产物型 skill（HTML+MD 双产物落 manuscript/），
+  # 2026-07-25 发布。产物型 skill（.md 主产物落 manuscript/ + 渲染的 .html 视图），
   # 纯提示词层（无 scripts/，与 paper-topic / outline / disclose 同构）。
+  # 2026-07-29 起 HTML 不再由模型手写：写 .md 后跑 _shared/scripts/render_report.py 渲染
+  # （与 paper-topic / paper-revise 同批试点。产物内容不变、四层色不变，但放弃 skill 专属
+  # 视觉组件——那些信息在 .md 里由 emoji 与文字完整保留，颜色只是第二种编码）。
   # 上游消费 outline 产物（章节大纲 + 锚点）+ literature/ 笔记表五字段；
   # 可选增强消费 draft 正文（段落级增强区块）。
   # 三条不变：① 只核结构对应、不核内容真伪（理论型明示不核证明）；② 不下价值结论
@@ -448,8 +454,11 @@
   dir: review/
   status: released
   guidance_zh: 收到审稿意见、要逐条修订并写回复信时用。
-  # 2026-07-26 发布。产物型 skill（HTML+MD 双产物落 review/），
+  # 2026-07-26 发布。产物型 skill（.md 主产物落 review/ + 渲染的 .html 视图），
   # 纯提示词层（无 scripts/，与 paper-review / abstract 同构）。
+  # 2026-07-29 起 HTML 不再由模型手写：写 .md 后跑 _shared/scripts/render_report.py 渲染
+  # （与 paper-topic / paper-logic 同批试点。产物内容不变、四层色不变，但放弃 skill 专属
+  # 视觉组件——那些信息在 .md 里由 emoji 与文字完整保留，颜色只是第二种编码）。
   # 上游消费 draft 正文（必要）+ review 产物（可选）+ verify 产物（可选）。
   # 双路输入：真实审稿意见粘贴（作者侧核心场景）+ paper-review 模拟下游（预演修订）。
   # 三条不变：① 不替用户决定是否采纳（每条标 ❓ 待用户决定）；② 不编内容应付审稿人
