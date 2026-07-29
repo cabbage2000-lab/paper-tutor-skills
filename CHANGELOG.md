@@ -35,9 +35,23 @@
   因此安全），但技能名按目录层级拼接，多套一层 `skills/` 会让命令变成 `skills:paper-init`
   ——提示词里显式拦了这一条。
 
+### 修复（Fixed）
+
+- **两个根 README 的版本号漂移**——此前停在 v0.1.2，而 0.1.3、0.1.4 两次发版都只改了
+  CHANGELOG 与四份清单，README 连漂三个版本没被发现（用户照 README 判断版本，会以为
+  自己装旧了）。现同步为当前版本，并补守卫防复发：`test_plugin_manifest.py` 新增两项，
+  锁住两个 README 的三处版本号（badge / 简介段 / 快速开始段）与 CHANGELOG 最新版本一致，
+  且那条「已知边界见 CHANGELOG」的锚点真能跳到最新版本段——**锚点漏改是静默死链**
+  （点过去停在页面顶部，用户以为这版没有已知边界），发版时改了 CHANGELOG 日期就必须
+  同步改它。原先第 2 类守卫只管清单层，README 恰恰是最显眼、最容易忘的那处。
+
 <!-- 其他分类按需增补：### 变更（Changed）/ ### 修复（Fixed）/ ### 重构（Refactored）。
      若本版改动了命令数或 skill 目录数，记得同步两个 README 的命令表与「N 个」计数
-     （test_manifest_consistency.py 守着）。 -->
+     （test_manifest_consistency.py 守着）。
+     改本段标题的日期时，两个 README 的 CHANGELOG 锚点必须同步改
+     （test_plugin_manifest.py 守着，不改就是静默死链）。
+     两个 README 那句「已知边界见 CHANGELOG」指着本段——本版若沿用 v0.1.0 已知边界，
+     须在本段写明，否则用户点过来看不到任何边界说明。 -->
 
 ---
 

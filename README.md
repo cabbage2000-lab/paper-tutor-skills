@@ -2,12 +2,12 @@
 
 ![license](https://img.shields.io/badge/license-PolyForm--NC-blue)
 ![language](https://img.shields.io/badge/language-简体中文优先-green)
-![status](https://img.shields.io/badge/status-v0.1.2-blue)
+![status](https://img.shields.io/badge/status-v0.1.5-blue)
 ![host](https://img.shields.io/badge/host-Claude%20Code%20%7C%20Codex%20%7C%20WorkBuddy-grey)
 
 **简体中文** | [English](README.en.md)
 
-Paper-Tutor-Skills 是一套装进编程智能体（Claude Code / Codex / 国内 WorkBuddy）的学术辅导 skills，简体中文优先——AI 管效率（检索、整理、核对、结构化），人管研究决策（想法、判断、数据、结论）。为中文研究生与科研工作者设计——学生自助研究、导师带学生做科研训练、投稿前批量自查（工具形态不变）。当前 **v0.1.2**：25 个命令入口（`/paper-init` `/paper-help` `/paper-doctor` `/paper-daily` 四个工作台基础设施 + 选题 / 检索 / 写作 / 评审 / 投稿全链路 21 个研究命令），分布在 23 个 skill 目录，覆盖学术研究 5 阶段全生命周期。命令的准确清单与各自的已知观察项以 [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml) 为准。
+Paper-Tutor-Skills 是一套装进编程智能体（Claude Code / Codex / 国内 WorkBuddy）的学术辅导 skills，简体中文优先——AI 管效率（检索、整理、核对、结构化），人管研究决策（想法、判断、数据、结论）。为中文研究生与科研工作者设计——学生自助研究、导师带学生做科研训练、投稿前批量自查（工具形态不变）。当前 **v0.1.5**：25 个命令入口（`/paper-init` `/paper-help` `/paper-doctor` `/paper-daily` 四个工作台基础设施 + 选题 / 检索 / 写作 / 评审 / 投稿全链路 21 个研究命令），分布在 23 个 skill 目录，覆盖学术研究 5 阶段全生命周期。命令的准确清单与各自的已知观察项以 [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml) 为准。
 
 ## 设计理念
 
@@ -48,7 +48,7 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 
 ## 快速开始
 
-**25 个命令入口已发布**（v0.1.2——已知边界见 [CHANGELOG](CHANGELOG.md#012--2026-07-28)），覆盖学术研究 5 阶段全生命周期，逐命令见上表。今天就能先试一个（`/paper-doctor` 有 [验收记录](tests/paper-doctor/README.md)）。
+**25 个命令入口已发布**（v0.1.5——已知边界见 [CHANGELOG](CHANGELOG.md#015--2026-07-29)），覆盖学术研究 5 阶段全生命周期，逐命令见上表。今天就能先试一个（`/paper-doctor` 有 [验收记录](tests/paper-doctor/README.md)）。
 
 ### 安装
 
