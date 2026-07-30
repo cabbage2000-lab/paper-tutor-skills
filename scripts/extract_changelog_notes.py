@@ -18,7 +18,8 @@ from pathlib import Path
 
 ANY_VERSION_HEADING_RE = re.compile(r"^## \[", re.MULTILINE)
 
-# 开版本骨架时写进段落的哨兵，发版收口时删掉。见到它即拒绝出 Release notes。
+# 开版本骨架时写进段落的哨兵，发版收口时删掉。见到 HTML 注释块里有它即拒绝出
+# Release notes（只认注释块内，理由见下面 HTML_COMMENT_BLOCK_RE）。
 #
 # 为什么这道检查在本脚本、而不是 pytest：骨架在开发期是**合法**状态（开完骨架要一路
 # 累加条目，中间每次 push 都跑 tests.yml），它只在发版这一刻才变成错误。做成 pytest
@@ -33,6 +34,12 @@ SKELETON_SENTINEL = "RELEASE-BLOCKER"
 # 兜底：发布文本里不该有给开发者看的 HTML 注释（骨架脚手架、待办提示）。
 # 这条不依赖任何约定措辞，所以万一开骨架时忘了写哨兵，只要脚手架注释还在就仍拦得住。
 HTML_COMMENT_RE = re.compile(r"<!--")
+
+# 哨兵**只在 HTML 注释块内**才算哨兵。此前是整段搜字面量，于是会误伤讨论这套机制
+# 本身的段落——0.1.6 的正文写了哨兵名（那一版就是加这道检查的），发版时被自己的
+# 检查拦住。改措辞躲开不算修：CLAUDE.md 与后续 CHANGELOG 都会提到这个名字。
+# 未闭合的注释按吃到段末处理，骨架写坏了也别漏拦。
+HTML_COMMENT_BLOCK_RE = re.compile(r"<!--.*?(?:-->|\Z)", re.DOTALL)
 
 
 def extract_section(changelog_text: str, version: str) -> str | None:
@@ -51,7 +58,7 @@ def extract_section(changelog_text: str, version: str) -> str | None:
 def find_blockers(section: str) -> list[str]:
     """返回阻止本段落发布的理由；返回空列表表示可以发。"""
     blockers = []
-    if SKELETON_SENTINEL in section:
+    if any(SKELETON_SENTINEL in c for c in HTML_COMMENT_BLOCK_RE.findall(section)):
         blockers.append(
             f"段落里还留着 {SKELETON_SENTINEL} 哨兵，说明它仍是开发骨架"
             "——发版前请写好摘要句、删掉哨兵注释块"

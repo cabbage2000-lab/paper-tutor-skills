@@ -124,6 +124,26 @@ def test_哨兵检查不依赖骨架的措辞():
     assert notes.find_blockers(section), "换一套措辞后哨兵仍须生效"
 
 
+def test_正文里提到哨兵名不算骨架():
+    """哨兵只在 HTML 注释块内才算哨兵，正文提到这个名字不该拦下发布。
+
+    0.1.6 发版时真踩到：那一版的 CHANGELOG 段落正文在讲这套哨兵机制本身、写出了
+    哨兵名，而检查是整段搜字面量，于是被自己的检查拦住。改措辞躲开不算修——
+    CLAUDE.md 的发版流程与后续 CHANGELOG 都会提到这个名字。
+    """
+    section = (
+        "**本版摘要句。**\n\n"
+        f"- 补第三道检查：段落里留着 `{notes.SKELETON_SENTINEL}` 哨兵即拒绝发布。"
+    )
+    assert notes.find_blockers(section) == [], "正文提到哨兵名不是骨架残留"
+
+
+def test_未闭合的注释里的哨兵仍拦得住():
+    """骨架注释写坏了（漏了 `-->`）也不能漏拦。"""
+    section = f"<!-- {notes.SKELETON_SENTINEL} 本段落仍是开发骨架\n\n**（待填）**"
+    assert notes.find_blockers(section), "未闭合注释里的哨兵仍须生效"
+
+
 def test_残留HTML注释即拒绝发布():
     """兜底：万一开骨架时忘了写哨兵，脚手架注释还在就仍拦得住。
 
