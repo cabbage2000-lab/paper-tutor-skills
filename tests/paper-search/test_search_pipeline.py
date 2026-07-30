@@ -92,6 +92,40 @@ class TestPayload(unittest.TestCase):
         self.assertEqual(len(p["results"]), 3)
         self.assertEqual(p["filters"], {})       # None → {}
 
+    def test_truncation_emits_warning(self):
+        """截断必须自报。判据一直在 stats 里，但宿主不会主动比 after_dedup 与 shown——
+        实况是示例的 --limit 30 被照抄，74 条只呈现 30 条、整两年文献静默消失。"""
+        items = [_hit("crossref", doi=f"10.1/{i}", year=2000 + i) for i in range(5)]
+        result = SearchResult(items=items, coverage=[], network_status="ok")
+        w = search.build_payload("q", None, result, limit=3)["warnings"]
+        self.assertEqual(len(w), 1)
+        self.assertIn("5", w[0])            # 去重后总数，告诉宿主该把 --limit 调到多少
+        self.assertIn("--limit", w[0])
+
+    def test_no_warning_when_nothing_truncated(self):
+        items = [_hit("crossref", doi=f"10.1/{i}", year=2000 + i) for i in range(3)]
+        result = SearchResult(items=items, coverage=[], network_status="ok")
+        self.assertEqual(search.build_payload("q", None, result, limit=3)["warnings"], [])
+
+    def test_limit_zero_means_no_truncation(self):
+        items = [_hit("crossref", doi=f"10.1/{i}", year=2000 + i) for i in range(5)]
+        result = SearchResult(items=items, coverage=[], network_status="ok")
+        p = search.build_payload("q", None, result, limit=0)
+        self.assertEqual(p["stats"]["shown"], 5)
+        self.assertEqual(p["stats"]["after_dedup"], 5)
+        self.assertEqual(p["warnings"], [])       # 没截断就没这条 warning
+        self.assertEqual([r["rank"] for r in p["results"]], [1, 2, 3, 4, 5])
+
+    def test_truncation_warning_does_not_mutate_caller_warnings(self):
+        """传入的 warnings 是调用方的 list，截断声明不得就地追加进去。"""
+        items = [_hit("crossref", doi=f"10.1/{i}", year=2000 + i) for i in range(5)]
+        result = SearchResult(items=items, coverage=[], network_status="ok")
+        caller = ["原有声明"]
+        p = search.build_payload("q", None, result, limit=2, warnings=caller)
+        self.assertEqual(caller, ["原有声明"])
+        self.assertEqual(len(p["warnings"]), 2)
+        self.assertEqual(p["warnings"][0], "原有声明")   # 原有的排在前，不被顶掉
+
     def test_result_carries_day_level_date(self):
         """输出契约必须带 date：paper-daily 靠它判时间窗。给不出的源为 None，不用 year 凑。"""
         items = [_hit("arxiv", doi="10.48550/arxiv.2607.00001", date="2026-07-29"),
@@ -202,6 +236,10 @@ class TestCliDateArgs(unittest.TestCase):
         （那会把窗口内全站新发当成用户主题的新发）。"""
         self.assertEqual(self._run(["--query", '()"', "--days", "1"]), 2)
 
+    def test_negative_limit_rejected(self):
+        """0 = 不截断是明确语义，负数只可能是手滑。"""
+        self.assertEqual(self._run(["--query", "q", "--limit", "-1"]), 2)
+
 
 class TestLookupPayload(unittest.TestCase):
     """回填补全（--lookup-doi）：命中给元数据；ISTIC / miss 标人工核对，绝不 NOT_FOUND。"""
@@ -229,6 +267,19 @@ class TestLookupPayload(unittest.TestCase):
         p = search.build_lookup_payload("10.9/z", ev)
         self.assertFalse(p["found"])
         self.assertIn("人工核对", p["note"])
+
+    def test_not_registered_note_differs_from_plain_miss(self):
+        """前缀未注册与「各源未命中」证据强度不同，note 不能共用一句。"""
+        ev = Evidence(ref_id="single", input=Ref(id="single", doi="10.9999/fake"),
+                      doi_ra="not_registered",
+                      route_note="DOI 前缀未在任一注册机构注册——DOI 不存在的强信号", hits=[])
+        p = search.build_lookup_payload("10.9999/fake", ev)
+        self.assertFalse(p["found"])
+        self.assertIn("人工核对", p["note"])          # 仍不判 NOT_FOUND
+        self.assertIn("未在任一注册机构注册", p["note"])
+        miss = search.build_lookup_payload("10.9/z", Evidence(
+            ref_id="s", input=Ref(id="s", doi="10.9/z"), doi_ra="Crossref", hits=[]))
+        self.assertNotEqual(p["note"], miss["note"])
 
 
 class TestRenderHtml(unittest.TestCase):

@@ -47,6 +47,7 @@ description: >-
 ### 第 2 步 · 双轨检索
 用户确认后：
 - **英文 / 自动轨**：跑 `python3 scripts/search.py --query "确认的查询串" [--year-from 2018 --year-to 2026 --type journal-article --sources crossref,openalex,semantic_scholar,arxiv,eric --per-source 20 --limit 30]`，读回 JSON（`coverage` / `results` / `network_status` / `stats` / `warnings`）。宿主无 Bash 或脚本报 `network_status=offline` 时走「降级路径」。`warnings` 非空时原文呈现给用户，不要吞掉。
+  - **综述检索要把 `--limit` 调到能装下全部去重结果**（或直接 `--limit 0` = 不截断）。`--limit` 是截断不是分页：默认 30 配 `year_desc`（年份降序）等于「只给最新的 30 条」，更早的年份会整年消失。先跑一次看 `stats.after_dedup` 是多少，再按那个数调 `--limit`；**`shown` 明显小于 `after_dedup` 就说明有结果被截掉了**，必须调大重跑或向用户说明。脚本此时也会在 `warnings` 里自报截断，该条同样要原文呈现、不许吞掉。换 `--sort source_count` 不解决（实测两种排序前 30 条只差 3 条）。
   - 综述检索**不加**日级时间窗。`--days N` / `--date-from` / `--date-to` 是按时间监测用的（`/paper-daily` 的新发轨），只有 arXiv 返回日级日期，且窗口下走逐词 AND、查询词要压到 2-5 个——用在不限时间的主题检索上会大幅漏召回。
 - **中文 / 引导轨**：按 `references/知网万方检索方案模板.md` 生成知网 / 万方检索方案（库别 + 字段限定布尔式 + 筛选条件 + 检索步骤 + 回填模板）。
 
@@ -61,7 +62,7 @@ description: >-
 ### 第 4 步 · 落盘 + 中文回填闭环
 确认后：
 - 向 `literature/文献笔记表.md` 写入（检测到标准科研目录则归位，否则落当前目录并提示可用 `/paper-init`）；同步写 `literature/检索日志.md`（PRISMA-lite：库 + 检索式 + 日期 + 命中数 + 筛选 + 覆盖方式）。日期用 `date +%F` 的真实值。
-- 用户执行知网 / 万方检索并回填题录 → 并入**同一张**笔记表（覆盖方式记"用户回填"）+ 补检索日志行。带 DOI 的回填条目可跑 `python3 scripts/search.py --lookup-doi 10.xxxx/yyyy` 自动补全元数据；返回 `found=false` 且 `note` 提示人工核对时（含 ISTIC 中文 DOI），元数据人工填、DOI 照记、备注"人工核对"，**绝不 NOT_FOUND**。
+- 用户执行知网 / 万方检索并回填题录 → 并入**同一张**笔记表（覆盖方式记"用户回填"）+ 补检索日志行。带 DOI 的回填条目可跑 `python3 scripts/search.py --lookup-doi 10.xxxx/yyyy` 自动补全元数据；返回 `found=false` 时，元数据人工填、DOI 照记、备注"人工核对"，**绝不 NOT_FOUND**；`route_note` 与 `note` 两个字段都要读、都要原文转述——`ISTIC`（中文 DOI，合法但无免费元数据 API）、`not_registered`（前缀未注册，DOI 不存在的强信号）、各源未命中（很可能中文库未收录）三档证据强度不同，不要混为一谈。「DOI 照记」的唯一例外是 `not_registered`：**先别照记**，回读那两个字段请用户确认这条 DOI 的来源——「不判 NOT_FOUND」不等于把疑似编造的 DOI 静默收进笔记表。存在性判定归 `/paper-verify`，本命令只做回填补全。
 - 可选：`python3 scripts/render_html.py --in literature/文献笔记表.md` 生成 HTML 视图。
 - 向 `.paper/` 追加「构思讨论」级留痕（见「产物格式」，纯文件追加）。
 
@@ -91,7 +92,8 @@ description: >-
 | 情形 | 处理 |
 | --- | --- |
 | 单源限流 / 超时 / 抛错 | 门面逐源容错，如实标该源"未覆盖（网络故障）"，其余源照常返回，不拖垮整轮 |
-| ISTIC 中文 DOI 回填 | `--lookup-doi` 无元数据 → 元数据人工填、DOI 照记、备注"人工核对"，绝不 NOT_FOUND |
+| ISTIC 中文 DOI 回填 | `--lookup-doi` 的 `route_note` / `note` 标 ISTIC（无免费元数据 API）→ 元数据人工填、DOI 照记、备注"人工核对"，绝不 NOT_FOUND |
+| 回填 DOI 前缀未注册 | `--lookup-doi` 的 `route_note` / `note` 标「DOI 不存在的强信号」→ 两个字段都回读转述、请用户确认来源后再决定是否入表，别照记；存在性判定走 `/paper-verify`（此处仍不判 NOT_FOUND） |
 | 非文献引用（法条 / 判例 / 古籍 / 标准） | 单独标"非文献引用，须人工核对"，不进 API 检索 |
 | 无 `topic/` 交棒记录 | 照常工作，从用户当前给的 RQ 起 |
 | 不在标准科研目录 | 产物落当前目录 + 提示可用 `/paper-init` 归位 |

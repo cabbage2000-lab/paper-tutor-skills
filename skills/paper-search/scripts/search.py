@@ -94,22 +94,37 @@ def rank_hits(merged, sort="year_desc"):
     return sorted(merged, key=lambda m: m.get("year") or 0, reverse=True)
 
 
+def truncation_warning(after_dedup, shown, sort):
+    """`--limit` 截掉了结果时的如实声明。判据一直在 stats 里（after_dedup 对 shown），但
+    宿主不会主动去比这两个数——实况：SKILL.md 的示例参数 `--limit 30` 被照抄，74 条去重
+    结果只呈现 30 条，2024 与 2023 两整年一条未进，无人察觉。`--limit` 是截断不是分页，
+    默认排序又是 year_desc，所以漏的总是更早的年份、且整年成片消失。"""
+    return (f"去重后 {after_dedup} 条、本次只展示 {shown} 条：--limit 是截断不是分页，"
+            f"被截掉的 {after_dedup - shown} 条按当前排序（{sort}）排在后面"
+            f"（year_desc 下即更早的年份，可能整年消失）；综述检索请用 "
+            f"--limit {after_dedup} 或 --limit 0（不截断）重跑，不要据此判断研究空白")
+
+
 def build_payload(query, filters, result, sort="year_desc", limit=30, warnings=None):
     """把门面 SearchResult 组装成脚本输出契约（paper-search spec §4.1）。"""
     merged = dedup_hits(result.items)
     ranked = rank_hits(merged, sort)
-    shown = ranked[:limit]
+    # limit <= 0 = 不截断（综述检索要能装下全部去重结果）。CLI 只放行 0，负数在入参层挡掉。
+    shown = ranked if limit is None or limit <= 0 else ranked[:limit]
     for i, m in enumerate(shown, 1):
         m["rank"] = i
     raw = len(result.items)
     cached = sum(1 for it in result.items if getattr(it, "from_cache", False))
+    warns = list(warnings or [])
+    if len(shown) < len(ranked):
+        warns.append(truncation_warning(len(ranked), len(shown), sort))
     return {
         "query": query,
         "filters": filters or {},
         "network_status": result.network_status,
         "coverage": result.coverage,
         "results": shown,
-        "warnings": list(warnings or []),
+        "warnings": warns,
         "stats": {"raw_hits": raw, "after_dedup": len(ranked), "shown": len(shown),
                   "cache_hit_rate": round(cached / raw, 3) if raw else 0.0, "sort": sort},
     }
@@ -171,12 +186,19 @@ def date_window_warnings(sources, date_from, date_to, query=None):
 
 
 def build_lookup_payload(doi, evidence):
-    """回填补全输出：查到则给元数据；ISTIC 中文 DOI（合法但元数据 API 不可达）标人工核对，
-    绝不 NOT_FOUND（paper-search spec 红线 3 / §8.4）。"""
+    """回填补全输出：查到则给元数据；查不到分三档如实说清证据强度——ISTIC 中文 DOI（合法但
+    元数据 API 不可达）、前缀未注册（不存在的强信号）、各源未命中（可能只是未收录）。三档
+    一律交人工核对、绝不 NOT_FOUND（paper-search spec 红线 3 / §8.4）。"""
     hit = evidence.hits[0] if evidence.hits else None
     note = None
     if evidence.doi_ra == "ISTIC":
         note = "ISTIC 注册：DOI 合法、元数据 API 不可达，请人工核对题录（不是编造嫌疑）"
+    elif evidence.doi_ra == "not_registered":
+        # 与下一档的区别：前缀未注册是「不存在」的强信号（路由压根不查任何源，见 routing.route），
+        # 各源未命中很可能只是中文库未收录。两者都交人工核对（存在性判定归 paper-verify），
+        # 但证据强度必须如实分开——共用同一句会把编造 DOI 与真实中文文献抹平。
+        note = ("DOI 前缀未在任一注册机构注册（因此未查任何元数据源）：这是 DOI 不存在的强信号，"
+                "请人工核对来源；存在性判定请走 /paper-verify")
     elif hit is None:
         note = "各开放源未命中：可能是中文库文献或元数据未收录，请人工核对，勿据此判定编造"
     return {"doi": doi, "doi_ra": evidence.doi_ra, "route_note": evidence.route_note,
@@ -197,7 +219,8 @@ def _parse_args(argv):
     p.add_argument("--type", help="文献类型（canonical：journal-article / conference-paper / ...）")
     p.add_argument("--sources", help="逗号分隔的源 id；缺省用核心源")
     p.add_argument("--per-source", type=int, default=20, help="每源取回上限（门面 limit）")
-    p.add_argument("--limit", type=int, default=30, help="去重排序后最终展示条数")
+    p.add_argument("--limit", type=int, default=30,
+                   help="去重排序后最终展示条数；0 = 不截断（综述检索用，全量呈现去重结果）")
     p.add_argument("--sort", default="year_desc", choices=["year_desc", "source_count"])
     p.add_argument("--no-cache", action="store_true", help="强制刷新（投稿前终检 / 更新版图）")
     return p.parse_args(argv)
@@ -216,6 +239,10 @@ def main(argv=None):
         return 0
     if not args.query:
         sys.stderr.write("需要 --query（检索）或 --lookup-doi（回填补全）之一\n")
+        return 2
+    if args.limit < 0:
+        # 0 有明确语义（不截断），负数只可能是手滑。同 --days，宁可报错也不静默做怪事。
+        sys.stderr.write(f"--limit 不能为负（0 = 不截断），收到：{args.limit}\n")
         return 2
     filters = {}
     if args.year_from is not None:

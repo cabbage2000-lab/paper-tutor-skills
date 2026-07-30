@@ -2,12 +2,12 @@
 
 ![license](https://img.shields.io/badge/license-PolyForm--NC-blue)
 ![language](https://img.shields.io/badge/language-简体中文优先-green)
-![status](https://img.shields.io/badge/status-v0.1.5-blue)
+![status](https://img.shields.io/badge/status-v0.1.6-blue)
 ![host](https://img.shields.io/badge/host-Claude%20Code%20%7C%20Codex%20%7C%20WorkBuddy-grey)
 
 [简体中文](README.md) | **English**
 
-Paper-Tutor-Skills is a suite of academic tutoring agent skills for Chinese-speaking researchers, dropped into the coding agent you already use (Claude Code / Codex / WorkBuddy). AI handles efficiency (retrieval, organization, verification, structuring); humans handle research decisions (ideas, judgment, data, conclusions). Designed for Chinese-speaking graduate students and researchers — students self-studying research, instructors mentoring students through research training, and pre-submission batch self-checks (same tool, no behavioral change). Currently at **v0.1.5**: 25 command entry points (`/paper-init`, `/paper-help`, `/paper-doctor`, `/paper-daily` as workspace infrastructure + 21 research commands covering topic / search / writing / review / submission full lifecycle) across 24 skill directories. The authoritative command list and per-command known gaps live in [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml).
+Paper-Tutor-Skills is a suite of academic tutoring agent skills for Chinese-speaking researchers, dropped into the coding agent you already use (Claude Code / Codex / WorkBuddy). AI handles efficiency (retrieval, organization, verification, structuring); humans handle research decisions (ideas, judgment, data, conclusions). Designed for Chinese-speaking graduate students and researchers — students self-studying research, instructors mentoring students through research training, and pre-submission batch self-checks (same tool, no behavioral change). Currently at **v0.1.6**: 25 command entry points (`/paper-init`, `/paper-help`, `/paper-doctor`, `/paper-daily` as workspace infrastructure + 21 research commands covering topic / search / writing / review / submission full lifecycle) across 24 skill directories. The authoritative command list and per-command known gaps live in [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml).
 
 ## Design Philosophy
 
@@ -45,7 +45,7 @@ Paper-Tutor-Skills positions AI as a **tutor and coach**, not an executor of res
 
 ## Quick Start
 
-**25 command entry points are released** (v0.1.5), covering the full 5-stage academic research lifecycle; see the table above for the per-command breakdown. You can try one today (`/paper-doctor` has an [acceptance record](tests/paper-doctor/README.md)).
+**25 command entry points are released** (v0.1.6), covering the full 5-stage academic research lifecycle; see the table above for the per-command breakdown. You can try one today (`/paper-doctor` has an [acceptance record](tests/paper-doctor/README.md)).
 
 ### Installation
 
