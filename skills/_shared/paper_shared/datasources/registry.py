@@ -13,7 +13,11 @@ from typing import Any, Dict, List, Optional
 _DEFAULT_PATH = pathlib.Path(__file__).with_name("registry.json")
 _VALID_KINDS = {"api", "guided"}
 _VALID_ROLES = {"core", "supplementary"}
-_VALID_CAPS = {"lookup_doi", "lookup_arxiv_id", "match_title", "search", "retraction", "route"}
+_VALID_CAPS = {"lookup_doi", "lookup_arxiv_id", "match_title", "search", "retraction", "route",
+               # import_export：该源的**官方导出引文文件**可被解析入表（guided 源专用能力，
+               # 不是自动检索）。中文库无免费 API 且站内接口有 robots.txt 明示禁止，故走
+               # 「用户站内检索 → 官方导出 → paper-search/scripts/parse_export.py 解析」。
+               "import_export"}
 
 
 class RegistryError(Exception):

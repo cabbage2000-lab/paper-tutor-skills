@@ -112,12 +112,12 @@
       "kind": "guided",
       "role": "supplementary",
       "base_url": null,
-      "capabilities": [],
+      "capabilities": ["import_export"],
       "rate_limit": null,
       "auth": null,
       "cache_ttl_days": null,
       "probe": null,
-      "coverage_zh": "中文学术文献总库——无免费开放 API，走检索方案生成 + 用户回填",
+      "coverage_zh": "中文学术文献总库——无免费开放 API，走检索方案生成 + 用户回填；官方导出引文（BibTeX / EndNote）可用 paper-search/scripts/parse_export.py 解析入表",
       "docs_url": "https://www.cnki.net"
     },
     {
@@ -126,12 +126,12 @@
       "kind": "guided",
       "role": "supplementary",
       "base_url": null,
-      "capabilities": [],
+      "capabilities": ["import_export"],
       "rate_limit": null,
       "auth": null,
       "cache_ttl_days": null,
       "probe": null,
-      "coverage_zh": "中文学术文献库——无免费开放 API，走检索方案生成 + 用户回填",
+      "coverage_zh": "中文学术文献库——无免费开放 API，走检索方案生成 + 用户回填；官方导出引文（BibTeX / EndNote）可用 paper-search/scripts/parse_export.py 解析入表",
       "docs_url": "https://www.wanfangdata.com.cn"
     }
   ]
