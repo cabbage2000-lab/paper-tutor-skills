@@ -6,7 +6,8 @@ from typing import Any, Dict, List, Optional
 
 from ..models import SourceHit, normalize_doi
 from ..transport import NotFoundError
-from .base import SourceClient, TYPE_MAP, restore_inverted_abstract
+from .base import (SourceClient, TYPE_MAP, author_details_or_empty, normalize_orcid,
+                   restore_inverted_abstract)
 
 
 # `filter=openalex_id:A|B|C` 的 OR 上限（OpenAlex 对 filter 里的管道分隔取值限 50 个）
@@ -142,7 +143,37 @@ class OpenAlexClient(SourceClient):
                 # 被引数：源没给就是 None，**不补 0**——「零被引」与「该源不给这个数」
                 # 是两件事，抹平了会让笔记表把未知说成已知。
                 "cited_by_count": w.get("cited_by_count"),
-                "abstract": restore_inverted_abstract(w.get("abstract_inverted_index"))}
+                "abstract": restore_inverted_abstract(w.get("abstract_inverted_index")),
+                "author_details": OpenAlexClient._author_details(w)}
+
+    @staticmethod
+    def _author_details(w: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """作者的客观标识：ORCID + 机构。数据已在 `authorships` 里（`_trim` 的白名单本就
+        保着它），所以这是零额外请求的纯提取。
+
+        **只陈列源给了什么，不做任何跨作者归并**——「这两个名字是不是同一个人」是概率
+        推断，不归本层（实测 OpenAlex 自己都会把同一个 ORCID 拆成两个作者实体）。
+
+        每条自带 `name`，不靠下标与 `authors` 对齐：跨源合并后作者列表的顺序与人数都可能
+        不同，按位置对应会张冠李戴。机构**全留不截断**，呈现层要几个自己取。
+        """
+        out: List[Dict[str, Any]] = []
+        for a in w.get("authorships") or []:
+            author = a.get("author") or {}
+            name = author.get("display_name")
+            if not name:
+                continue
+            out.append({
+                "name": name,
+                "orcid": normalize_orcid(author.get("orcid")),
+                "affiliations": [i.get("display_name")
+                                 for i in (a.get("institutions") or [])
+                                 if i.get("display_name")],
+                # OpenAlex 不透出「该 ORCID 是否经作者本人验证」→ None（未知），
+                # 与 Crossref 的 authenticated-orcid 共用三态，不假装成 False。
+                "orcid_verified": None,
+            })
+        return author_details_or_empty(out)
 
     @staticmethod
     def _retraction(w: Dict[str, Any]) -> Optional[Dict[str, Any]]:

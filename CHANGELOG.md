@@ -152,6 +152,28 @@
   中文题录的作者是汉字、英文源多给拼音，姓氏候选集合必然无交集 → 系统性误报；DOI + 标题 + 年份三项已足够判
   「是不是同一篇」。
 
+- **`/paper-search` 的检索结果带上作者的 ORCID 与机构**——文献笔记表的作者列现在把带 ORCID 的作者写成
+  `姓名 [0000-0002-9322-3515]`，用来解决中文姓名重名（同一批结果里三个 "Wei Wang" 到底是不是同一个人）。
+  数据从 OpenAlex 的 `authorships` 与 Crossref 的 `author` 里提取，**零额外请求**——两个源的响应本来就带着
+  这些字段，此前只取了 display_name。既有的 `authors`（字符串列表）形状不变，标识走并行的新字段
+  `author_details`（每条自带 `name` / `orcid` / `affiliations` / `orcid_verified`）。
+
+  **只陈列、不做同名归并**：ORCID 是作者本人注册的唯一键，属客观事实可以照搬；而「无 ORCID 时这两个同名
+  作者是不是同一个人」是概率推断，判错会把别人的成果算到某人头上，因此归用户判断（红线 1 / 红线 3）。
+  这不是保守——实测 "Shenghua Zhou" 在 OpenAlex 有 33 个作者实体、其中 4 个同在中南大学，而同一个 ORCID
+  `0000-0003-3871-9099` 被 OpenAlex 自己拆成了两个实体（99 篇 + 6 篇）。连专业消歧系统对中文名都是碎的。
+
+  同理，**机构字段只作线索、不可当权威**：实测 `10.1038/nature14539`，OpenAlex 给 Yann LeCun 的机构是
+  "Sanford Broadway Medical Center"、给 Geoffrey Hinton 的是 "University of New Brunswick"，两个都错。
+
+  跨源合并有意**不走主源优先**（与被引数、摘要各自的理由并列，这是第三个例外）：作者标识是覆盖度问题，
+  实测 Crossref 的 ORCID 覆盖率只有 4%、OpenAlex 78%，而 Crossref 恰恰是权威序最高的主源——按主源取会让
+  绝大多数条目的标识凭空消失。改为取「带 ORCID 的作者最多」的那个源，**整份取、绝不跨源拼**（按名字把两个
+  源的标识拼起来就是在做消歧），并附 `author_details_source` 说明标识来自哪个库。
+
+  暂不覆盖 Semantic Scholar（要拿 ORCID 得扩 `_FIELDS`，进而作废全部缓存）、PubMed（ORCID 只在 efetch 的
+  XML 里）、arXiv / ERIC（源本身不提供）。中文库导出题录不含 ORCID，**也不会去英文库按姓名匹配一个填上**。
+
 ### 变更（Changed）
 
 - **`/paper-search` 的中文轨引导从「话术素材」升级为「必给的操作卡」**——解析链路上一条已经通了，但用户

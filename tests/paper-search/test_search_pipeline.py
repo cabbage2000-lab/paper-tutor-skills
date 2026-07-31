@@ -23,8 +23,9 @@ _UNSET = object()
 
 
 def _hit(source, doi=None, title="T", year=2020, typ="journal-article", venue="V",
-         from_cache=False, date=None, cited=_UNSET, abstract=_UNSET, direction=None):
-    """cited / abstract 默认**不设键**（模拟 arxiv、pubmed 这类不给该字段的源）。
+         from_cache=False, date=None, cited=_UNSET, abstract=_UNSET, direction=None,
+         details=_UNSET):
+    """cited / abstract / details 默认**不设键**（模拟 arxiv、pubmed 这类不给该字段的源）。
     显式传 None 与不传是两种情形，测试要能分开构造。"""
     meta = {"title": title, "doi": doi, "year": year, "venue": venue,
             "type": typ, "authors": ["X"], "date": date}
@@ -32,6 +33,8 @@ def _hit(source, doi=None, title="T", year=2020, typ="journal-article", venue="V
         meta["cited_by_count"] = cited
     if abstract is not _UNSET:
         meta["abstract"] = abstract
+    if details is not _UNSET:
+        meta["author_details"] = details
     if direction:
         meta["snowball_direction"] = direction
     return SourceHit(source=source, metadata=meta,
@@ -63,6 +66,54 @@ class TestDedup(unittest.TestCase):
     def test_url_from_doi(self):
         m = search.dedup_hits([_hit("crossref", doi="10.1/a")])
         self.assertEqual(m[0]["url"], "https://doi.org/10.1/a")
+
+
+def _det(name, orcid=None, affs=None):
+    return {"name": name, "orcid": orcid, "affiliations": affs or [], "orcid_verified": None}
+
+
+class TestAuthorDetailsMerge(unittest.TestCase):
+    """作者标识跨源合并。核心不变量：取覆盖最好的源，且整份取、绝不跨源拼。"""
+
+    def test_richer_source_wins_over_authority_order(self):
+        """实测 crossref 的 ORCID 覆盖 4%、openalex 78%，而 crossref 权威序最高——
+        按权威序取会让绝大多数条目的 ORCID 凭空消失。"""
+        items = [_hit("crossref", doi="10.1/a", details=[_det("A")]),
+                 _hit("openalex", doi="10.1/a",
+                      details=[_det("A", "0000-0002-1825-0097", ["NYU"])])]
+        m = search.dedup_hits(items)[0]
+        self.assertEqual(m["primary_source"], "crossref")      # 题录仍归主源
+        self.assertEqual(m["author_details_source"], "openalex")
+        self.assertEqual(m["author_details"][0]["orcid"], "0000-0002-1825-0097")
+
+    def test_empty_details_do_not_shadow_a_populated_source(self):
+        # crossref 权威序更高但给了空列表，不能盖掉 openalex 真有的内容
+        items = [_hit("crossref", doi="10.1/a", details=[]),
+                 _hit("openalex", doi="10.1/a", details=[_det("A", affs=["NYU"])])]
+        m = search.dedup_hits(items)[0]
+        self.assertEqual(m["author_details_source"], "openalex")
+
+    def test_none_when_no_source_gives_identifiers(self):
+        # null = 各源都没给标识，与「这些作者没有 ORCID」是两件事
+        m = search.dedup_hits([_hit("arxiv", doi="10.1/a")])[0]
+        self.assertIsNone(m["author_details"])
+        self.assertIsNone(m["author_details_source"])
+
+    def test_tie_broken_by_authority_order_reproducibly(self):
+        # 带 ORCID 数相同 → 权威序在前的胜出，结果可复现
+        items = [_hit("openalex", doi="10.1/a", details=[_det("A", "0000-0002-1825-0097")]),
+                 _hit("crossref", doi="10.1/a", details=[_det("A", "0000-0001-5109-3700")])]
+        m = search.dedup_hits(items)[0]
+        self.assertEqual(m["author_details_source"], "crossref")
+
+    def test_taken_whole_never_spliced_across_sources(self):
+        """整份取、不跨源拼：按名字把两个源的标识拼起来，就是在判定「这两条是不是同一个
+        人」——那是 L2/L3 的事，本层不做。"""
+        items = [_hit("crossref", doi="10.1/a", details=[_det("A", "0000-0002-1825-0097")]),
+                 _hit("openalex", doi="10.1/a", details=[_det("A"), _det("B", affs=["MIT"])])]
+        m = search.dedup_hits(items)[0]
+        # crossref 那份带 1 个 ORCID 胜出，openalex 的 B 与机构不会被拼进来
+        self.assertEqual([d["name"] for d in m["author_details"]], ["A"])
 
 
 class TestCitedByMerge(unittest.TestCase):

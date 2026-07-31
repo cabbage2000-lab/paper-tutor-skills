@@ -200,6 +200,36 @@ def clean_jats_abstract(raw: Optional[str]) -> Optional[str]:
     return _meaningful(_LEADING_LABEL.sub("", out))
 
 
+# ---- 作者标识（ORCID）----
+
+# ORCID 的规范形态是 4 组 4 字符，末位校验位可能是 X：`0000-0002-1825-0097`。
+# 各源都给完整 URI 且 scheme 不一致（OpenAlex 给 https://orcid.org/…，Crossref 给
+# http://orcid.org/… 的历史形式），不剥成裸 ID 就跨源比不起来。
+_ORCID_RE = re.compile(r"(\d{4}-\d{4}-\d{4}-\d{3}[\dX])\s*$", re.I)
+
+
+def normalize_orcid(raw: Optional[str]) -> Optional[str]:
+    """任意形态的 ORCID → 裸 ID（`0000-0002-1825-0097`）；认不出返回 None。
+
+    **有意不做 ISO 7064 校验位验证**：这些 ID 来自源 API 而非用户输入，校验的唯一收益是
+    挡住源的脏数据，而一旦本地实现有偏差就会静默丢弃真实标识。宁可透传一个源给错的 ID
+    （用户点进去 404，一眼可辨），也不做会误杀的清洗——格式对不上才丢。
+    """
+    if not raw:
+        return None
+    m = _ORCID_RE.search(str(raw).strip())
+    return m.group(1).upper() if m else None
+
+
+def author_details_or_empty(details: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """全员既无 ORCID 又无机构时收敛成 `[]`，否则原样返回。
+
+    不返回一串空壳：空壳会让下游把「源没给标识」显示成「这个人没有 ORCID」，两者差着
+    一个事实。收敛成空列表后，呈现层与「该源不提供作者标识」同等对待。
+    """
+    return details if any(d.get("orcid") or d.get("affiliations") for d in details) else []
+
+
 class SourceClient:
     id: str = ""
 

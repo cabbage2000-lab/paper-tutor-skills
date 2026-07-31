@@ -8,6 +8,7 @@ import unittest
 from paper_shared.datasources.cache import Cache
 from paper_shared.datasources.clients import CLIENT_CLASSES
 from paper_shared.datasources.clients.base import (clean_jats_abstract as C,
+                                                   normalize_orcid,
                                                    restore_inverted_abstract)
 from paper_shared.datasources.clients.crossref import CrossrefClient
 from paper_shared.datasources.clients.openalex import OpenAlexClient
@@ -101,6 +102,87 @@ class TestInvertedAbstract(unittest.TestCase):
 
     def test_non_dict_input(self):
         self.assertIsNone(restore_inverted_abstract("not an index"))
+
+
+class TestOrcidNormalization(unittest.TestCase):
+    """各源给的 ORCID 是完整 URI 且 scheme 不一，必须剥成裸 ID 才跨源比得起来。"""
+
+    def test_strips_https_and_http_prefix(self):
+        # OpenAlex 给 https、Crossref 给 http（历史形式），归一后必须相同
+        for raw in ("https://orcid.org/0000-0002-1825-0097",
+                    "http://orcid.org/0000-0002-1825-0097",
+                    "0000-0002-1825-0097"):
+            self.assertEqual(normalize_orcid(raw), "0000-0002-1825-0097")
+
+    def test_checksum_x_is_kept_and_uppercased(self):
+        # 末位校验位可能是 X，小写形式也要认
+        self.assertEqual(normalize_orcid("https://orcid.org/0000-0002-1694-233x"),
+                         "0000-0002-1694-233X")
+
+    def test_unrecognized_returns_none(self):
+        for bad in (None, "", "   ", "not-an-orcid", "0000-0002-1825", "12345"):
+            self.assertIsNone(normalize_orcid(bad))
+
+
+class TestAuthorDetails(unittest.TestCase):
+    """作者标识只做提取与陈列，不做任何跨作者归并（消歧归用户，见 SKILL.md）。"""
+
+    def test_openalex_extracts_orcid_and_affiliations(self):
+        w = {"authorships": [
+            {"author": {"display_name": "Yann LeCun",
+                        "orcid": "https://orcid.org/0000-0002-1825-0097"},
+             "institutions": [{"display_name": "New York University"},
+                              {"display_name": "Meta AI"}]},
+        ]}
+        d = OpenAlexClient._author_details(w)[0]
+        self.assertEqual(d["name"], "Yann LeCun")
+        self.assertEqual(d["orcid"], "0000-0002-1825-0097")
+        # 机构全留、不截断——呈现层要几个自己取
+        self.assertEqual(d["affiliations"], ["New York University", "Meta AI"])
+        # OpenAlex 不透出验证状态 → None（未知），不能假装成 False
+        self.assertIsNone(d["orcid_verified"])
+
+    def test_empty_when_no_author_carries_any_identifier(self):
+        """全员无 ORCID 无机构 → []，不返回一串空壳。
+
+        空壳会让下游把「源没给标识」显示成「这个人没有 ORCID」。
+        """
+        w = {"authorships": [{"author": {"display_name": "张三"}, "institutions": []},
+                             {"author": {"display_name": "李四"}}]}
+        self.assertEqual(OpenAlexClient._author_details(w), [])
+
+    def test_openalex_skips_nameless_author_slot(self):
+        w = {"authorships": [{"author": {}, "institutions": [{"display_name": "X"}]},
+                             {"author": {"display_name": "王五"},
+                              "institutions": [{"display_name": "Y"}]}]}
+        out = OpenAlexClient._author_details(w)
+        self.assertEqual([d["name"] for d in out], ["王五"])
+
+    def test_crossref_authenticated_orcid_is_tristate(self):
+        """authenticated-orcid 是全部源里唯一的「经作者本人验证」信号，三态不能压平。"""
+        msg = {"author": [
+            {"given": "A", "family": "One", "ORCID": "http://orcid.org/0000-0002-1825-0097",
+             "authenticated-orcid": True},
+            {"given": "B", "family": "Two", "ORCID": "http://orcid.org/0000-0001-5109-3700",
+             "authenticated-orcid": False},
+            {"given": "C", "family": "Three", "ORCID": "http://orcid.org/0000-0002-1694-233X"},
+        ]}
+        out = CrossrefClient._author_details(msg)
+        self.assertEqual([d["orcid_verified"] for d in out], [True, False, None])
+
+    def test_crossref_institutional_author_without_name_skipped(self):
+        # 机构作者只有 name 字段、没有 given/family
+        msg = {"author": [{"name": "WHO Collaborating Group",
+                           "affiliation": [{"name": "WHO"}]},
+                          {"given": "D", "family": "Four", "affiliation": [{"name": "MIT"}]}]}
+        out = CrossrefClient._author_details(msg)
+        self.assertEqual([d["name"] for d in out], ["D Four"])
+
+    def test_crossref_authors_list_unchanged_by_details(self):
+        """`authors`（List[str]）是既有契约，matching.py 拿 authors[0] 比对第一作者——
+        加 author_details 绝不能改它的形状。"""
+        msg = {"title": ["T"], "author": [{"given": "E", "family": "Five"}]}
+        self.assertEqual(CrossrefClient._metadata(msg)["authors"], ["E Five"])
 
 
 class TestJatsAbstract(unittest.TestCase):

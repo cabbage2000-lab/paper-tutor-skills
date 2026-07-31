@@ -90,6 +90,28 @@ def _merge_abstract(hits):
     return None, None
 
 
+def _merge_author_details(hits):
+    """作者标识取「认得出的人最多」的那个源，不按权威序取第一个非空。
+
+    与摘要那条不同：摘要是有无问题，作者标识是**覆盖度**问题。实测同一批结果里 Crossref
+    的 ORCID 覆盖 4%、OpenAlex 78%，而 Crossref 恰恰是权威序最高的主源——按权威序取，
+    绝大多数条目的 ORCID 会凭空消失。
+
+    **整份取、绝不跨源拼**：各源的作者列表长度与顺序都可能不同，按名字把两个源的标识
+    拼起来，就是在判定「这两条说的是不是同一个人」——那正是本层不做的事。带 ORCID 数
+    相同时权威序在前的胜出（sorted 保证），结果可复现。
+    """
+    best, src, score = None, None, -1
+    for h in sorted(hits, key=lambda x: _SOURCE_RANK.get(x.source, 99)):
+        details = h.metadata.get("author_details") or []
+        if not details:
+            continue            # 空的不参与竞争，否则会盖掉后面真有内容的源
+        n = sum(1 for d in details if d.get("orcid"))
+        if n > score:
+            best, src, score = details, h.source, n
+    return best, src
+
+
 def dedup_hits(items):
     """跨源去重：DOI 主键 / 无 DOI 回退规范化标题。同一文献合并成一条，sources[] 记全部命中源，
     元数据取权威序最高的源为主源（primary_source）。冲突时主源值优先，不静默丢弃其余源信息。
@@ -116,6 +138,7 @@ def dedup_hits(items):
         m = h.metadata
         cited, cited_src = _merge_cited_by(g["hits"])
         abstract, abstract_src = _merge_abstract(g["hits"])
+        author_details, author_details_src = _merge_author_details(g["hits"])
         # 滚雪球方向：同一篇可能既在后向又在前向出现（互引），两向都要留，不二选一
         directions = []
         for x in g["hits"]:
@@ -124,6 +147,10 @@ def dedup_hits(items):
                 directions.append(d)
         merged.append({
             "title": m.get("title"), "authors": m.get("authors") or [], "year": m.get("year"),
+            # 作者的客观标识（ORCID / 机构）与它的来源库。**可能与 authors 不是同一个源**
+            # （authors 跟主源，标识跟覆盖最好的源），所以每条自带 name、不靠下标对应，
+            # 且必须连 author_details_source 一起呈现。null = 各源都没给标识。
+            "author_details": author_details, "author_details_source": author_details_src,
             # date = 日级日期（YYYY-MM-DD），供 paper-daily 判「今日 / 最近 N 天」时间窗。
             # 目前只有 arXiv 提供，其余源为 null——给不出就是 null，不猜、不用 year 凑。
             "date": m.get("date"),
