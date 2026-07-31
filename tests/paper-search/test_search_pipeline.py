@@ -498,6 +498,101 @@ class TestLookupPayload(unittest.TestCase):
         self.assertNotEqual(p["note"], miss["note"])
 
 
+class TestLookupCrossCheck(unittest.TestCase):
+    """回填补全的交叉核验：DOI 查得到 ≠ 就是这一篇。堵「DOI 抄错一位 / 题录张冠李戴」。
+
+    比对内核在 paper_shared.matching（与 paper-verify 共用），此处只测 search 侧的接线与
+    三态语义：null=未比对 / true=比对一致 / false=比对不一致。**任何一条都不许出现态码**。
+    """
+
+    @staticmethod
+    def _ev(doi="10.1/a", hits=None, doi_ra="Crossref", route_note=None):
+        return Evidence(ref_id="single", input=Ref(id="single", doi=doi), doi_ra=doi_ra,
+                        route_note=route_note, hits=hits or [])
+
+    @staticmethod
+    def _h(title="Deep learning", year=2015, doi="10.1/a", source="crossref"):
+        return SourceHit(source=source,
+                         metadata={"title": title, "year": year, "doi": doi,
+                                   "authors": ["Y. LeCun"]},
+                         fetched_at="2026-01-01T00:00:00Z")
+
+    def test_no_ref_is_null_not_false(self):
+        """不传 ref（旧调用方式）→ 未比对。null 与 false 是两件事，不许合并。"""
+        p = search.build_lookup_payload("10.1/a", self._ev(hits=[self._h()]))
+        self.assertTrue(p["found"])
+        self.assertIsNone(p["metadata_consistent"])
+        self.assertIsNone(p["field_notes"])
+        self.assertIsNone(p["note"])
+
+    def test_ref_without_title_is_null(self):
+        """给了 ref 但没标题 → 仍是未比对，绝不拿源自己的标题自比出一个假的 True。"""
+        p = search.build_lookup_payload("10.1/a", self._ev(hits=[self._h()]),
+                                        Ref(id="lookup", doi="10.1/a", title=None))
+        self.assertIsNone(p["metadata_consistent"])
+
+    def test_title_matches(self):
+        p = search.build_lookup_payload(
+            "10.1/a", self._ev(hits=[self._h()]),
+            Ref(id="lookup", doi="10.1/a", title="Deep learning", year=2015))
+        self.assertTrue(p["metadata_consistent"])
+        self.assertEqual(p["field_notes"], [])
+        self.assertIsNone(p["note"])           # 一致时不额外唠叨
+
+    def test_title_mismatch_reports_but_does_not_judge(self):
+        """核心场景：DOI 真、指向的却是另一篇。报比对结果 + 出口指引，**不判存在性**。"""
+        p = search.build_lookup_payload(
+            "10.1/a", self._ev(hits=[self._h()]),
+            Ref(id="lookup", doi="10.1/a", title="Attention Is All You Need", year=2017))
+        self.assertTrue(p["found"])            # 查得到就是查得到
+        self.assertFalse(p["metadata_consistent"])
+        fields = {n["field"] for n in p["field_notes"]}
+        self.assertIn("title", fields)
+        self.assertIn("year", fields)          # 年份差 2 也升 mismatch
+        self.assertIn("/paper-verify", p["note"])
+        # 红线：本命令只陈列，不判态、不判编造
+        for banned in ("NOT_FOUND", "VERIFIED", "MISMATCH", "编造"):
+            self.assertNotIn(banned, p["note"])
+
+    def test_miss_with_title_stays_null(self):
+        """没查到 + 给了标题 → 仍是未比对（没有可比的对象），不得报 false。"""
+        p = search.build_lookup_payload("10.9/z", self._ev(doi="10.9/z", hits=[]),
+                                        Ref(id="lookup", doi="10.9/z", title="T"))
+        self.assertFalse(p["found"])
+        self.assertIsNone(p["metadata_consistent"])
+        self.assertIn("人工核对", p["note"])    # 原三档 note 不被交叉核验挤掉
+
+    def test_istic_note_survives_cross_check(self):
+        """ISTIC 中文 DOI：查不到元数据，交叉核验不得改写它那句话（红线 3）。"""
+        p = search.build_lookup_payload(
+            "10.3969/x", self._ev(doi="10.3969/x", doi_ra="ISTIC", hits=[]),
+            Ref(id="lookup", doi="10.3969/x", title="某某中文研究"))
+        self.assertIn("ISTIC", p["note"])
+        self.assertIsNone(p["metadata_consistent"])
+
+    def test_picks_best_hit_by_title_not_first(self):
+        """多源命中且都没回 DOI 字段时，按标题选最匹配的那条，不是 hits[0]。"""
+        wrong = self._h(title="Quantum computing", doi=None, source="s2")
+        right = self._h(title="Deep learning", doi=None, source="openalex")
+        p = search.build_lookup_payload(
+            "10.1/a", self._ev(hits=[wrong, right]),
+            Ref(id="lookup", doi="10.1/a", title="Deep learning", year=2015))
+        self.assertEqual(p["metadata"]["title"], "Deep learning")
+        self.assertTrue(p["metadata_consistent"])
+
+    def test_cli_accepts_title_and_ref_year(self):
+        args = search._parse_args(["--lookup-doi", "10.1/a", "--title", "T",
+                                   "--ref-year", "2020"])
+        self.assertEqual(args.title, "T")
+        self.assertEqual(args.ref_year, 2020)
+
+    def test_cli_ref_year_is_not_year_from(self):
+        """--ref-year 是比对用的题录年份，与检索筛选的 --year-from 不是一回事。"""
+        args = search._parse_args(["--query", "q", "--year-from", "2018"])
+        self.assertIsNone(args.ref_year)
+        self.assertEqual(args.year_from, 2018)
+
+
 class TestRenderHtml(unittest.TestCase):
     def test_table_link_and_coverage_class(self):
         md = ("# 文献笔记表\n\n"

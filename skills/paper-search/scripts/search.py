@@ -27,7 +27,8 @@ from paper_shared.datasources import related as ds_related   # noqa: E402
 from paper_shared.datasources import search as ds_search     # noqa: E402
 from paper_shared.datasources.clients.arxiv import usable_terms as arxiv_usable_terms  # noqa: E402
 from paper_shared.datasources.clients.base import canonical_type  # noqa: E402
-from paper_shared.datasources.models import normalize_doi   # noqa: E402
+from paper_shared.datasources.models import Ref, normalize_doi   # noqa: E402
+from paper_shared.matching import compare_fields, pick_best_hit  # noqa: E402
 
 # 跨源合并的元数据权威序（已刊元数据最权威）：crossref > openalex > s2 > arxiv > pubmed > eric
 _SOURCE_RANK = {"crossref": 0, "openalex": 1, "semantic_scholar": 2,
@@ -311,11 +312,31 @@ def date_window_warnings(sources, date_from, date_to, query=None):
     return out
 
 
-def build_lookup_payload(doi, evidence):
+def build_lookup_payload(doi, evidence, ref=None):
     """回填补全输出：查到则给元数据；查不到分三档如实说清证据强度——ISTIC 中文 DOI（合法但
     元数据 API 不可达）、前缀未注册（不存在的强信号）、各源未命中（可能只是未收录）。三档
-    一律交人工核对、绝不 NOT_FOUND（paper-search spec 红线 3 / §8.4）。"""
-    hit = evidence.hits[0] if evidence.hits else None
+    一律交人工核对、绝不 NOT_FOUND（paper-search spec 红线 3 / §8.4）。
+
+    `ref` 非空且带标题时，额外把手里的题录与命中元数据做一次交叉核验（共享内核
+    `paper_shared.matching`，与 paper-verify 同一套阈值），堵的是「DOI 解析得开、指向的
+    却是另一篇」——DOI 抄错一位、或题录张冠李戴时都会这样，光看 `found=true` 发现不了。
+
+    **这里只陈列比对结果，不判态**：`field_notes` 原样给宿主转述，出口指引仍是
+    `/paper-verify`。存在性判定不归本命令（红线 3），加了比对也不归。
+    """
+    hits = evidence.hits
+    # 多源命中时按题录选最匹配的那条，而不是取 hits[0]（各源题录可能差异很大）；
+    # 没给 ref 就维持原行为。
+    hit = (pick_best_hit(ref, hits) if (ref is not None and hits) else
+           (hits[0] if hits else None))
+    field_notes = None
+    metadata_consistent = None
+    # 只在「调用方给了标题」时比对。没给就是 None（未比对），绝不拿源自己的标题自比出一个
+    # 假的 True——那会把「没核对过」说成「核对一致」。
+    if hit is not None and ref is not None and ref.title:
+        notes = compare_fields(ref, hit)
+        field_notes = [n.to_dict() for n in notes]
+        metadata_consistent = not any(n.severity == "mismatch" for n in notes)
     note = None
     if evidence.doi_ra == "ISTIC":
         note = "ISTIC 注册：DOI 合法、元数据 API 不可达，请人工核对题录（不是编造嫌疑）"
@@ -327,8 +348,15 @@ def build_lookup_payload(doi, evidence):
                 "请人工核对来源；存在性判定请走 /paper-verify")
     elif hit is None:
         note = "各开放源未命中：可能是中文库文献或元数据未收录，请人工核对，勿据此判定编造"
+    elif metadata_consistent is False:
+        note = ("DOI 查得到，但你给的题录与源元数据对不上（见 field_notes）：常见成因是 DOI "
+                "抄错一位、或题录与 DOI 张冠李戴。请核对这条 DOI 的来源后再决定是否入表；"
+                "存在性判定请走 /paper-verify")
     return {"doi": doi, "doi_ra": evidence.doi_ra, "route_note": evidence.route_note,
-            "found": hit is not None, "metadata": hit.metadata if hit else None, "note": note}
+            "found": hit is not None, "metadata": hit.metadata if hit else None,
+            # null = 未比对（没给 --title 或没查到），与 false（比对了且不一致）严格区分
+            "metadata_consistent": metadata_consistent, "field_notes": field_notes,
+            "note": note}
 
 
 def _parse_args(argv):
@@ -342,6 +370,14 @@ def _parse_args(argv):
                    help="滚雪球方向：backward=本文引了谁（补经典）/ forward=谁引了本文"
                         "（补跟进）/ both（默认）")
     p.add_argument("--lookup-doi", help="回填模式：查单个 DOI 的元数据补全（与 --query 二选一）")
+    # 下面两个只在 --lookup-doi 模式生效：把手里的题录一并交上来做交叉核验。
+    # 有意**不提供 --authors**：中文题录的作者是汉字、英文源多给拼音，姓氏候选集合必然
+    # 无交集 → 系统性误报，而低误报优先（同 matching.surname_candidates 的取向）。
+    # DOI + 标题 + 年份三项已足够判「是不是同一篇」。门面本身收 authors，将来要加只是加个参数。
+    p.add_argument("--title", help="回填模式可选：你手里那条题录的标题，用于与源元数据交叉核验")
+    p.add_argument("--ref-year", type=int,
+                   help="回填模式可选：你手里那条题录的年份（与 --year-from/--year-to 无关，"
+                        "那两个是检索筛选）")
     p.add_argument("--year-from", type=int, help="起始年份（含）")
     p.add_argument("--year-to", type=int, help="截止年份（含）")
     p.add_argument("--date-from", help="起始日期（含），ISO YYYY-MM-DD；日级时间窗仅 arXiv 支持")
@@ -368,7 +404,9 @@ def main(argv=None):
     args = _parse_args(argv)
     if args.lookup_doi:
         ev = ds_lookup(doi=args.lookup_doi)
-        _dump(build_lookup_payload(args.lookup_doi, ev))
+        # 查询照旧只按 DOI 走（title 传进门面会改变查询行为）；题录只用于查回来之后的比对。
+        ref = Ref(id="lookup", doi=args.lookup_doi, title=args.title, year=args.ref_year)
+        _dump(build_lookup_payload(args.lookup_doi, ev, ref))
         return 0
     if args.query and args.snowball:
         sys.stderr.write("--query 与 --snowball 互斥，二选一\n")
