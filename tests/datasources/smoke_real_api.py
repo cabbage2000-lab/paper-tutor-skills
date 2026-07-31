@@ -62,6 +62,32 @@ def main() -> int:
         except Exception as e:
             print(f"  {FAIL} {src_id:20s} {method}({arg}) → {type(e).__name__}: {e}")
             exit_code = 1
+
+    # 作者端点单独走一趟：它有两个响应结构（作者实体 / 按作者过滤 works），
+    # 且承载着「ORCID 能穿透源的实体拆分」这个不变量——那是 --author-works 的立身之本，
+    # 一旦 OpenAlex 改了 author.orcid 过滤语义，两步作者检索会静默返回不完整的论文列表。
+    from paper_shared.datasources.transport import Throttle
+    cfg = registry.get("openalex")
+    interval = ((cfg.rate_limit or {}).get("anonymous") or {}).get("min_interval_s", 1.0)
+    client = CLIENT_CLASSES["openalex"](cfg, transport, cache, Throttle(interval), fresh=True)
+    try:
+        cands, total = client.find_authors("Shenghua Zhou", limit=5)
+        print(f"  {OK if cands else FAIL} {'openalex':20s} find_authors → "
+              f"{len(cands)}/{total} 候选，带 ORCID {sum(1 for c in cands if c.orcid)}")
+        if not cands:
+            exit_code = 1
+        # 已知被拆成两个实体（99 + 6）的 ORCID：按 ORCID 查应显著多于按单实体查
+        by_orcid = len(client.works_by_author(orcid="0000-0003-3871-9099", limit=200))
+        by_entity = len(client.works_by_author(entity_id="A5041699772", limit=200))
+        ok = by_orcid > by_entity
+        print(f"  {OK if ok else FAIL} {'openalex':20s} works_by_author → "
+              f"ORCID {by_orcid} 篇 vs 单实体 {by_entity} 篇"
+              f"{'' if ok else '  ← ORCID 未能穿透实体拆分，两步作者检索会漏召回'}")
+        if not ok:
+            exit_code = 1
+    except Exception as e:
+        print(f"  {FAIL} {'openalex':20s} author endpoints → {type(e).__name__}: {e}")
+        exit_code = 1
     return exit_code
 
 

@@ -22,11 +22,13 @@ import sys
 
 # 标准三行引导头（同 paper-doctor/scripts/doctor.py）：parents[2] = skills/，其下 _shared/
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "_shared"))
+from paper_shared.datasources import find_authors as ds_find_authors        # noqa: E402
 from paper_shared.datasources import lookup as ds_lookup     # noqa: E402
 from paper_shared.datasources import related as ds_related   # noqa: E402
 from paper_shared.datasources import search as ds_search     # noqa: E402
+from paper_shared.datasources import works_by_author as ds_works_by_author  # noqa: E402
 from paper_shared.datasources.clients.arxiv import usable_terms as arxiv_usable_terms  # noqa: E402
-from paper_shared.datasources.clients.base import canonical_type  # noqa: E402
+from paper_shared.datasources.clients.base import canonical_type, normalize_orcid  # noqa: E402
 from paper_shared.datasources.models import Ref, normalize_doi   # noqa: E402
 from paper_shared.matching import compare_fields, pick_best_hit  # noqa: E402
 
@@ -284,6 +286,144 @@ def build_payload(query, filters, result, sort="year_desc", limit=0, warnings=No
     }
 
 
+# ---- 作者检索（--find-author / --author-works）----
+
+def merge_author_candidates(candidates):
+    """同名候选按 **ORCID** 归并——唯一允许的归并键。
+
+    ORCID 是作者本人注册的持久标识符：两个实体挂同一个 ORCID，就是同一个人，这是客观
+    事实不是推断。实测源自己会拆错（`0000-0003-3871-9099` 被 OpenAlex 拆成 99 篇与 6 篇
+    两个实体），不合并会让用户以为是两个人。
+
+    **除 ORCID 外一律不合并**：同名 + 同机构 + 同领域也不合并。那是概率推断，判错会把
+    别人的成果算到某人头上（实测 "Shenghua Zhou" 有 4 个不同 ORCID 的人同在中南大学）。
+    无 ORCID 的候选各自独立成条，由用户看着机构与领域自己判断。
+
+    works_count 加总：实测 OpenAlex 的实体之间不重叠（99 + 6 = 105 = 按 ORCID 过滤的
+    总数），故加总即真实篇数；呈现层仍要标明这是合并值。
+    """
+    merged, order = {}, []
+    for c in candidates:
+        # 无 ORCID 的用实体 ID 作键 → 天然各自独立，绝不与任何人归并
+        key = ("orcid", c.orcid) if c.orcid else ("entity", tuple(c.entity_ids))
+        if key not in merged:
+            merged[key] = {
+                "name": c.name, "orcid": c.orcid, "entity_ids": list(c.entity_ids),
+                "works_count": c.works_count, "affiliations": list(c.affiliations),
+                "topics": list(c.topics), "name_variants": list(c.name_variants),
+                "exact_name_match": c.exact_name_match, "source": c.source,
+            }
+            order.append(key)
+            continue
+        g = merged[key]
+        g["entity_ids"].extend(x for x in c.entity_ids if x not in g["entity_ids"])
+        g["works_count"] += c.works_count
+        for a in c.affiliations:
+            if a not in g["affiliations"]:
+                g["affiliations"].append(a)
+        g["topics"].extend(t for t in c.topics if t not in g["topics"])
+        g["name_variants"].extend(v for v in c.name_variants if v not in g["name_variants"])
+        # 任一实体是精确名匹配，整条就算精确匹配（源对同一个人给了不同写法）
+        g["exact_name_match"] = g["exact_name_match"] or c.exact_name_match
+    out = []
+    for key in order:
+        g = merged[key]
+        g["merged_entities"] = len(g["entity_ids"])
+        # 下一步该拿什么去查这个人的论文。ORCID 优先——它能穿透源的实体拆分。
+        g["works_key"] = (f"orcid:{g['orcid']}" if g["orcid"]
+                          else f"entity:{g['entity_ids'][0]}" if g["entity_ids"] else None)
+        out.append(g)
+    # 按论文数降序，纯为**帮用户在几十个同名里定位**，不表示谁更重要——同名簇排序与
+    # 红线 1 挡的「替用户挑哪篇文献更值得读」不是一回事。平局按名字保证可复现。
+    return sorted(out, key=lambda g: (g["works_count"], g["name"]), reverse=True)
+
+
+def author_warnings(query, cands, total_found, shown):
+    """作者检索的四处如实声明——每条都对应一个会让用户误判的真实陷阱。"""
+    out = []
+    if total_found > shown:
+        out.append(f"源报告共 {total_found} 个同名候选，本次只取回 {shown} 个"
+                   f"（按论文数降序）。同名作者极多时想找的人可能不在这批里，"
+                   f"可加 --limit 取更多，或用机构 / 研究领域进一步辨认")
+    approx = [c["name"] for c in cands if not c["exact_name_match"]]
+    if approx:
+        out.append(f"以下候选的姓名与你查的「{query}」并不逐字相同，是源的模糊匹配结果，"
+                   f"很可能是另一个人：{'、'.join(sorted(set(approx))[:5])}"
+                   f"（实测搜「周生华」会返回「周华生」）")
+    no_orcid = sum(1 for c in cands if not c["orcid"])
+    if no_orcid:
+        out.append(f"{no_orcid} 个候选没有 ORCID：无法用客观键判定他们与其他候选是否同一人，"
+                   f"只能靠机构与研究领域自行辨认，本命令不替你归并")
+    split = [c for c in cands if c["merged_entities"] > 1]
+    if split:
+        out.append(f"{len(split)} 个候选由源的多个作者实体按 ORCID 合并而来"
+                   f"（源把同一个人拆开了）；论文数是合并后的加总")
+    return out
+
+
+def build_author_payload(query, result, limit=0):
+    """--find-author 的输出契约。**只给候选与证据，不给「就是这个人」的结论。**"""
+    cands = merge_author_candidates(result.candidates)
+    shown = cands if limit is None or limit <= 0 else cands[:limit]
+    for i, c in enumerate(shown, 1):
+        c["rank"] = i
+    return {
+        "mode": "find_author",
+        "query": query,
+        "network_status": result.network_status,
+        "coverage": result.coverage,
+        "total_found": result.total_found,
+        "candidates": shown,
+        "warnings": author_warnings(query, shown, result.total_found, len(shown)),
+        "stats": {"raw_candidates": len(result.candidates),
+                  "after_orcid_merge": len(cands), "shown": len(shown)},
+    }
+
+
+def author_works_warnings(orcid):
+    """按实体 ID 取论文时的漏召回声明。
+
+    源会把同一个人拆成多个实体（实测 `0000-0003-3871-9099` → 99 篇 + 6 篇两个实体），
+    按实体 ID 查只拿得到其中一个实体的论文。有 ORCID 就该用 ORCID——它在 works 层过滤，
+    能穿透拆分。没有 ORCID 的作者只能按实体查，此时必须如实说清这批可能不全。
+    """
+    if orcid:
+        return []
+    return ["本次按源的作者实体 ID 取论文：源可能把同一个人拆成了多个实体，"
+            "这批结果只覆盖其中一个，**可能不是该作者的全部论文**。"
+            "该作者若有 ORCID，用 `orcid:…` 查可穿透拆分拿到完整列表"]
+
+
+def _search_filters(args):
+    """年份 / 类型筛选（检索模式与作者模式共用）。日级时间窗不在此列——那是 /paper-daily
+    的新发轨专属，且只有 arXiv 支持，加进作者轨会静默 0 命中。"""
+    filters = {}
+    if args.year_from is not None:
+        filters["year_from"] = args.year_from
+    if args.year_to is not None:
+        filters["year_to"] = args.year_to
+    if args.type:
+        filters["type"] = args.type
+    return filters
+
+
+def parse_author_key(raw):
+    """`orcid:0000-…` / `entity:A123` / 裸 ORCID / 裸实体 ID → (orcid, entity_id)。
+
+    裸值也认：用户多半直接粘 ORCID。带前缀的形式来自 --find-author 输出的 works_key，
+    照抄即可，不用理解语法。
+    """
+    s = (raw or "").strip()
+    if s.lower().startswith("orcid:"):
+        return normalize_orcid(s[6:]) or None, None
+    if s.lower().startswith("entity:"):
+        return None, s[7:].strip() or None
+    o = normalize_orcid(s)
+    if o:
+        return o, None
+    return None, s or None
+
+
 def window_from_days(days, today=None):
     """把「最近 N 天」换成闭区间 (date_from, date_to)，含今天：days=1 就是今天当天。
 
@@ -397,6 +537,12 @@ def _parse_args(argv):
                    help="滚雪球方向：backward=本文引了谁（补经典）/ forward=谁引了本文"
                         "（补跟进）/ both（默认）")
     p.add_argument("--lookup-doi", help="回填模式：查单个 DOI 的元数据补全（与 --query 二选一）")
+    p.add_argument("--find-author", metavar="NAME",
+                   help="作者检索第 1 步：按姓名列同名候选（ORCID / 机构 / 领域），"
+                        "**由你选是哪一位**，本命令不替你归并")
+    p.add_argument("--author-works", metavar="KEY",
+                   help="作者检索第 2 步：取该作者的论文。KEY 取 --find-author 输出的 "
+                        "works_key（`orcid:0000-…` 或 `entity:A…`），裸 ORCID 也认")
     # 下面两个只在 --lookup-doi 模式生效：把手里的题录一并交上来做交叉核验。
     # 有意**不提供 --authors**：中文题录的作者是汉字、英文源多给拼音，姓氏候选集合必然
     # 无交集 → 系统性误报，而低误报优先（同 matching.surname_candidates 的取向）。
@@ -435,11 +581,30 @@ def main(argv=None):
         ref = Ref(id="lookup", doi=args.lookup_doi, title=args.title, year=args.ref_year)
         _dump(build_lookup_payload(args.lookup_doi, ev, ref))
         return 0
+    if args.find_author:
+        # --limit 在本模式下是「列几个候选」；per-source 决定向源取回多少个再合并。
+        result = ds_find_authors(args.find_author, limit=args.per_source,
+                                 fresh=args.no_cache)
+        _dump(build_author_payload(args.find_author, result, limit=args.limit))
+        return 0
+    if args.author_works:
+        orcid, entity_id = parse_author_key(args.author_works)
+        if not orcid and not entity_id:
+            sys.stderr.write(f"--author-works 认不出这个键：{args.author_works}\n")
+            return 2
+        result = ds_works_by_author(orcid=orcid, entity_id=entity_id,
+                                    filters=_search_filters(args) or None,
+                                    limit=args.per_source, fresh=args.no_cache)
+        _dump(build_payload(args.author_works, {"author_key": args.author_works}, result,
+                            sort=args.sort, limit=args.limit, mode="author_works",
+                            warnings=author_works_warnings(orcid)))
+        return 0
     if args.query and args.snowball:
         sys.stderr.write("--query 与 --snowball 互斥，二选一\n")
         return 2
     if not args.query and not args.snowball:
-        sys.stderr.write("需要 --query（检索）、--snowball（滚雪球）或 "
+        sys.stderr.write("需要 --query（检索）、--snowball（滚雪球）、"
+                         "--find-author / --author-works（作者检索）或 "
                          "--lookup-doi（回填补全）之一\n")
         return 2
     if args.limit < 0:
@@ -453,13 +618,7 @@ def main(argv=None):
         _dump(build_payload(args.snowball, {"direction": args.direction}, result,
                             sort=args.sort, limit=args.limit, mode="snowball"))
         return 0
-    filters = {}
-    if args.year_from is not None:
-        filters["year_from"] = args.year_from
-    if args.year_to is not None:
-        filters["year_to"] = args.year_to
-    if args.type:
-        filters["type"] = args.type
+    filters = _search_filters(args)
     date_from, date_to = args.date_from, args.date_to
     if args.days is not None:
         if date_from or date_to:

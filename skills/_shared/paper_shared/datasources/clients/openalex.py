@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import urllib.parse
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from ..models import SourceHit, normalize_doi
+from ..models import AuthorCandidate, SourceHit, normalize_doi
 from ..transport import NotFoundError
 from .base import (SourceClient, TYPE_MAP, author_details_or_empty, normalize_orcid,
                    restore_inverted_abstract)
@@ -84,6 +84,78 @@ class OpenAlexClient(SourceClient):
         per = max(1, min(int(limit), _PER_PAGE_MAX))
         url = f"{self.config.base_url}/works?filter=cites:{wid}&per-page={per}"
         return self._works_page(f"cited_by:{wid}:{per}", url)
+
+    # ---- 作者检索（capability: search_author）----
+
+    def find_authors(self, name: str, limit: int = 10) -> Tuple[List[AuthorCandidate], int]:
+        """按姓名查作者实体，返回（候选列表，源报告的总数）。
+
+        **不做任何归并**——源给几个实体就是几条，按 ORCID 合并是检索策略层的事
+        （search.py·merge_author_candidates），数据源层只负责取证。
+
+        `display_name.search` 是**模糊匹配**：实测搜「周生华」会返回「周华生」。这里如实
+        标 exact_name_match，不替调用方过滤掉——字序颠倒的也可能正是用户要找的人
+        （英文库里中文名的姓名顺序本就混乱），滤掉就是替用户做判断。
+        """
+        q = urllib.parse.quote(name)
+        per = max(1, min(int(limit), _PER_PAGE_MAX))
+        url = f"{self.config.base_url}/authors?filter=display_name.search:{q}&per-page={per}"
+        try:
+            data = self._cached_json(f"authors:{name.lower()}:{per}", url)
+        except NotFoundError:
+            return [], 0
+        total = ((data.get("meta") or {}).get("count")) or 0
+        return ([self._author_candidate(a, name) for a in (data.get("results") or [])],
+                int(total))
+
+    def works_by_author(self, orcid: Optional[str] = None,
+                        entity_id: Optional[str] = None,
+                        filters: Optional[Dict[str, Any]] = None,
+                        limit: int = 25) -> List[SourceHit]:
+        """取某位作者的论文。二选一，**ORCID 优先**。
+
+        用 ORCID 过滤能穿透源自己的实体拆分：实测 `0000-0003-3871-9099` 被拆成
+        A5100765488（99 篇）与 A5041699772（6 篇），而 `filter=author.orcid:` 一次返回
+        105 篇 = 99 + 6。所以有 ORCID 时绝不该按实体 ID 查——那样会漏掉一整块。
+        """
+        if orcid:
+            key, filt = f"orcid:{orcid}", f"author.orcid:{urllib.parse.quote(orcid)}"
+        elif entity_id:
+            key, filt = f"aid:{entity_id}", f"author.id:{urllib.parse.quote(entity_id)}"
+        else:
+            raise ValueError("works_by_author 需要 orcid 或 entity_id 之一")
+        per = max(1, min(int(limit), _PER_PAGE_MAX))
+        extra = self._filter_param(filters)
+        # _filter_param 自带 `&filter=` 前缀，这里要并进同一个 filter 段（逗号 = AND）
+        if extra:
+            filt = f"{filt},{extra.split('&filter=', 1)[1]}"
+        url = f"{self.config.base_url}/works?filter={filt}&per-page={per}"
+        try:
+            data = self._cached_json(f"works_by:{key}:{per}:{extra}", url)
+        except NotFoundError:
+            return []
+        hits = [self._hit(self._metadata(w), raw=self._trim(w), retraction=self._retraction(w))
+                for w in data.get("results") or []]
+        return self._postfilter(hits, filters)
+
+    @classmethod
+    def _author_candidate(cls, a: Dict[str, Any], queried: str) -> AuthorCandidate:
+        name = a.get("display_name") or ""
+        return AuthorCandidate(
+            source=cls.id, name=name,
+            entity_ids=[i for i in (cls._short_id(a.get("id")),) if i],
+            orcid=normalize_orcid(a.get("orcid")),
+            works_count=a.get("works_count") or 0,
+            # 历年机构（带年份），不用 last_known_institutions——理由见 AuthorCandidate 注释
+            affiliations=[{"name": (x.get("institution") or {}).get("display_name"),
+                           "years": list(x.get("years") or [])}
+                          for x in (a.get("affiliations") or [])
+                          if (x.get("institution") or {}).get("display_name")],
+            topics=[t.get("display_name") for t in (a.get("topics") or [])
+                    if t.get("display_name")],
+            name_variants=list(a.get("display_name_alternatives") or []),
+            exact_name_match=name.strip().lower() == (queried or "").strip().lower(),
+        )
 
     def match(self, title: str, authors: Optional[List[str]] = None,
               year: Optional[int] = None, limit: int = 5) -> List[SourceHit]:

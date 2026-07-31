@@ -4,6 +4,7 @@ import json
 import pathlib
 import tempfile
 import unittest
+import urllib.parse
 
 from paper_shared.datasources.cache import Cache
 from paper_shared.datasources.clients import CLIENT_CLASSES
@@ -102,6 +103,86 @@ class TestInvertedAbstract(unittest.TestCase):
 
     def test_non_dict_input(self):
         self.assertIsNone(restore_inverted_abstract("not an index"))
+
+
+class TestOpenAlexAuthorSearch(unittest.TestCase):
+    """作者检索（capability: search_author）。只有 OpenAlex 提供免费作者实体端点。"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _client(self, script):
+        return make(OpenAlexClient, "openalex", script, self.tmp.name)
+
+    def test_capability_declared_in_registry(self):
+        self.assertIn("search_author", Registry.load().get("openalex").capabilities)
+
+    def test_parses_candidate_and_reports_total(self):
+        body = {"meta": {"count": 33}, "results": [{
+            "id": "https://openalex.org/A5100765488",
+            "display_name": "Shenghua Zhou",
+            "orcid": "https://orcid.org/0000-0003-3871-9099",
+            "works_count": 99,
+            "affiliations": [{"institution": {"display_name": "Shanghai University"},
+                              "years": [2025, 2024]}],
+            "last_known_institutions": [{"display_name": "Jiangsu University of Technology"}],
+            "topics": [{"display_name": "Membrane Separation Technologies"}],
+            "display_name_alternatives": ["S. Zhou", "Zhou, Shenghua"],
+        }]}
+        client, _ = self._client([FakeResponse(200, body)])
+        cands, total = client.find_authors("Shenghua Zhou", limit=5)
+        # total 与 len(cands) 分开记：实测 "Wei Wang" 有 9757 个候选，必须截断呈现
+        self.assertEqual(total, 33)
+        c = cands[0]
+        self.assertEqual(c.entity_ids, ["A5100765488"])
+        self.assertEqual(c.orcid, "0000-0003-3871-9099")
+        # 历年 affiliations（带年份），不是 last_known_institutions——后者实测常年失准
+        self.assertEqual(c.affiliations, [{"name": "Shanghai University",
+                                           "years": [2025, 2024]}])
+        self.assertEqual(c.topics, ["Membrane Separation Technologies"])
+        self.assertTrue(c.exact_name_match)
+
+    def test_fuzzy_name_flagged_not_filtered(self):
+        """实测搜「周生华」会返回「周华生」。如实标记，但**不替调用方滤掉**——
+        英文库里中文名的姓名顺序本就混乱，滤掉就是替用户做判断。"""
+        body = {"meta": {"count": 2}, "results": [
+            {"id": "https://openalex.org/A1", "display_name": "周生华", "works_count": 8},
+            {"id": "https://openalex.org/A2", "display_name": "周华生", "works_count": 1}]}
+        client, _ = self._client([FakeResponse(200, body)])
+        cands, _ = client.find_authors("周生华")
+        self.assertEqual(len(cands), 2)                       # 没被滤掉
+        self.assertEqual([c.exact_name_match for c in cands], [True, False])
+
+    def test_works_by_author_prefers_orcid_filter(self):
+        """有 ORCID 就必须用 author.orcid 过滤：它在 works 层生效，能穿透源的实体拆分
+        （实测 105 篇 = 被拆开的 99 + 6），按 author.id 查会漏掉一整块。"""
+        client, transport = self._client([FakeResponse(200, {"results": []})])
+        client.works_by_author(orcid="0000-0003-3871-9099", entity_id="A5041699772")
+        url = transport._opener.calls[-1][0]
+        self.assertIn("author.orcid:0000-0003-3871-9099", urllib.parse.unquote(url))
+        self.assertNotIn("author.id:", urllib.parse.unquote(url))
+
+    def test_works_by_author_falls_back_to_entity_id(self):
+        client, transport = self._client([FakeResponse(200, {"results": []})])
+        client.works_by_author(entity_id="A5041699772")
+        self.assertIn("author.id:A5041699772",
+                      urllib.parse.unquote(transport._opener.calls[-1][0]))
+
+    def test_works_by_author_requires_a_key(self):
+        client, _ = self._client([])
+        with self.assertRaises(ValueError):
+            client.works_by_author()
+
+    def test_year_filter_merges_into_same_filter_segment(self):
+        """筛选要并进同一个 filter 段（逗号 = AND），另起 &filter= 会被服务端覆盖掉。"""
+        client, transport = self._client([FakeResponse(200, {"results": []})])
+        client.works_by_author(orcid="0000-0003-3871-9099", filters={"year_from": 2020})
+        url = urllib.parse.unquote(transport._opener.calls[-1][0])
+        self.assertEqual(url.count("filter="), 1)
+        self.assertIn("author.orcid:0000-0003-3871-9099,from_publication_date:2020-01-01", url)
 
 
 class TestOrcidNormalization(unittest.TestCase):

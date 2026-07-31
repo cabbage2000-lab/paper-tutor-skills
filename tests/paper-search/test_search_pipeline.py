@@ -116,6 +116,121 @@ class TestAuthorDetailsMerge(unittest.TestCase):
         self.assertEqual([d["name"] for d in m["author_details"]], ["A"])
 
 
+def _cand(name="Shenghua Zhou", orcid=None, eid="A1", works=10, aff=None, topics=None,
+          exact=True):
+    from paper_shared.datasources.models import AuthorCandidate
+    return AuthorCandidate(
+        source="openalex", name=name, entity_ids=[eid], orcid=orcid, works_count=works,
+        affiliations=[{"name": a, "years": [2024]} for a in (aff or [])],
+        topics=list(topics or []), name_variants=[], exact_name_match=exact)
+
+
+class TestAuthorCandidateMerge(unittest.TestCase):
+    """同名候选归并。核心不变量：ORCID 是唯一允许的归并键。"""
+
+    def test_same_orcid_merged_across_entities(self):
+        """源会把同一个人拆开：实测 0000-0003-3871-9099 → 99 篇 + 6 篇两个实体。
+        不合并会让用户以为是两个人。"""
+        out = search.merge_author_candidates([
+            _cand(orcid="0000-0003-3871-9099", eid="A5100765488", works=99,
+                  aff=["Planetary Science Institute"]),
+            _cand(orcid="0000-0003-3871-9099", eid="A5041699772", works=6,
+                  aff=["University of Hong Kong"]),
+        ])
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["merged_entities"], 2)
+        # 实体间不重叠，加总即真实篇数（99 + 6 = 105 = 按 ORCID 过滤的总数）
+        self.assertEqual(out[0]["works_count"], 105)
+        self.assertEqual(out[0]["entity_ids"], ["A5100765488", "A5041699772"])
+        self.assertEqual([a["name"] for a in out[0]["affiliations"]],
+                         ["Planetary Science Institute", "University of Hong Kong"])
+
+    def test_different_orcid_never_merged(self):
+        out = search.merge_author_candidates([
+            _cand(orcid="0000-0001-5388-7766", eid="A1"),
+            _cand(orcid="0000-0002-0404-5260", eid="A2"),
+        ])
+        self.assertEqual(len(out), 2)
+
+    def test_no_orcid_stays_independent_even_if_same_name_and_place(self):
+        """同名 + 同机构 + 同领域也不合并——那是概率推断，判错会把别人的成果算到某人头上。
+        实测 "Shenghua Zhou" 有 4 个不同 ORCID 的人同在中南大学。"""
+        out = search.merge_author_candidates([
+            _cand(eid="A1", aff=["Central South University"], topics=["Cardiology"]),
+            _cand(eid="A2", aff=["Central South University"], topics=["Cardiology"]),
+        ])
+        self.assertEqual(len(out), 2)
+        self.assertTrue(all(c["merged_entities"] == 1 for c in out))
+
+    def test_works_key_prefers_orcid(self):
+        """ORCID 能穿透源的实体拆分，有就必须用它——按实体查会漏掉一整块。"""
+        out = search.merge_author_candidates([_cand(orcid="0000-0001-5388-7766", eid="A9"),
+                                              _cand(eid="A8")])
+        keys = {c["works_key"] for c in out}
+        self.assertEqual(keys, {"orcid:0000-0001-5388-7766", "entity:A8"})
+
+    def test_sorted_by_works_count_reproducibly(self):
+        out = search.merge_author_candidates([_cand(eid="A1", works=5, name="B"),
+                                              _cand(eid="A2", works=99, name="A")])
+        self.assertEqual([c["works_count"] for c in out], [99, 5])
+
+    def test_any_exact_match_makes_the_merged_row_exact(self):
+        out = search.merge_author_candidates([
+            _cand(orcid="0000-0001-5388-7766", eid="A1", exact=False),
+            _cand(orcid="0000-0001-5388-7766", eid="A2", exact=True)])
+        self.assertTrue(out[0]["exact_name_match"])
+
+
+class TestAuthorKeyParsing(unittest.TestCase):
+    def test_four_accepted_forms(self):
+        self.assertEqual(search.parse_author_key("orcid:0000-0002-1825-0097"),
+                         ("0000-0002-1825-0097", None))
+        self.assertEqual(search.parse_author_key("entity:A5041699772"),
+                         (None, "A5041699772"))
+        # 裸 ORCID：用户多半直接粘
+        self.assertEqual(search.parse_author_key("0000-0002-1825-0097"),
+                         ("0000-0002-1825-0097", None))
+        self.assertEqual(search.parse_author_key("A5041699772"), (None, "A5041699772"))
+
+    def test_blank_is_rejected(self):
+        self.assertEqual(search.parse_author_key("   "), (None, None))
+
+
+class TestAuthorWarnings(unittest.TestCase):
+    """四条如实声明，每条对应一个会让用户误判的真实陷阱。"""
+
+    def _cands(self, **kw):
+        return search.merge_author_candidates([_cand(**kw)])
+
+    def test_truncation_declared(self):
+        # 实测 "Wei Wang" 有 9757 个候选，截断必须说清楚
+        w = search.author_warnings("Wei Wang", self._cands(orcid="0000-0001-5388-7766"),
+                                   9757, 1)
+        self.assertTrue(any("9757" in x for x in w))
+
+    def test_approximate_name_declared(self):
+        """实测搜「周生华」会返回「周华生」——字序颠倒的另一个人。"""
+        w = search.author_warnings("周生华", self._cands(name="周华生", exact=False,
+                                                       orcid="0000-0001-5388-7766"), 1, 1)
+        self.assertTrue(any("周华生" in x for x in w))
+
+    def test_missing_orcid_declared(self):
+        w = search.author_warnings("X", self._cands(), 1, 1)
+        self.assertTrue(any("没有 ORCID" in x for x in w))
+
+    def test_split_entity_merge_declared(self):
+        cands = search.merge_author_candidates([
+            _cand(orcid="0000-0003-3871-9099", eid="A1", works=99),
+            _cand(orcid="0000-0003-3871-9099", eid="A2", works=6)])
+        w = search.author_warnings("X", cands, 2, 1)
+        self.assertTrue(any("多个作者实体" in x for x in w))
+
+    def test_entity_key_lookup_declares_possible_incompleteness(self):
+        """按实体 ID 取论文只覆盖一个实体，可能不是全部——必须说。有 ORCID 时不必。"""
+        self.assertTrue(search.author_works_warnings(None))
+        self.assertEqual(search.author_works_warnings("0000-0003-3871-9099"), [])
+
+
 class TestCitedByMerge(unittest.TestCase):
     """被引数跨源合并。核心不变量：缺失 ≠ 0——「源不给这个数」不能显示成「零被引」。"""
 

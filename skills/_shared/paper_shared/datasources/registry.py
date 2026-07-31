@@ -18,6 +18,10 @@ _VALID_CAPS = {"lookup_doi", "lookup_arxiv_id", "match_title", "search", "retrac
                # 不是自动检索）。中文库无免费 API 且站内接口有 robots.txt 明示禁止，故走
                # 「用户站内检索 → 官方导出 → paper-search/scripts/parse_export.py 解析」。
                "import_export",
+               # 作者检索（paper-search 的 --find-author / --author-works）：按姓名取源的
+               # 作者实体候选，以及取某位作者的论文。目前只有 OpenAlex 提供免费的作者
+               # 实体端点（S2 有但要 key 且限流严），所以这一路是**单源**，覆盖声明要如实说。
+               "search_author",
                # 滚雪球两向（paper-search 的 --snowball）：
                #   references = 后向，取本文引了谁（补经典文献——年份降序恰恰把经典排到最末）
                #   cited_by   = 前向，取谁引了本文（补最新跟进）

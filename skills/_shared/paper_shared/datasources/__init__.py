@@ -12,12 +12,14 @@ from typing import Any, Callable, Dict, List, Optional
 from .batch import BatchEngine
 from .cache import Cache
 from .clients import build_clients
-from .models import (BatchResult, Evidence, Ref, SearchResult, SourceHit)
+from .models import (AuthorCandidate, AuthorSearchResult, BatchResult, Evidence, Ref,
+                     SearchResult, SourceHit)
 from .probe import ProbeEngine
 from .registry import Registry
 from .transport import Transport, TransportError
 
-__all__ = ["lookup", "fetch_batch", "search", "related", "probe_all"]
+__all__ = ["lookup", "fetch_batch", "search", "related", "find_authors",
+           "works_by_author", "probe_all"]
 
 # 滚雪球方向 → 需要的源能力。backward = 本文引了谁（补经典），forward = 谁引了本文（补跟进）。
 _DIRECTION_CAPS = {"backward": ("references",),
@@ -178,6 +180,120 @@ def related(doi: str, direction: str = "both", sources: Optional[List[str]] = No
         coverage.append({"source": guided.id, "name_zh": guided.name_zh,
                          "coverage": "未覆盖（无 API，滚雪球不适用）", "hit_count": 0,
                          "outcome": "n/a", "error": None, "direction": "—"})
+    if attempted > 0 and failed == attempted:
+        network_status = "offline"
+    elif failed:
+        network_status = "degraded"
+    else:
+        network_status = "ok"
+    return SearchResult(items=items, coverage=coverage, network_status=network_status)
+
+
+def find_authors(name: str, sources: Optional[List[str]] = None, limit: int = 10,
+                 fresh: bool = False,
+                 *, _registry: Optional[Registry] = None,
+                 _transport: Optional[Transport] = None,
+                 _cache: Optional[Cache] = None) -> AuthorSearchResult:
+    """按姓名查作者实体候选（同名簇）。
+
+    **只取证、不归并**：按 ORCID 合并被源拆开的实体是检索策略层的事
+    （paper-search·merge_author_candidates），这里原样返回源给的每个实体。
+
+    目前只有 OpenAlex 提供免费作者实体端点，所以这是**单源**能力——它挂了就整个不可用，
+    覆盖声明要如实说清，不能让用户以为「查不到这个人」。中文库（知网 / 万方）同样无此
+    能力，照例占位。
+    """
+    registry, transport, cache = _defaults(_registry, _transport, _cache)
+    if sources is None:
+        sources = [s.id for s in registry.with_capability("search_author")]
+    clients = build_clients(registry, transport, cache, fresh=fresh, only=sources)
+    candidates: List[AuthorCandidate] = []
+    coverage: List[Dict[str, Any]] = []
+    total = attempted = failed = 0
+    for src_id in sources:
+        if src_id not in clients:
+            continue
+        cfg = registry.get(src_id)
+        if "search_author" not in cfg.capabilities:
+            continue
+        attempted += 1
+        try:
+            found, n = clients[src_id].find_authors(name, limit=limit)
+        except TransportError as e:
+            failed += 1
+            coverage.append({"source": src_id, "name_zh": cfg.name_zh, "coverage": "未覆盖",
+                             "hit_count": 0, "outcome": "error", "error": e.code,
+                             "total_found": 0})
+            continue
+        total += n
+        coverage.append({"source": src_id, "name_zh": cfg.name_zh, "coverage": "自动检索（作者）",
+                         "hit_count": len(found), "outcome": "ok" if found else "empty",
+                         "error": None, "total_found": n})
+        candidates.extend(found)
+    for guided in registry.guided_sources():
+        coverage.append({"source": guided.id, "name_zh": guided.name_zh,
+                         "coverage": "未覆盖（无 API，作者检索不适用）", "hit_count": 0,
+                         "outcome": "n/a", "error": None, "total_found": 0})
+    if attempted > 0 and failed == attempted:
+        network_status = "offline"
+    elif failed:
+        network_status = "degraded"
+    else:
+        network_status = "ok"
+    return AuthorSearchResult(candidates=candidates, coverage=coverage, total_found=total,
+                              network_status=network_status)
+
+
+def works_by_author(orcid: Optional[str] = None, entity_id: Optional[str] = None,
+                    filters: Optional[Dict[str, Any]] = None,
+                    sources: Optional[List[str]] = None, limit: int = 25,
+                    fresh: bool = False,
+                    *, _registry: Optional[Registry] = None,
+                    _transport: Optional[Transport] = None,
+                    _cache: Optional[Cache] = None) -> SearchResult:
+    """取某位作者的论文。返回 SearchResult，与 search() / related() 同形——调用方因此能
+    复用同一套去重 / 排序 / 输出契约，作者轨结果可并进同一张笔记表。
+
+    orcid 与 entity_id 二选一，ORCID 优先（能穿透源自己的实体拆分，见 client 侧注释）。
+    """
+    if not orcid and not entity_id:
+        raise ValueError("works_by_author 需要 orcid 或 entity_id 之一")
+    registry, transport, cache = _defaults(_registry, _transport, _cache)
+    if sources is None:
+        sources = [s.id for s in registry.with_capability("search_author")]
+    clients = build_clients(registry, transport, cache, fresh=fresh, only=sources)
+    items: List[SourceHit] = []
+    coverage: List[Dict[str, Any]] = []
+    attempted = failed = 0
+    label = f"ORCID {orcid}" if orcid else f"实体 {entity_id}"
+    for src_id in sources:
+        if src_id not in clients:
+            continue
+        cfg = registry.get(src_id)
+        if "search_author" not in cfg.capabilities:
+            continue
+        attempted += 1
+        try:
+            hits = clients[src_id].works_by_author(orcid=orcid, entity_id=entity_id,
+                                                   filters=filters, limit=limit)
+        except TransportError as e:
+            failed += 1
+            coverage.append({"source": src_id, "name_zh": cfg.name_zh, "coverage": "未覆盖",
+                             "hit_count": 0, "outcome": "error", "error": e.code,
+                             "applied_filters": _applied_filters(src_id, filters),
+                             "author_key": label})
+            continue
+        coverage.append({"source": src_id, "name_zh": cfg.name_zh,
+                         "coverage": "自动检索（按作者）", "hit_count": len(hits),
+                         "outcome": "ok" if hits else "empty", "error": None,
+                         "applied_filters": _applied_filters(src_id, filters),
+                         "author_key": label})
+        items.extend(hits)
+    for guided in registry.guided_sources():
+        coverage.append({"source": guided.id, "name_zh": guided.name_zh,
+                         "coverage": "未覆盖（无 API，作者检索不适用）", "hit_count": 0,
+                         "outcome": "n/a", "error": None, "applied_filters": "n/a",
+                         "author_key": label})
     if attempted > 0 and failed == attempted:
         network_status = "offline"
     elif failed:

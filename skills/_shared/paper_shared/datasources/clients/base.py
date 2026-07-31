@@ -267,6 +267,17 @@ class SourceClient:
         """前向滚雪球：谁引了本文。空列表 = 查到了但尚无被引记录。"""
         raise NotImplementedError(f"{self.id} 不支持 cited_by")
 
+    def find_authors(self, name: str, limit: int = 10):
+        """按姓名查作者实体，返回（候选列表，源报告的总数）。"""
+        raise NotImplementedError(f"{self.id} 不支持 search_author")
+
+    def works_by_author(self, orcid: Optional[str] = None,
+                        entity_id: Optional[str] = None,
+                        filters: Optional[Dict[str, Any]] = None,
+                        limit: int = 25) -> List[SourceHit]:
+        """取某位作者的论文（ORCID 或源实体 ID 二选一）。"""
+        raise NotImplementedError(f"{self.id} 不支持 search_author")
+
     # ---- 通用设施 ----
 
     def _cached_json(self, key: str, url: str,
