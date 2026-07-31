@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""paper-search 检索 CLI。两种模式，均输出结构化 JSON 到 stdout、不写任何文件
+"""paper-search 检索 CLI。三种模式，均输出结构化 JSON 到 stdout、不写任何文件
 （产物落盘由宿主按 SKILL.md 完成）：
 
   --query      检索模式：调门面 search() → 跨源去重 / 排序 / 分页 / 覆盖组装。
+  --snowball   滚雪球模式：调门面 related() 由一篇已知文献取参考文献（后向）与被引
+               文献（前向）。输出与 --query 同形，可并进同一张笔记表。
   --lookup-doi 回填模式：调门面 lookup() 查单个 DOI 元数据（中文回填补全用）；
                ISTIC 中文 DOI 无元数据时如实标"人工核对"，绝不 NOT_FOUND。
 
@@ -20,9 +22,11 @@ import sys
 
 # 标准三行引导头（同 paper-doctor/scripts/doctor.py）：parents[2] = skills/，其下 _shared/
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "_shared"))
-from paper_shared.datasources import lookup as ds_lookup   # noqa: E402
-from paper_shared.datasources import search as ds_search   # noqa: E402
+from paper_shared.datasources import lookup as ds_lookup     # noqa: E402
+from paper_shared.datasources import related as ds_related   # noqa: E402
+from paper_shared.datasources import search as ds_search     # noqa: E402
 from paper_shared.datasources.clients.arxiv import usable_terms as arxiv_usable_terms  # noqa: E402
+from paper_shared.datasources.clients.base import canonical_type  # noqa: E402
 from paper_shared.datasources.models import normalize_doi   # noqa: E402
 
 # 跨源合并的元数据权威序（已刊元数据最权威）：crossref > openalex > s2 > arxiv > pubmed > eric
@@ -53,18 +57,53 @@ def _url(meta):
     return f"https://doi.org/{doi}" if doi else None
 
 
+def _merge_cited_by(hits):
+    """被引数跨源取**最大值**并记下来源源名。
+
+    各库口径本就不同（Crossref 只数注册了 DOI 的引用、OpenAlex 含预印本、S2 收更多灰色
+    文献），没有哪个是"正确"的。取最大是「至少有这么多」的下界陈述，配上来源标注，用户
+    自己能判断口径；静默取主源值则会让同一篇在换个主源后数字突变、且看不出为什么。
+
+    只有 int 参与比较：源不给这个字段是 None，与真实的 0（确实零被引）严格区分——
+    bool 是 int 的子类，显式排掉，免得 True 被当成 1。
+    """
+    best, src = None, None
+    for h in hits:
+        v = h.metadata.get("cited_by_count")
+        if isinstance(v, int) and not isinstance(v, bool) and (best is None or v > best):
+            best, src = v, h.source
+    return best, src
+
+
+def _merge_abstract(hits):
+    """摘要按权威序取第一个非空值。
+
+    与题录字段不同：题录取权威序是因为已刊元数据最准，而摘要不存在"谁的更权威"——
+    它要么有要么没有。Crossref 为主源的条目常常没摘要（本项目不解析它的 JATS 片段），
+    此时从 OpenAlex / S2 补是净收益，不补则起草档直接少一批条目。
+    """
+    for h in sorted(hits, key=lambda x: _SOURCE_RANK.get(x.source, 99)):
+        a = h.metadata.get("abstract")
+        if a and str(a).strip():
+            return str(a).strip(), h.source
+    return None, None
+
+
 def dedup_hits(items):
     """跨源去重：DOI 主键 / 无 DOI 回退规范化标题。同一文献合并成一条，sources[] 记全部命中源，
-    元数据取权威序最高的源为主源（primary_source）。冲突时主源值优先，不静默丢弃其余源信息。"""
+    元数据取权威序最高的源为主源（primary_source）。冲突时主源值优先，不静默丢弃其余源信息。
+
+    被引数与摘要是两个例外，不走「主源优先」（各自理由见 _merge_cited_by / _merge_abstract）。"""
     groups = {}
     order = []
     for hit in items:
         key = _dedup_key(hit)
         if key not in groups:
-            groups[key] = {"primary": hit, "sources": [hit.source]}
+            groups[key] = {"primary": hit, "sources": [hit.source], "hits": [hit]}
             order.append(key)
             continue
         g = groups[key]
+        g["hits"].append(hit)
         if hit.source not in g["sources"]:
             g["sources"].append(hit.source)
         if _SOURCE_RANK.get(hit.source, 99) < _SOURCE_RANK.get(g["primary"].source, 99):
@@ -74,15 +113,28 @@ def dedup_hits(items):
         g = groups[key]
         h = g["primary"]
         m = h.metadata
+        cited, cited_src = _merge_cited_by(g["hits"])
+        abstract, abstract_src = _merge_abstract(g["hits"])
+        # 滚雪球方向：同一篇可能既在后向又在前向出现（互引），两向都要留，不二选一
+        directions = []
+        for x in g["hits"]:
+            d = x.metadata.get("snowball_direction")
+            if d and d not in directions:
+                directions.append(d)
         merged.append({
             "title": m.get("title"), "authors": m.get("authors") or [], "year": m.get("year"),
             # date = 日级日期（YYYY-MM-DD），供 paper-daily 判「今日 / 最近 N 天」时间窗。
             # 目前只有 arXiv 提供，其余源为 null——给不出就是 null，不猜、不用 year 凑。
             "date": m.get("date"),
             "venue": m.get("venue"), "doi": m.get("doi"), "type": m.get("type"), "url": _url(m),
+            # 被引数与它的来源库：null = 各源都没给这个数（不是零被引）
+            "cited_by_count": cited, "cited_by_source": cited_src,
+            "abstract": abstract, "abstract_source": abstract_src,
             "sources": sorted(g["sources"], key=lambda s: _SOURCE_RANK.get(s, 99)),
             "primary_source": h.source, "from_cache": h.from_cache, "retraction": h.retraction,
         })
+        if directions:
+            merged[-1]["snowball_directions"] = directions
     return merged
 
 
@@ -98,15 +150,84 @@ def truncation_warning(after_dedup, shown, sort):
     """`--limit` 截掉了结果时的如实声明。判据一直在 stats 里（after_dedup 对 shown），但
     宿主不会主动去比这两个数——实况：SKILL.md 的示例参数 `--limit 30` 被照抄，74 条去重
     结果只呈现 30 条，2024 与 2023 两整年一条未进，无人察觉。`--limit` 是截断不是分页，
-    默认排序又是 year_desc，所以漏的总是更早的年份、且整年成片消失。"""
+    默认排序又是 year_desc，所以漏的总是更早的年份、且整年成片消失。
+
+    `--limit` 的默认值此后改为 0（不截断），所以本告警只在**调用方显式传了正数**时触发。
+    默认值改了，告警仍要留着：显式截断同样会让整年消失，只是这次是调用方自找的。"""
     return (f"去重后 {after_dedup} 条、本次只展示 {shown} 条：--limit 是截断不是分页，"
             f"被截掉的 {after_dedup - shown} 条按当前排序（{sort}）排在后面"
-            f"（year_desc 下即更早的年份，可能整年消失）；综述检索请用 "
-            f"--limit {after_dedup} 或 --limit 0（不截断）重跑，不要据此判断研究空白")
+            f"（year_desc 下即更早的年份，可能整年消失）；要全量请去掉 --limit "
+            f"（默认即不截断）或显式传 --limit 0，不要据此判断研究空白")
 
 
-def build_payload(query, filters, result, sort="year_desc", limit=30, warnings=None):
-    """把门面 SearchResult 组装成脚本输出契约（paper-search spec §4.1）。"""
+# ---- 分布 advisory（红线 1 的量化形态：给证据与比例，不给结论）----
+
+_ADVISORY_MIN_KNOWN = 5      # 该维度有值的条目少于这个数就不发：比例失去意义，只剩噪声
+_ADVISORY_THRESHOLD = 0.70   # 单一取值占比达到即提示
+
+
+def _year_bucket(year):
+    """年份按 5 年一档聚。用档而不是具体年份：单一年份占到七成几乎只在结果极少时发生，
+    而「七成结果挤在最近 5 年」才对得上 Research Gap 五类里的「时间缺失」——它同时正是
+    滚雪球后向（补经典文献）的触发条件。"""
+    if not isinstance(year, int) or isinstance(year, bool):
+        return None
+    b = (year // 5) * 5
+    return f"{b}–{b + 4}"
+
+
+# 只用题录元数据算得出的四个维度。方法 / 研究场景**有意不算**：元数据里推不出来，
+# 硬给百分比等于编。那两项由宿主按真实摘要定性描述（见 SKILL.md），不带比例。
+_ADVISORY_DIMS = (
+    ("发表年份（5 年一档）", lambda m: _year_bucket(m.get("year"))),
+    ("发表期刊 / 来源", lambda m: (m.get("venue") or "").strip() or None),
+    # 类型必须先归一到 canonical 再统计：Crossref 说 journal-article、OpenAlex 说 article，
+    # 同一类型的两种源方言。不归一就会把真实的集中劈成两半——实测 20 条结果里 10+9 条其实
+    # 全是期刊论文（95%），分方言统计后最高只有 50%，advisory 直接漏报。
+    # 归一不了的保留原值（不是丢掉）：丢掉会缩小分母，又是一次稀释。
+    ("文献类型", lambda m: canonical_type(m.get("type")) or m.get("type") or None),
+    ("主命中源", lambda m: m.get("primary_source") or None),
+)
+
+
+def distribution_advisories(shown):
+    """各维度的单值集中度达阈值就出一条。
+
+    **与 warnings 分开放**（build_payload 里是两个字段）：warnings 说「这次检索有问题」
+    （被截断了 / 时间窗对该源不适用），advisories 说「这批结果长这样」。后者不是故障，
+    混进同一个列表会让宿主把分布特征当异常念给用户听。
+
+    分母用该维度**有值的条目数** known，不是总条数：venue 缺一半时拿总数当分母，真实的
+    集中会被稀释到阈值以下，信号就消失了。
+    """
+    out = []
+    for label, get in _ADVISORY_DIMS:
+        values = [v for v in (get(m) for m in shown) if v is not None and v != ""]
+        known = len(values)
+        if known < _ADVISORY_MIN_KNOWN:
+            continue
+        counts = {}
+        for v in values:
+            counts[v] = counts.get(v, 0) + 1
+        # 平局时按取值字符串取大者，保证同一批结果每次跑出同一条 advisory（可复现）
+        top, n = max(counts.items(), key=lambda kv: (kv[1], str(kv[0])))
+        if n / known < _ADVISORY_THRESHOLD:
+            continue
+        pct = round(n * 100 / known)
+        out.append({
+            "dimension": label, "value": str(top), "count": n, "known": known, "pct": pct,
+            "text": (f"{label}：{top} = {n}/{known}（{pct}%）。"
+                     f"这是分布信号，不是缺陷；是否需要拓宽检索范围由你判断。"),
+        })
+    return out
+
+
+def build_payload(query, filters, result, sort="year_desc", limit=0, warnings=None,
+                  mode="search"):
+    """把门面 SearchResult 组装成脚本输出契约（paper-search spec §4.1）。
+
+    检索与滚雪球共用本函数（mode 只进输出、不改逻辑）：两者的结果要能并进同一张笔记表，
+    输出同形是前提。"""
     merged = dedup_hits(result.items)
     ranked = rank_hits(merged, sort)
     # limit <= 0 = 不截断（综述检索要能装下全部去重结果）。CLI 只放行 0，负数在入参层挡掉。
@@ -119,12 +240,17 @@ def build_payload(query, filters, result, sort="year_desc", limit=30, warnings=N
     if len(shown) < len(ranked):
         warns.append(truncation_warning(len(ranked), len(shown), sort))
     return {
+        "mode": mode,
         "query": query,
         "filters": filters or {},
         "network_status": result.network_status,
         "coverage": result.coverage,
         "results": shown,
         "warnings": warns,
+        # 分布算在 **ranked（截断前）** 上，不是 shown：截断是呈现层的事，分布是检索层的
+        # 事实。算在 shown 上会让 `--limit 10` 配 year_desc 必然报出「年份高度集中」——
+        # 那个集中是 limit 造出来的假信号。分母对不上 results 行数时看 stats.after_dedup。
+        "advisories": distribution_advisories(ranked),
         "stats": {"raw_hits": raw, "after_dedup": len(ranked), "shown": len(shown),
                   "cache_hit_rate": round(cached / raw, 3) if raw else 0.0, "sort": sort},
     }
@@ -209,6 +335,12 @@ def _parse_args(argv):
     p = argparse.ArgumentParser(
         description="paper-search 检索 / 回填补全脚本：调开放 API 门面，输出结构化 JSON。")
     p.add_argument("--query", help="检索模式必填：已与用户共建、确认过的 API 查询串")
+    p.add_argument("--snowball", metavar="DOI",
+                   help="滚雪球模式：由这篇文献取参考文献 / 被引文献（与 --query 互斥）")
+    p.add_argument("--direction", default="both",
+                   choices=["backward", "forward", "both"],
+                   help="滚雪球方向：backward=本文引了谁（补经典）/ forward=谁引了本文"
+                        "（补跟进）/ both（默认）")
     p.add_argument("--lookup-doi", help="回填模式：查单个 DOI 的元数据补全（与 --query 二选一）")
     p.add_argument("--year-from", type=int, help="起始年份（含）")
     p.add_argument("--year-to", type=int, help="截止年份（含）")
@@ -219,8 +351,9 @@ def _parse_args(argv):
     p.add_argument("--type", help="文献类型（canonical：journal-article / conference-paper / ...）")
     p.add_argument("--sources", help="逗号分隔的源 id；缺省用核心源")
     p.add_argument("--per-source", type=int, default=20, help="每源取回上限（门面 limit）")
-    p.add_argument("--limit", type=int, default=30,
-                   help="去重排序后最终展示条数；0 = 不截断（综述检索用，全量呈现去重结果）")
+    p.add_argument("--limit", type=int, default=0,
+                   help="去重排序后最终展示条数；**默认 0 = 不截断**（综述检索要全量）。"
+                        "传了正数就是截断，被截掉的部分会在 warnings 里如实声明")
     p.add_argument("--sort", default="year_desc", choices=["year_desc", "source_count"])
     p.add_argument("--no-cache", action="store_true", help="强制刷新（投稿前终检 / 更新版图）")
     return p.parse_args(argv)
@@ -237,13 +370,24 @@ def main(argv=None):
         ev = ds_lookup(doi=args.lookup_doi)
         _dump(build_lookup_payload(args.lookup_doi, ev))
         return 0
-    if not args.query:
-        sys.stderr.write("需要 --query（检索）或 --lookup-doi（回填补全）之一\n")
+    if args.query and args.snowball:
+        sys.stderr.write("--query 与 --snowball 互斥，二选一\n")
+        return 2
+    if not args.query and not args.snowball:
+        sys.stderr.write("需要 --query（检索）、--snowball（滚雪球）或 "
+                         "--lookup-doi（回填补全）之一\n")
         return 2
     if args.limit < 0:
         # 0 有明确语义（不截断），负数只可能是手滑。同 --days，宁可报错也不静默做怪事。
         sys.stderr.write(f"--limit 不能为负（0 = 不截断），收到：{args.limit}\n")
         return 2
+    if args.snowball:
+        sources = [s.strip() for s in args.sources.split(",")] if args.sources else None
+        result = ds_related(args.snowball, direction=args.direction, sources=sources,
+                            limit=args.per_source, fresh=args.no_cache)
+        _dump(build_payload(args.snowball, {"direction": args.direction}, result,
+                            sort=args.sort, limit=args.limit, mode="snowball"))
+        return 0
     filters = {}
     if args.year_from is not None:
         filters["year_from"] = args.year_from

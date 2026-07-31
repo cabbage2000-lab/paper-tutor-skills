@@ -19,11 +19,22 @@ import search  # noqa: E402
 from paper_shared.datasources.models import Evidence, Ref, SearchResult, SourceHit  # noqa: E402
 
 
+_UNSET = object()
+
+
 def _hit(source, doi=None, title="T", year=2020, typ="journal-article", venue="V",
-         from_cache=False, date=None):
-    return SourceHit(source=source,
-                     metadata={"title": title, "doi": doi, "year": year, "venue": venue,
-                               "type": typ, "authors": ["X"], "date": date},
+         from_cache=False, date=None, cited=_UNSET, abstract=_UNSET, direction=None):
+    """cited / abstract 默认**不设键**（模拟 arxiv、pubmed 这类不给该字段的源）。
+    显式传 None 与不传是两种情形，测试要能分开构造。"""
+    meta = {"title": title, "doi": doi, "year": year, "venue": venue,
+            "type": typ, "authors": ["X"], "date": date}
+    if cited is not _UNSET:
+        meta["cited_by_count"] = cited
+    if abstract is not _UNSET:
+        meta["abstract"] = abstract
+    if direction:
+        meta["snowball_direction"] = direction
+    return SourceHit(source=source, metadata=meta,
                      fetched_at="2026-01-01T00:00:00Z", from_cache=from_cache)
 
 
@@ -52,6 +63,157 @@ class TestDedup(unittest.TestCase):
     def test_url_from_doi(self):
         m = search.dedup_hits([_hit("crossref", doi="10.1/a")])
         self.assertEqual(m[0]["url"], "https://doi.org/10.1/a")
+
+
+class TestCitedByMerge(unittest.TestCase):
+    """被引数跨源合并。核心不变量：缺失 ≠ 0——「源不给这个数」不能显示成「零被引」。"""
+
+    def test_takes_max_and_records_source(self):
+        # 各库口径不同（Crossref 只数注册 DOI 的引用，S2 收灰色文献），取最大是下界陈述
+        items = [_hit("crossref", doi="10.1/a", cited=10),
+                 _hit("semantic_scholar", doi="10.1/a", cited=42)]
+        m = search.dedup_hits(items)[0]
+        self.assertEqual(m["cited_by_count"], 42)
+        self.assertEqual(m["cited_by_source"], "semantic_scholar")
+
+    def test_missing_stays_none_not_zero(self):
+        # arxiv 不设该键 → 合并后仍是 None，绝不落成 0
+        m = search.dedup_hits([_hit("arxiv", doi="10.1/a")])[0]
+        self.assertIsNone(m["cited_by_count"])
+        self.assertIsNone(m["cited_by_source"])
+
+    def test_real_zero_is_kept(self):
+        # 真实的 0（确实零被引）要留住，不能被当成缺失丢掉
+        m = search.dedup_hits([_hit("crossref", doi="10.1/a", cited=0)])[0]
+        self.assertEqual(m["cited_by_count"], 0)
+        self.assertEqual(m["cited_by_source"], "crossref")
+
+    def test_missing_source_does_not_beat_present(self):
+        items = [_hit("arxiv", doi="10.1/a"), _hit("openalex", doi="10.1/a", cited=7)]
+        m = search.dedup_hits(items)[0]
+        self.assertEqual(m["cited_by_count"], 7)
+
+    def test_bool_is_not_a_count(self):
+        # bool 是 int 的子类：True 不能被当成被引数 1
+        m = search.dedup_hits([_hit("crossref", doi="10.1/a", cited=True)])[0]
+        self.assertIsNone(m["cited_by_count"])
+
+
+class TestAbstractMerge(unittest.TestCase):
+    def test_falls_back_to_other_source(self):
+        """Crossref 为主源但本项目不解析它的摘要——必须能从别的源补，否则起草档少一批条目。"""
+        items = [_hit("crossref", doi="10.1/a", abstract=None),
+                 _hit("openalex", doi="10.1/a", abstract="真实摘要")]
+        m = search.dedup_hits(items)[0]
+        self.assertEqual(m["abstract"], "真实摘要")
+        self.assertEqual(m["abstract_source"], "openalex")
+        self.assertEqual(m["primary_source"], "crossref")   # 题录仍归权威源
+
+    def test_authority_order_wins_among_present(self):
+        items = [_hit("semantic_scholar", doi="10.1/a", abstract="S2 摘要"),
+                 _hit("openalex", doi="10.1/a", abstract="OA 摘要")]
+        self.assertEqual(search.dedup_hits(items)[0]["abstract_source"], "openalex")
+
+    def test_blank_counts_as_missing(self):
+        items = [_hit("crossref", doi="10.1/a", abstract="   "),
+                 _hit("openalex", doi="10.1/a", abstract="真实摘要")]
+        self.assertEqual(search.dedup_hits(items)[0]["abstract"], "真实摘要")
+
+    def test_none_when_no_source_has_one(self):
+        m = search.dedup_hits([_hit("arxiv", doi="10.1/a")])[0]
+        self.assertIsNone(m["abstract"])
+        self.assertIsNone(m["abstract_source"])
+
+
+class TestSnowballDirections(unittest.TestCase):
+    def test_both_directions_kept_when_mutually_cited(self):
+        """同一篇既是参考文献又是被引文献时，两向都留——「它引的」与「引它的」是两件事。"""
+        items = [_hit("openalex", doi="10.1/a", direction="references"),
+                 _hit("semantic_scholar", doi="10.1/a", direction="cited_by")]
+        m = search.dedup_hits(items)[0]
+        self.assertEqual(sorted(m["snowball_directions"]), ["cited_by", "references"])
+
+    def test_absent_key_for_plain_search(self):
+        # 普通检索结果不带这个键，笔记表不该凭空多一列
+        self.assertNotIn("snowball_directions", search.dedup_hits([_hit("crossref")])[0])
+
+
+class TestAdvisories(unittest.TestCase):
+    """分布 advisory：给比例与证据，不给结论（红线 1 的量化形态）。"""
+
+    @staticmethod
+    def _rows(n, **kw):
+        base = {"year": 2020, "venue": "V", "type": "journal-article",
+                "primary_source": "crossref"}
+        base.update(kw)
+        return [dict(base) for _ in range(n)]
+
+    def test_fires_at_threshold(self):
+        # 7/10 = 70%，正好达阈值即触发
+        rows = self._rows(7) + [dict(year=1990 + i * 6, venue=f"W{i}", type="book",
+                                     primary_source="openalex") for i in range(3)]
+        dims = {a["dimension"]: a for a in search.distribution_advisories(rows)}
+        self.assertIn("发表期刊 / 来源", dims)
+        self.assertEqual(dims["发表期刊 / 来源"]["pct"], 70)
+        self.assertEqual(dims["发表期刊 / 来源"]["count"], 7)
+
+    def test_silent_below_threshold(self):
+        rows = self._rows(6) + [dict(year=1990 + i * 6, venue=f"W{i}", type="book",
+                                     primary_source="openalex") for i in range(4)]
+        self.assertEqual(search.distribution_advisories(rows), [])
+
+    def test_denominator_is_known_not_total(self):
+        """分母是该维度**有值**的条目数。拿总条数当分母，缺失值会把真实集中稀释到阈值以下。"""
+        rows = self._rows(6) + [dict(year=2020, venue=None, type=None, primary_source=None)
+                                for _ in range(6)]
+        dims = {a["dimension"]: a for a in search.distribution_advisories(rows)}
+        self.assertEqual(dims["发表期刊 / 来源"]["known"], 6)     # 不是 12
+        self.assertEqual(dims["发表期刊 / 来源"]["pct"], 100)
+
+    def test_too_few_known_stays_silent(self):
+        # 4 条样本算比例只是噪声
+        self.assertEqual(search.distribution_advisories(self._rows(4)), [])
+
+    def test_year_is_bucketed_by_five(self):
+        """年份按 5 年一档：单一年份占七成几乎只在结果极少时出现，
+        「七成挤在最近 5 年」才对得上 Gap 的「时间缺失」。"""
+        rows = [dict(year=2020 + i % 5, venue=f"V{i}", type=None, primary_source=None)
+                for i in range(8)]
+        dims = {a["dimension"]: a for a in search.distribution_advisories(rows)}
+        self.assertEqual(dims["发表年份（5 年一档）"]["value"], "2020–2024")
+        self.assertEqual(dims["发表年份（5 年一档）"]["pct"], 100)
+
+    def test_text_states_signal_not_defect(self):
+        """措辞是产品边界的一部分：不能读成「你的检索有缺陷」。"""
+        text = search.distribution_advisories(self._rows(6))[0]["text"]
+        self.assertIn("这是分布信号，不是缺陷", text)
+        self.assertIn("由你判断", text)
+
+    def test_type_dialects_are_normalized_before_counting(self):
+        """Crossref 说 journal-article、OpenAlex 说 article——同一类型的两种源方言。
+        不归一就把真实集中劈成两半：真机 20 条里 10+9 条全是期刊论文（95%），
+        分方言统计后最高只有 50%，advisory 直接漏报。"""
+        rows = ([dict(year=2000 + i, venue=f"刊{i}", type="journal-article",
+                      primary_source="crossref") for i in range(10)]
+                + [dict(year=2000 + i, venue=f"誌{i}", type="article",
+                        primary_source="openalex") for i in range(9)]
+                + [dict(year=1999, venue="其他", type="book", primary_source="openalex")])
+        dims = {a["dimension"]: a for a in search.distribution_advisories(rows)}
+        self.assertIn("文献类型", dims)
+        self.assertEqual(dims["文献类型"]["value"], "journal-article")
+        self.assertEqual(dims["文献类型"]["count"], 19)
+        self.assertEqual(dims["文献类型"]["pct"], 95)
+
+    def test_unknown_type_kept_not_dropped(self):
+        """归一不了的类型保留原值。丢掉会缩小分母——又是一次稀释。"""
+        rows = [dict(year=2000 + i, venue=f"刊{i}", type="某种没见过的类型",
+                     primary_source="crossref") for i in range(6)]
+        dims = {a["dimension"]: a for a in search.distribution_advisories(rows)}
+        self.assertEqual(dims["文献类型"]["known"], 6)
+        self.assertEqual(dims["文献类型"]["value"], "某种没见过的类型")
+
+    def test_empty_input(self):
+        self.assertEqual(search.distribution_advisories([]), [])
 
 
 class TestRank(unittest.TestCase):
@@ -139,6 +301,60 @@ class TestPayload(unittest.TestCase):
     def test_warnings_default_empty(self):
         result = SearchResult(items=[], coverage=[], network_status="ok")
         self.assertEqual(search.build_payload("q", None, result)["warnings"], [])
+
+    def test_default_limit_does_not_truncate(self):
+        """默认不截断。此前默认是 30，示例被照抄后整两年文献静默消失——默认值本身是病根。"""
+        items = [_hit("crossref", doi=f"10.1/{i}", year=2000 + i) for i in range(40)]
+        result = SearchResult(items=items, coverage=[], network_status="ok")
+        p = search.build_payload("q", None, result)      # 不传 limit
+        self.assertEqual(p["stats"]["shown"], 40)
+        self.assertEqual(p["warnings"], [])
+
+    def test_advisories_separate_from_warnings(self):
+        """advisories 与 warnings 是两个字段：一个说结果长什么样，一个说这次检索出了问题。
+        混在一起宿主会把分布特征当异常念。"""
+        items = [_hit("crossref", doi=f"10.1/{i}", year=2020, venue="同一刊")
+                 for i in range(6)]
+        result = SearchResult(items=items, coverage=[], network_status="ok")
+        p = search.build_payload("q", None, result, limit=3)
+        self.assertEqual(len(p["warnings"]), 1)                  # 截断声明
+        self.assertTrue(p["advisories"])                         # 分布信号
+        self.assertIn("--limit", p["warnings"][0])
+        self.assertNotIn("--limit", p["advisories"][0]["text"])
+
+    def test_advisories_computed_before_truncation(self):
+        """分布算在截断前的全量上。算在 shown 上时，`--limit N` 配 year_desc 会必然报出
+        「年份高度集中」——那个集中是 limit 造出来的假信号，不是检索的事实。"""
+        # 20 条跨 20 个年份、20 个刊：全量看年份与刊都不集中，
+        # 但截到最新 3 条后年份会挤进同一 5 年档、刊也只剩 3 个
+        items = [_hit("crossref", doi=f"10.1/{i}", year=2000 + i, venue=f"刊{i}")
+                 for i in range(20)]
+        result = SearchResult(items=items, coverage=[], network_status="ok")
+        p = search.build_payload("q", None, result, limit=3)
+        self.assertEqual(p["stats"]["shown"], 3)
+        fired = {a["dimension"] for a in p["advisories"]}
+        self.assertNotIn("发表年份（5 年一档）", fired)
+        self.assertNotIn("发表期刊 / 来源", fired)
+        # 分母也必须是全量数，不是 shown
+        rows = [_hit("crossref", doi=f"10.2/{i}", year=2020, venue="同一刊")
+                for i in range(12)]
+        p2 = search.build_payload("q", None, SearchResult(items=rows, coverage=[]), limit=2)
+        self.assertEqual(p2["advisories"][0]["known"], 12)
+
+    def test_mode_defaults_to_search(self):
+        result = SearchResult(items=[], coverage=[], network_status="ok")
+        self.assertEqual(search.build_payload("q", None, result)["mode"], "search")
+
+    def test_snowball_payload_is_same_shape(self):
+        """滚雪球与检索输出同形——两者要能并进同一张笔记表，同形是前提。"""
+        items = [_hit("openalex", doi="10.1/a", direction="references")]
+        result = SearchResult(items=items, coverage=[], network_status="ok")
+        p = search.build_payload("10.9/seed", {"direction": "both"}, result, mode="snowball")
+        self.assertEqual(p["mode"], "snowball")
+        self.assertEqual(set(p) - {"mode"},
+                         set(search.build_payload("q", None,
+                                                  SearchResult(items=[], coverage=[]))) - {"mode"})
+        self.assertEqual(p["results"][0]["snowball_directions"], ["references"])
 
 
 class TestDateWindow(unittest.TestCase):

@@ -46,6 +46,28 @@ def canonical_type(t: Optional[str]) -> Optional[str]:
     return _TO_CANONICAL.get(str(t).strip().lower())
 
 
+def restore_inverted_abstract(index: Optional[Dict[str, Any]]) -> Optional[str]:
+    """OpenAlex 的 `abstract_inverted_index` → 纯文本摘要。
+
+    索引形如 `{"the": [0, 5], "cat": [1]}`——键是词、值是该词出现的位置列表。按位置铺回原序。
+
+    两处刻意的保守：位置不连续（源数据缺词）时**跳过、不填占位符**，宁可句子短一截也不
+    编内容；位置重复时后来者覆盖（同一位置只能有一个词，源数据自相矛盾时取其一，不拼接）。
+    空索引与全非法位置一律返回 None，让调用方与「该源没给摘要」同等对待。
+    """
+    if not index or not isinstance(index, dict):
+        return None
+    slots: Dict[int, str] = {}
+    for word, positions in index.items():
+        for p in positions or []:
+            # 只认非负整数位置。bool 是 int 的子类，显式排掉，免得 True 被当成位置 1。
+            if isinstance(p, int) and not isinstance(p, bool) and p >= 0:
+                slots[p] = word
+    if not slots:
+        return None
+    return " ".join(slots[i] for i in sorted(slots))
+
+
 class SourceClient:
     id: str = ""
 
@@ -74,6 +96,14 @@ class SourceClient:
     def search(self, query: str, filters: Optional[Dict[str, Any]] = None,
                limit: int = 20) -> List[SourceHit]:
         raise NotImplementedError(f"{self.id} 不支持 search")
+
+    def references(self, doi: str, limit: int = 50) -> List[SourceHit]:
+        """后向滚雪球：本文引了谁。空列表 = 查到了但该文没有参考文献记录。"""
+        raise NotImplementedError(f"{self.id} 不支持 references")
+
+    def cited_by(self, doi: str, limit: int = 50) -> List[SourceHit]:
+        """前向滚雪球：谁引了本文。空列表 = 查到了但尚无被引记录。"""
+        raise NotImplementedError(f"{self.id} 不支持 cited_by")
 
     # ---- 通用设施 ----
 

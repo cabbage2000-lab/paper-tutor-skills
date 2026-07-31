@@ -77,9 +77,13 @@ class CrossrefClient(SourceClient):
         if parts and parts[0]:
             year = parts[0][0]
         containers = msg.get("container-title") or []
+        # 摘要有意不取：Crossref 的 abstract 是 JATS XML 片段（<jats:p> 等标签混在文本里），
+        # 且出版商投递率低。以 crossref 为主源的条目由 dedup 从其他源补摘要（见 search.py）。
         return {"title": titles[0] if titles else None, "authors": authors, "year": year,
                 "venue": containers[0] if containers else None,
-                "doi": normalize_doi(msg.get("DOI", "")) or None, "type": msg.get("type")}
+                "doi": normalize_doi(msg.get("DOI", "")) or None, "type": msg.get("type"),
+                # 源没给就是 None，不补 0（「零被引」≠「该源不给这个数」）
+                "cited_by_count": msg.get("is-referenced-by-count")}
 
     @staticmethod
     def _retraction(msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
