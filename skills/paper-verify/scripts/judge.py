@@ -9,7 +9,8 @@
 判定优先级（首条命中）——设计意图见 spec §4：
   0. manual_result.verified   → VERIFIED（人工核对确认，核对劳动沉淀）
   1. parse_status=unparsed    → PENDING_MANUAL（解析失败出口）
-  2. ISTIC / 无 DOI 中文       → PENDING_MANUAL（中文轨最先拦截，绝不进 NOT_FOUND）
+  2. 中文 DOI 无题录 / 无 DOI 中文 → PENDING_MANUAL（中文轨最先拦截，绝不进 NOT_FOUND）
+     中文 DOI（ISTIC / CNKI）**取到题录则不在此拦截**，照第 4/5 步正常核验
   3. doi_ra=not_registered    → NOT_FOUND（前缀未注册，DOI 不存在的最强信号）
   4. 有 hit 带 retraction      → RETRACTED（撤稿优先于存在性）
   5. 有 hit                    → 字段比对 → VERIFIED / METADATA_MISMATCH
@@ -19,34 +20,23 @@
 """
 from __future__ import annotations
 
-import dataclasses
 import pathlib
-import re
 import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "_shared"))
-from paper_shared.datasources.models import Evidence, normalize_doi  # noqa: E402
-
-# 标题比对的英文停用词（中文走 PENDING_MANUAL 不比标题，此处服务英文）
-_STOPWORDS = {
-    "a", "an", "the", "of", "in", "on", "for", "and", "or", "to", "with",
-    "from", "by", "at", "as", "is", "are", "via", "using", "into",
-}
-
-
-@dataclass
-class FieldNote:
-    """单字段比对结果。severity=mismatch 升 MISMATCH 态；hint 仅记录不升态。"""
-    field: str
-    ref_value: Any
-    source_value: Any
-    severity: str          # mismatch | hint
-    detail: str = ""
-
-    def to_dict(self) -> Dict[str, Any]:
-        return dataclasses.asdict(self)
+from paper_shared.datasources.models import Evidence  # noqa: E402
+# 中文 DOI 注册机构名单在 routing（单一事实来源，硬规则 6）——新增一家中文 RA 只改那边
+from paper_shared.datasources.routing import CN_DOI_RA  # noqa: E402
+# 字段比对内核在共享层（paper-verify 与 paper-search 两个消费者，硬规则 6）。
+# 阈值（标题重叠 0.8 / 年份差 2）与作者姓候选集合的实现都在那边，改那里会同时改本模块的
+# 第 5 条判定——动之前先读 tests/paper-verify/test_judge.py 里的比对内核用例。
+from paper_shared.matching import (  # noqa: E402
+    FieldNote,
+    compare_fields,
+    pick_best_hit as _pick_best_hit,
+)
 
 
 @dataclass
@@ -68,109 +58,10 @@ class StatusRecord:
         }
 
 
-# ---- 字段比对（spec §4.3 阈值表）----
+# ---- 判定辅助（字段比对本身在 paper_shared.matching，阈值表见 spec §4.3）----
 
 def _is_cjk(text: str) -> bool:
     return any("一" <= ch <= "鿿" for ch in (text or ""))
-
-
-def _normalize_str(s: str) -> str:
-    """归一化字符串：去所有非字母数字、小写（用于姓 / venue 比对）。"""
-    return re.sub(r"[\W_]+", "", (s or ""), flags=re.UNICODE).lower()
-
-
-def _is_initials(tok: str) -> bool:
-    """纯首字母缩写 token：'A' / 'A.' / 'A.J.' / 'AJ'——去点后全大写且 ≤3 字符。
-
-    不能用长度阈值替代大写判断：中文罗马化姓多为 2 字符（Li / Wu / Xu），
-    按长度切会把姓当成缩写丢掉。
-    """
-    t = tok.replace(".", "").strip()
-    return bool(t) and t.isupper() and len(t) <= 3
-
-
-def _surname_candidates(raw: str) -> set:
-    """第一作者的姓氏候选集合（归一化）。
-
-    各源作者名格式不统一且无法归一：Crossref / OpenAlex / Semantic Scholar / arXiv
-    给 given-first（'Yann LeCun'），PubMed / ERIC 给 family-first（'Wakefield AJ'）。
-    无逗号时哪个 token 是姓无从判断，故返回候选集合、比对用相交而非相等——宁可少量
-    漏报，也绝不让一条正确引用误报元数据不符（spec §4.3 以低误报为先）。
-    """
-    s = (raw or "").strip()
-    if not s:
-        return set()
-    if re.search(r"[,，]", s):        # 有逗号 → 逗号前即姓（'Smith, John' / '王明, 李华'）
-        s = re.split(r"[,，]", s)[0]
-    else:                             # 无逗号 → 去掉缩写 token（缩写必是名），余下皆为候选
-        full = [t for t in s.split() if not _is_initials(t)]
-        s = " ".join(full) if full else s
-    return {n for n in (_normalize_str(t) for t in s.split()) if n}
-
-
-def _title_tokens(title: str) -> set:
-    t = re.sub(r"[^\w\s]", " ", (title or "").lower())
-    return {w for w in t.split() if w and w not in _STOPWORDS}
-
-
-def _title_overlap(a: str, b: str) -> float:
-    """重叠系数 = |交集| / min(|A|, |B|)——引用标题常是源标题子集（省略副标题），
-    重叠系数比 Jaccard 更宽容合法省略（spec §4.3）。"""
-    ta, tb = _title_tokens(a), _title_tokens(b)
-    if not ta or not tb:
-        return 0.0
-    return len(ta & tb) / min(len(ta), len(tb))
-
-
-def compare_fields(parsed, hit) -> List[FieldNote]:
-    """对照 ParsedRef 与一个 SourceHit 的元数据，返回逐字段比对（spec §4.3）。
-
-    只在「引用与源都有该字段」时比对——避免引用没填 venue 却报不符。venue/type
-    不符仅记 hint、不升态（源间口径差异大，升态会拉高误报）。
-    """
-    notes: List[FieldNote] = []
-    meta = hit.metadata or {}
-    # DOI：归一化精确相等
-    if parsed.doi and meta.get("doi"):
-        if normalize_doi(parsed.doi) != normalize_doi(meta["doi"]):
-            notes.append(FieldNote("doi", parsed.doi, meta["doi"], "mismatch", "DOI 不一致"))
-    # 年份：差 ≥ 2 升态
-    if parsed.year and meta.get("year"):
-        diff = abs(int(parsed.year) - int(meta["year"]))
-        if diff >= 2:
-            notes.append(FieldNote("year", parsed.year, meta["year"], "mismatch", f"年份差 {diff}"))
-    # 标题：重叠 < 0.8 升态
-    if parsed.title and meta.get("title"):
-        ov = _title_overlap(parsed.title, meta["title"])
-        if ov < 0.8:
-            notes.append(FieldNote("title", parsed.title, meta["title"], "mismatch",
-                                   f"标题重叠 {ov:.2f}（阈值 0.8）"))
-    # 第一作者姓：候选集合无交集才升态（各源 given/family 顺序不一，见 _surname_candidates）
-    if parsed.authors and meta.get("authors"):
-        ref_c = _surname_candidates(parsed.authors[0])
-        src_c = _surname_candidates(str(meta["authors"][0]))
-        if ref_c and src_c and not (ref_c & src_c):
-            notes.append(FieldNote("first_author", parsed.authors[0], meta["authors"][0],
-                                   "mismatch", "第一作者姓不一致"))
-    # venue：仅提示（包含关系即视为一致，容忍缩写）
-    if parsed.venue and meta.get("venue"):
-        a, b = _normalize_str(parsed.venue), _normalize_str(str(meta["venue"]))
-        if a and b and a not in b and b not in a:
-            notes.append(FieldNote("venue", parsed.venue, meta["venue"], "hint", "期刊名写法不一（仅提示）"))
-    return notes
-
-
-def _pick_best_hit(parsed, hits) -> Any:
-    """多 hit 时选最匹配的：DOI 相等优先；否则标题重叠最高；否则第一个。"""
-    if parsed.doi:
-        nd = normalize_doi(parsed.doi)
-        for h in hits:
-            hd = h.metadata.get("doi")
-            if hd and normalize_doi(hd) == nd:
-                return h
-    if parsed.title:
-        return max(hits, key=lambda h: _title_overlap(parsed.title, h.metadata.get("title") or ""))
-    return hits[0]
 
 
 def _fmt_date_parts(dp: Any) -> str:
@@ -207,9 +98,17 @@ def judge(parsed, evidence: Evidence,
                             "解析失败出口：改贴 .bib 导出，或拆成单条 DOI/标题核验")
 
     # 2. 中文轨（最先拦截——合法中文文献绝不进 NOT_FOUND，硬约束⑤）
-    if evidence.doi_ra == "ISTIC":
+    #
+    # 关键条件是 `not evidence.hits`：中文 DOI 现在走 doi_meta 的内容协商，**取到题录就该
+    # 正常核验**（往下走第 4/5 步的撤稿检查与字段比对）。此前这里无条件拦截，于是即使拿到
+    # 了完整题录也照样落待人工核对——把已经核验成功的条目退回人工，是降级降得过早。
+    # 无 hit 时行为不变：仍落 PENDING_MANUAL，绝不进 NOT_FOUND。
+    if evidence.doi_ra in CN_DOI_RA and not evidence.hits:
+        # 只说「前缀已注册」：RA 判别是前缀级的，说成「DOI 合法存在」等于替一个可能编造的
+        # DOI 作存在性担保（实测编造后缀的前缀照样报 ISTIC）。判据精度必须如实。
         return StatusRecord(rid, "PENDING_MANUAL", [],
-                            "ISTIC（中文 DOI）注册：DOI 合法、元数据 API 不可达，待人工核对",
+                            f"{evidence.doi_ra}（中文 DOI）注册：DOI 前缀已注册、本条题录未取到，"
+                            "待人工核对",
                             "人工核对包：知网/万方检索方案 + manual_result 回填指引")
     if not parsed.doi and _is_cjk(parsed.title or ""):
         return StatusRecord(rid, "PENDING_MANUAL", [],

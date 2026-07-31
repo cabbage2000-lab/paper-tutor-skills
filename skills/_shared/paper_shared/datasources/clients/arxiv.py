@@ -214,15 +214,22 @@ class ArxivClient(SourceClient):
         cat_el = entry.find(f"{{{_ARXIV_NS}}}primary_category")
         category = cat_el.get("term") if cat_el is not None else None
 
+        # Atom 的 summary 就是 arXiv 摘要，但带硬换行与缩进（XML 里是排版过的多行文本），
+        # 折成单行空白再存，否则进 markdown 表格会把一格撑成多行、把表打散。
+        summary = _text("summary")
+        abstract = " ".join(summary.split()) if summary else None
+
         return {"id": short, "full_id": arxiv_id_full, "title": _text("title"),
                 "authors": authors, "published": published, "year": year, "date": date,
                 "doi": normalize_doi(doi) if doi else None,
-                "category": category}
+                "category": category, "abstract": abstract}
 
     @staticmethod
     def _metadata(raw: Dict[str, Any]) -> Dict[str, Any]:
         # date 是日级日期（YYYY-MM-DD）：paper-daily 的「今日 / 最近 N 天」时间窗靠它判定。
         # 此前 published 只用来算 year、归一化时被丢掉，宿主拿不到日级粒度。
+        # cited_by_count 有意不设键：Atom 不给被引数，设成 0 会把「未知」说成「零被引」。
         return {"title": raw.get("title"), "authors": raw.get("authors") or [],
                 "year": raw.get("year"), "date": raw.get("date"), "venue": None,
-                "doi": raw.get("doi"), "type": "preprint"}
+                "doi": raw.get("doi"), "type": "preprint",
+                "abstract": raw.get("abstract")}

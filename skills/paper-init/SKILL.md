@@ -166,7 +166,7 @@ README 写入者列、README"下一步"、交接语，三处**只准从本表推
 | 命令 | 落盘目录 | 发布状态 | README"下一步"行（已发布时用） | 交接语（已发布时用） |
 | --- | --- | --- | --- | --- |
 | /paper-topic | topic/ | 已发布 | 只有模糊方向：对助手说"用 /paper-topic 帮我澄清选题" | 用 /paper-topic 澄清选题，落盘目录用 <项目目录路径> |
-| /paper-search | literature/ | 已发布 | 已有 RQ 要查文献："用 /paper-search 检索 <你的 RQ>" | 用 /paper-search 检索文献，落盘目录用 <项目目录路径> |
+| /paper-search | literature/ | 已发布 | 已有 RQ 要查文献："用 /paper-search 检索「你的 RQ」" | 用 /paper-search 检索文献，落盘目录用 <项目目录路径> |
 | /paper-screen | literature/ | 已发布 | 要做系统综述、需要 PRISMA 筛选记录："用 /paper-screen 建筛选台账 + 出流程图" | 用 /paper-screen 做系统综述筛选，落盘目录用 <项目目录路径> |
 | /paper-method | topic/ | 已发布 | 有 RQ 要定方法："用 /paper-method 参谋方法-RQ 匹配 / 涉人伦理提示" | 用 /paper-method 参谋研究设计，落盘目录用 <项目目录路径> |
 | /paper-verify（含 /paper-format、/paper-claim） | review/ | 已发布 | 已有草稿要自查："用 /paper-verify 核验草稿引用" | 用 /paper-verify 核验草稿引用，落盘目录用 <项目目录路径> |
@@ -174,7 +174,9 @@ README 写入者列、README"下一步"、交接语，三处**只准从本表推
 | /paper-import | literature/ | 已发布 | 有知网/Zotero 题录要整理："用 /paper-import 整理题录 + 核对草稿一致性" | 用 /paper-import 整理题录，落盘目录用 <项目目录路径> |
 | /paper-outline | manuscript/ | 已发布 | 文献读得差不多要搭骨架："用 /paper-outline 起草论文大纲" | 用 /paper-outline 起草大纲，落盘目录用 <项目目录路径> |
 | /paper-draft | manuscript/ | 已发布 | 有大纲要逐段写正文："用 /paper-draft 分段共写正文" | 用 /paper-draft 分段共写正文，落盘目录用 <项目目录路径> |
+| /paper-style | manuscript/ | 已发布 | 各章文风要查一致性、或想把自己的写作风格存成基线："用 /paper-style 校准全文风格" | 用 /paper-style 校准全文风格，落盘目录用 <项目目录路径> |
 | /paper-logic | manuscript/ | 已发布 | 初稿成形要查论证链："用 /paper-logic 检查 RQ→方法→结果→结论 对应" | 用 /paper-logic 检查论证链，落盘目录用 <项目目录路径> |
+| /paper-anchor | literature/ | 未发布 | 导师或审稿人说某段缺文献支撑："用 /paper-anchor 定位零引用段 + 定向找支撑" | 用 /paper-anchor 补文献支撑，落盘目录用 <项目目录路径> |
 | /paper-abstract | manuscript/ | 已发布 | 正文写完要凝练摘要："用 /paper-abstract 从正文提炼摘要" | 用 /paper-abstract 提炼摘要，落盘目录用 <项目目录路径> |
 | /paper-figure | manuscript/ | 已发布 | 有图要查或没图要建议："用 /paper-figure 做图表诊断或设计建议" | 用 /paper-figure 做图表诊断或建议，落盘目录用 <项目目录路径> |
 | /paper-plot | manuscript/ | 已发布 | 要生成绘图代码："用 /paper-plot 生成 matplotlib/ggplot2 代码" | 用 /paper-plot 生成绘图代码，落盘目录用 <项目目录路径> |
@@ -183,8 +185,11 @@ README 写入者列、README"下一步"、交接语，三处**只准从本表推
 | /paper-disclose | submission/ | 已发布 | 要生成 AI 使用说明："用 /paper-disclose 汇编 .paper/ 留痕" | 用 /paper-disclose 汇编 AI 使用说明，落盘目录用 <项目目录路径> |
 | /paper-daily | daily/ | 已发布 | 有研究想法想抢发检测 / 泛读新发："用 /paper-daily 拉双轨（抢发对照 + 新发自动）" | 用 /paper-daily 跑每日雷达，落盘目录用 <项目目录路径> |
 | /paper-submit | submission/ | 已发布 | 论文写完要投稿、要整理投稿材料清单："用 /paper-submit 整理投稿 checklist + 期刊要求陈列 + cover letter 骨架" | 用 /paper-submit 整理投稿准备，落盘目录用 <项目目录路径> |
+| /paper-typeset | submission/ | 已发布 | 期刊要 Word/LaTeX/PDF 版稿件、或参考文献要按国标渲染："用 /paper-typeset 转格式 + 国标著录" | 用 /paper-typeset 转投稿格式，落盘目录用 <项目目录路径> |
 
-维护说明：某命令通过发布门时，其发布任务须在同一次提交里把 `_shared/commands.yaml` 中该命令的 `status` 翻转为 `released`，并同步把本表对应状态格翻转为"已发布"（见 skills/README·发布联动）。主清单是权威，本表状态列与其对齐。
+维护说明：某命令通过发布门时，其发布任务须在同一次提交里把 `_shared/commands.yaml` 中该命令的 `status` 翻转为 `released`，并同步把本表对应状态格翻转为"已发布"（见 skills/README·发布联动）。主清单是权威，本表状态列与其对齐。**新增命令（无论是否已发布）同样须在那次提交里补进本表**，落盘目录、"下一步"行、交接语一并预填——这样发布时只需改一个状态格。漏补的代价不止本表不准：README 的"谁写入"列只准从本表推导，本表漏一条，真机生成的 README 就在对应目录行漏标一个写入者（paper-style / paper-typeset 自 v0.1.0 首发起就没进过本表、paper-anchor 同样漏了，直到 v0.1.7 才补）。[`tests/test_manifest_consistency.py`](../../tests/test_manifest_consistency.py) 现在机械守着本表与主清单在命令集合、落盘目录、发布状态三处一致。
+
+**"下一步"列一律不含尖括号**——需要读者自己填的占位符写成「你的 RQ」这类中文引号形态。本列会被整句抄进 README 正文，而 README 实例化的自检是 `grep '[<>]' README.md` 期望零命中；列里留一个"故意不替换"的尖括号，既让自检必然误报，也让实例化时分不清哪个该替换（本表原先的 `<你的 RQ>` 就同时踩了这两条）。交接语列不受此限：它只打印在对话里、不进 README，`<项目目录路径>` 本就该替换成真实路径。
 
 ## README 模板（单项目版）
 

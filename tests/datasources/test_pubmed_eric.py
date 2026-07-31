@@ -11,9 +11,27 @@ from paper_shared.datasources.clients.pubmed import PubMedClient
 from paper_shared.datasources.clients.eric import EricClient
 from paper_shared.datasources.registry import Registry
 from paper_shared.datasources.transport import Throttle, Transport
-from tests.datasources.fakes import FakeOpener, FakeResponse
+from tests.datasources.fakes import FakeOpener, FakeResponse, http_error
 
 FIXTURES = pathlib.Path(__file__).resolve().parents[1] / "fixtures" / "api_responses"
+
+# efetch 的真实形状：结构化摘要拆成多个带 Label 的 AbstractText，且正文里嵌了行内标签
+# （<i>）——只取 .text 会在 <i> 处截断，所以解析走 itertext()。
+_EFETCH_XML = """<?xml version="1.0"?>
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation>
+      <PMID Version="1">2386</PMID>
+      <Article>
+        <Abstract>
+          <AbstractText Label="BACKGROUND">Sensing temperature in cells.</AbstractText>
+          <AbstractText Label="METHODS">We used NV centres in <i>nano</i>diamond.</AbstractText>
+        </Abstract>
+      </Article>
+    </MedlineCitation>
+  </PubmedArticle>
+</PubmedArticleSet>
+"""
 
 
 def load_fixture(name: str):
@@ -44,7 +62,8 @@ class TestPubMed(unittest.TestCase):
     def test_lookup_doi_parses_esummary(self):
         client, _ = make(PubMedClient, "pubmed",
                          [FakeResponse(200, {"esearchresult": {"idlist": ["2386"]}}),
-                          FakeResponse(200, load_fixture("pubmed_summaries.json"))],
+                          FakeResponse(200, load_fixture("pubmed_summaries.json")),
+                          FakeResponse(200, _EFETCH_XML)],
                          self.tmp.name)
         hit = client.lookup_doi("10.1038/nature12373")
         self.assertEqual(hit.source, "pubmed")
@@ -53,6 +72,33 @@ class TestPubMed(unittest.TestCase):
         self.assertEqual(hit.metadata["year"], 2013)
         self.assertEqual(hit.metadata["venue"], "Nature")
         self.assertEqual(hit.metadata["doi"], "10.1038/nature12373")
+        # esummary 不给摘要，摘要来自随后的 efetch；结构化多段带 Label 前缀拼接
+        self.assertEqual(hit.metadata["abstract"],
+                         "BACKGROUND: Sensing temperature in cells. "
+                         "METHODS: We used NV centres in nanodiamond.")
+        # PubMed 不给被引数——不设键（不是 0），「未知」不能说成「零被引」
+        self.assertIsNone(hit.metadata.get("cited_by_count"))
+
+    def test_efetch_failure_keeps_metadata(self):
+        # 摘要是附属字段：efetch 挂了不能把整条题录拖没（否则次要字段的失败被升级成主能力失败）
+        client, _ = make(PubMedClient, "pubmed",
+                         [FakeResponse(200, {"esearchresult": {"idlist": ["2386"]}}),
+                          FakeResponse(200, load_fixture("pubmed_summaries.json"))]
+                         # 500 可重试，退避跑满 RetryPolicy.max_attempts 次才抛
+                         + [http_error("https://eutils/efetch.fcgi", 500)] * 5,
+                         self.tmp.name)
+        hit = client.lookup_doi("10.1038/nature12373")
+        self.assertEqual(hit.metadata["title"], "Nanometre-scale thermometry in a living cell")
+        self.assertIsNone(hit.metadata["abstract"])
+
+    def test_efetch_does_not_overwrite_cache_flag(self):
+        # from_cache 报的必须是题录（esummary）的来源，不是最后一次 HTTP（efetch）的
+        client, _ = make(PubMedClient, "pubmed",
+                         [FakeResponse(200, {"esearchresult": {"idlist": ["2386"]}}),
+                          FakeResponse(200, load_fixture("pubmed_summaries.json")),
+                          FakeResponse(200, _EFETCH_XML)],
+                         self.tmp.name)
+        self.assertFalse(client.lookup_doi("10.1038/nature12373").from_cache)
 
     def test_lookup_doi_no_results_returns_none(self):
         client, _ = make(PubMedClient, "pubmed",

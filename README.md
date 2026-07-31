@@ -2,12 +2,12 @@
 
 ![license](https://img.shields.io/badge/license-PolyForm--NC-blue)
 ![language](https://img.shields.io/badge/language-简体中文优先-green)
-![status](https://img.shields.io/badge/status-v0.1.6-blue)
+![status](https://img.shields.io/badge/status-v0.1.7-blue)
 ![host](https://img.shields.io/badge/host-Claude%20Code%20%7C%20Codex%20%7C%20WorkBuddy-grey)
 
 **简体中文** | [English](README.en.md)
 
-Paper-Tutor-Skills 是一套装进编程智能体（Claude Code / Codex / 国内 WorkBuddy）的学术辅导 skills，简体中文优先——AI 管效率（检索、整理、核对、结构化），人管研究决策（想法、判断、数据、结论）。为中文研究生与科研工作者设计——学生自助研究、导师带学生做科研训练、投稿前批量自查（工具形态不变）。当前 **v0.1.6**：25 个命令入口（`/paper-init` `/paper-help` `/paper-doctor` `/paper-daily` 四个工作台基础设施 + 选题 / 检索 / 写作 / 评审 / 投稿全链路 21 个研究命令），分布在 24 个 skill 目录，覆盖学术研究 5 阶段全生命周期。命令的准确清单与各自的已知观察项以 [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml) 为准。
+Paper-Tutor-Skills 是一套装进编程智能体（Claude Code / Codex / 国内 WorkBuddy）的学术辅导 skills，简体中文优先——AI 管效率（检索、整理、核对、结构化），人管研究决策（想法、判断、数据、结论）。为中文研究生与科研工作者设计——学生自助研究、导师带学生做科研训练、投稿前批量自查（工具形态不变）。当前 **v0.1.7**：25 个命令入口（`/paper-init` `/paper-help` `/paper-doctor` `/paper-daily` 四个工作台基础设施 + 选题 / 检索 / 写作 / 评审 / 投稿全链路 21 个研究命令），分布在 24 个 skill 目录，覆盖学术研究 5 阶段全生命周期。命令的准确清单与各自的已知观察项以 [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml) 为准。
 
 ## 设计理念
 
@@ -48,7 +48,7 @@ Paper-Tutor-Skills 把 AI 定位为**导师与教练**，而不是研究任务�
 
 ## 快速开始
 
-**25 个命令入口已发布**（v0.1.6），覆盖学术研究 5 阶段全生命周期，逐命令见上表。今天就能先试一个（`/paper-doctor` 有 [验收记录](tests/paper-doctor/README.md)）。
+**25 个命令入口已发布**（v0.1.7），覆盖学术研究 5 阶段全生命周期，逐命令见上表。今天就能先试一个（`/paper-doctor` 有 [验收记录](tests/paper-doctor/README.md)）。
 
 ### 安装
 
@@ -251,7 +251,7 @@ Paper-Tutor-Skills 把研究诚信的承诺落进了可验证的工程设计：
 - **核验六态**：每条引用的核验结果是六种状态之一——VERIFIED（已核实）、METADATA_MISMATCH（元数据不符）、RETRACTED（已撤稿）、NOT_FOUND（未查到）、UNVERIFIED（未核验）、PENDING_MANUAL（待人工核对）。定位是**存在性核验**（存在 ≠ 引用恰当），以真实 API 响应为准，绝不凭模型记忆判断。
 
   > 量化门槛（虚构检出率、真实误报率、中文误伤等）目前不是发布门的必要条件，按需补跑并回填到 [`evals/`](evals/README.md)。但"以真实 API 响应为准、绝不凭模型记忆"是产品底线，不与任何目标权衡。
-- **中英双轨检索**：英文文献接开放 API（arXiv、OpenAlex、Semantic Scholar、Crossref）自动检索；中文文献走"自动 + 引导"混合路径——带 DOI 的中文期刊文献自动命中，其余生成知网 / 万方检索方案（检索式 + 筛选条件）引导你执行并回填。**检索产出声明各来源覆盖方式**（自动 / 回填 / 未覆盖）——缺了这个提示，你可能把"英文库没有"误判成"没人研究过"。中文文献 API 覆盖不到的绝不判为编造，而是落 PENDING_MANUAL 态并附人工核对包。
+- **中英双轨检索**：英文文献接开放 API（arXiv、OpenAlex、Semantic Scholar、Crossref）自动检索；中文文献走"自动 + 引导"混合路径——**带中文 DOI 的期刊文献走 DOI 内容协商自动取题录**（标题 / 作者 / 刊名 / 卷期页 / 摘要，ISTIC 注册的中文核刊可用；知网自注册的 DOI 不回题录，落人工核对），其余生成知网 / 万方检索方案（检索式 + 筛选条件）引导你执行并回填，或用站内"导出引文"功能导出后自动解析入表。**检索产出声明各来源覆盖方式**（自动 / 回填 / 未覆盖）——缺了这个提示，你可能把"英文库没有"误判成"没人研究过"。中文文献 API 覆盖不到的绝不判为编造，而是落 PENDING_MANUAL 态并附人工核对包。
 - **跨宿主不锁死**：实现不依赖任何宿主专有机制，编排与断点续跑用纯文件约定。目录约定是增强不是依赖——检测到标准目录则产物归位，否则落当前目录并提示。
 
 ## 仓库结构

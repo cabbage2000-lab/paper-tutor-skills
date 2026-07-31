@@ -6,7 +6,8 @@ from typing import Any, Dict, List, Optional
 
 from ..models import SourceHit, normalize_doi
 from ..transport import NotFoundError
-from .base import SourceClient, TYPE_MAP
+from .base import (SourceClient, TYPE_MAP, author_details_or_empty, clean_jats_abstract,
+                   normalize_orcid)
 
 
 class CrossrefClient(SourceClient):
@@ -70,16 +71,54 @@ class CrossrefClient(SourceClient):
     @staticmethod
     def _metadata(msg: Dict[str, Any]) -> Dict[str, Any]:
         titles = msg.get("title") or []
-        authors = [" ".join(x for x in (a.get("given"), a.get("family")) if x)
-                   for a in (msg.get("author") or [])]
+        authors = [CrossrefClient._author_name(a) for a in (msg.get("author") or [])]
         year = None
         parts = ((msg.get("issued") or {}).get("date-parts") or [[]])
         if parts and parts[0]:
             year = parts[0][0]
         containers = msg.get("container-title") or []
+        # 摘要是 JATS XML 片段，须清洗成纯文本（clean_jats_abstract；剥不干净则返回 None，
+        # 不把半截标签喂进笔记表）。投递率取决于出版商，给不出的条目仍由 dedup 从其他源补。
+        # 与 S2 不同，这里**不必动缓存键**：crossref 的 URL 没有 select 参数，返回的是全字段，
+        # abstract 本就躺在旧缓存的响应里（实测确认）。
         return {"title": titles[0] if titles else None, "authors": authors, "year": year,
                 "venue": containers[0] if containers else None,
-                "doi": normalize_doi(msg.get("DOI", "")) or None, "type": msg.get("type")}
+                "doi": normalize_doi(msg.get("DOI", "")) or None, "type": msg.get("type"),
+                # 源没给就是 None，不补 0（「零被引」≠「该源不给这个数」）
+                "cited_by_count": msg.get("is-referenced-by-count"),
+                "abstract": clean_jats_abstract(msg.get("abstract")),
+                "author_details": CrossrefClient._author_details(msg)}
+
+    @staticmethod
+    def _author_name(a: Dict[str, Any]) -> str:
+        """given + family。`authors` 与 `author_details` 共用，免得两份拼接逻辑漂移。"""
+        return " ".join(x for x in (a.get("given"), a.get("family")) if x)
+
+    @staticmethod
+    def _author_details(msg: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """作者的客观标识：ORCID + 机构。零额外请求（`raw` 存的就是完整 message）。
+
+        Crossref 的 ORCID 覆盖实测很低（25 篇样本 46 个作者位里只有 2 个，4%），远不及
+        OpenAlex 的 78%——但它独有 `authenticated-orcid`，是所有源里**唯一**能区分
+        「作者本人登录验证过」与「出版商代填」的信号，拿得到就如实带上。
+
+        无名的作者位跳过（机构作者只有 `name` 字段、没有 given/family）；`authors` 那侧
+        维持原行为不过滤，免得在这次改动里夹带下游可见的行为变更。
+        """
+        out: List[Dict[str, Any]] = []
+        for a in msg.get("author") or []:
+            name = CrossrefClient._author_name(a)
+            if not name:
+                continue
+            out.append({
+                "name": name,
+                "orcid": normalize_orcid(a.get("ORCID")),
+                "affiliations": [f.get("name") for f in (a.get("affiliation") or [])
+                                 if f.get("name")],
+                # 源没给这个键 → None（未知），与 False（明确未验证）区分。
+                "orcid_verified": a.get("authenticated-orcid"),
+            })
+        return author_details_or_empty(out)
 
     @staticmethod
     def _retraction(msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:

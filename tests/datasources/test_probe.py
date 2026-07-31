@@ -83,13 +83,13 @@ class TestProbeRun(unittest.TestCase):
         engine._make_clients = lambda: {
             sid: FakeClient(sid, "ok") for sid in
             ("crossref", "openalex", "semantic_scholar", "arxiv",
-             "pubmed", "eric", "doi_ra")
+             "pubmed", "eric", "doi_ra", "doi_meta")
         }
         results = engine.run()
-        self.assertEqual(len(results), 7)
+        self.assertEqual(len(results), 8)
         self.assertEqual([r.source for r in results],
                          ["crossref", "openalex", "semantic_scholar", "arxiv",
-                          "pubmed", "eric", "doi_ra"])
+                          "pubmed", "eric", "doi_ra", "doi_meta"])
         self.assertEqual(engine.overall(results), "ok")
 
     def test_exclude_supplementary(self):

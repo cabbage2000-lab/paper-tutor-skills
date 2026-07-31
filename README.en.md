@@ -2,12 +2,12 @@
 
 ![license](https://img.shields.io/badge/license-PolyForm--NC-blue)
 ![language](https://img.shields.io/badge/language-简体中文优先-green)
-![status](https://img.shields.io/badge/status-v0.1.6-blue)
+![status](https://img.shields.io/badge/status-v0.1.7-blue)
 ![host](https://img.shields.io/badge/host-Claude%20Code%20%7C%20Codex%20%7C%20WorkBuddy-grey)
 
 [简体中文](README.md) | **English**
 
-Paper-Tutor-Skills is a suite of academic tutoring agent skills for Chinese-speaking researchers, dropped into the coding agent you already use (Claude Code / Codex / WorkBuddy). AI handles efficiency (retrieval, organization, verification, structuring); humans handle research decisions (ideas, judgment, data, conclusions). Designed for Chinese-speaking graduate students and researchers — students self-studying research, instructors mentoring students through research training, and pre-submission batch self-checks (same tool, no behavioral change). Currently at **v0.1.6**: 25 command entry points (`/paper-init`, `/paper-help`, `/paper-doctor`, `/paper-daily` as workspace infrastructure + 21 research commands covering topic / search / writing / review / submission full lifecycle) across 24 skill directories. The authoritative command list and per-command known gaps live in [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml).
+Paper-Tutor-Skills is a suite of academic tutoring agent skills for Chinese-speaking researchers, dropped into the coding agent you already use (Claude Code / Codex / WorkBuddy). AI handles efficiency (retrieval, organization, verification, structuring); humans handle research decisions (ideas, judgment, data, conclusions). Designed for Chinese-speaking graduate students and researchers — students self-studying research, instructors mentoring students through research training, and pre-submission batch self-checks (same tool, no behavioral change). Currently at **v0.1.7**: 25 command entry points (`/paper-init`, `/paper-help`, `/paper-doctor`, `/paper-daily` as workspace infrastructure + 21 research commands covering topic / search / writing / review / submission full lifecycle) across 24 skill directories. The authoritative command list and per-command known gaps live in [`skills/_shared/commands.yaml`](skills/_shared/commands.yaml).
 
 ## Design Philosophy
 
@@ -45,7 +45,7 @@ Paper-Tutor-Skills positions AI as a **tutor and coach**, not an executor of res
 
 ## Quick Start
 
-**25 command entry points are released** (v0.1.6), covering the full 5-stage academic research lifecycle; see the table above for the per-command breakdown. You can try one today (`/paper-doctor` has an [acceptance record](tests/paper-doctor/README.md)).
+**25 command entry points are released** (v0.1.7), covering the full 5-stage academic research lifecycle; see the table above for the per-command breakdown. You can try one today (`/paper-doctor` has an [acceptance record](tests/paper-doctor/README.md)).
 
 ### Installation
 
@@ -252,7 +252,7 @@ Paper-Tutor-Skills has baked its research integrity commitments into verifiable 
 - **Six verification states**: Each citation's verification result is one of six states — VERIFIED, METADATA_MISMATCH, RETRACTED, NOT_FOUND, UNVERIFIED, PENDING_MANUAL. Positioned as **existence verification** (existence ≠ appropriate citation), based on real API responses, never on model memory.
 
   > Quantitative thresholds (fabrication detection rate, real-citation false positive rate, Chinese-literature false harm, etc.) are not currently part of the required release gate — they are run on demand and backfilled into [`evals/`](evals/README.md). However, "real API responses as the sole source of truth, never model memory" is a product baseline that is never traded off.
-- **Bilingual (CN/EN) search**: English literature is automatically retrieved via open APIs (arXiv, OpenAlex, Semantic Scholar, Crossref); Chinese literature takes a "automatic + guided" hybrid path — Chinese journal articles with DOIs are matched automatically, while the rest get structured CNKI / Wanfang search plans (query expressions + filter conditions) for you to execute and fill in. **Search output declares the coverage method of each source** (automatic / filled-in / not covered) — without this notice, you might mistake "not in English databases" for "no one has studied this." Chinese literature that APIs cannot reach is never flagged as fabricated — it falls into PENDING_MANUAL with a manual verification package attached.
+- **Bilingual (CN/EN) search**: English literature is automatically retrieved via open APIs (arXiv, OpenAlex, Semantic Scholar, Crossref); Chinese literature takes a "automatic + guided" hybrid path — **Chinese journal articles with DOIs get their records fetched automatically via DOI content negotiation** (title / authors / journal / volume-issue-pages / abstract, available for ISTIC-registered Chinese core journals; DOIs registered by CNKI itself return no record and fall back to manual checking), while the rest get structured CNKI / Wanfang search plans (query expressions + filter conditions) for you to execute and fill in, or you can use the sites' own "export citation" feature and have the export parsed into the table automatically. **Search output declares the coverage method of each source** (automatic / filled-in / not covered) — without this notice, you might mistake "not in English databases" for "no one has studied this." Chinese literature that APIs cannot reach is never flagged as fabricated — it falls into PENDING_MANUAL with a manual verification package attached.
 - **No host lock-in**: The implementation does not depend on any host-specific mechanism; orchestration and checkpoint resumption use pure file conventions. Directory conventions are an enhancement, not a dependency — if a standard directory is detected, outputs go to their proper places; otherwise they land in the current directory with a notice.
 
 ## Repository structure

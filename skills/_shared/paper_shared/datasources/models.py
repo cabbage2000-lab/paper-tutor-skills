@@ -122,6 +122,52 @@ class BatchResult:
 
 
 @dataclass
+class AuthorCandidate:
+    """一个同名候选作者——**源的消歧结果，不是本项目的判断**。
+
+    源（OpenAlex）自己用 ML 把作者名聚成实体，它会出错：实测同一个 ORCID
+    `0000-0003-3871-9099` 被拆成两个实体（99 篇 + 6 篇）。所以本结构承载的是「源说有
+    这么些候选」，谁和谁是同一个人由用户看着 ORCID / 机构 / 领域自己判断。
+
+    `entity_ids` 是列表而非单值：按 ORCID 归并后（客观键，见 search.py·merge_author_
+    candidates），一个候选可能对应源的多个实体。长度 > 1 就说明源把这个人拆开了。
+    """
+    source: str
+    name: str
+    entity_ids: List[str] = field(default_factory=list)
+    orcid: Optional[str] = None
+    works_count: int = 0
+    # [{"name": 机构名, "years": [年份…]}]——用**历年** affiliations 而不是
+    # last_known_institutions：后者实测常年失准（OpenAlex 给 Yann LeCun 的 last_known 是
+    # "Sanford Broadway Medical Center"），历年列表带年份，用户能自己看出哪段时间在哪。
+    affiliations: List[Dict[str, Any]] = field(default_factory=list)
+    topics: List[str] = field(default_factory=list)      # 研究领域，辨认同名的最强线索
+    name_variants: List[str] = field(default_factory=list)
+    # display_name 是否与查询串逐字相同。False = 源的模糊匹配拽回来的近似名，很可能是
+    # 另一个人：实测搜「周生华」会返回「周华生」（字序颠倒）。呈现层必须标出来。
+    exact_name_match: bool = True
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+
+@dataclass
+class AuthorSearchResult:
+    """作者检索结果 + 覆盖声明 + 源报告的候选总数。
+
+    total_found 是**源说一共有多少个候选**，与 len(candidates) 分开记：实测
+    "Wei Wang" 有 9757 个候选，必须截断呈现，而截掉多少要能如实说清楚。
+    """
+    candidates: List[AuthorCandidate]
+    coverage: List[Dict[str, Any]]
+    total_found: int = 0
+    network_status: str = "ok"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return dataclasses.asdict(self)
+
+
+@dataclass
 class ProbeResult:
     """健康探测结果。status 用英文态码（语言规范：态码留给日志与契约），
     paper-doctor 的用户可见报告层转中文（可用 / 不可用 / 部分可用）。"""

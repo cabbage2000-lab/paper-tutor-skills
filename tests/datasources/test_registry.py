@@ -9,14 +9,16 @@ class TestRegistry(unittest.TestCase):
     def setUp(self):
         self.reg = Registry.load()
 
-    def test_loads_all_nine_sources(self):
+    def test_loads_all_sources(self):
         ids = {s.id for s in self.reg.all()}
         self.assertEqual(ids, {"crossref", "openalex", "semantic_scholar", "arxiv",
-                               "pubmed", "eric", "doi_ra", "cnki", "wanfang"})
+                               "pubmed", "eric", "doi_ra", "doi_meta", "cnki", "wanfang"})
 
     def test_capability_matrix(self):
         doi_capable = {s.id for s in self.reg.with_capability("lookup_doi")}
-        self.assertEqual(doi_capable, {"crossref", "openalex", "semantic_scholar", "pubmed", "arxiv"})
+        # doi_meta：中文 DOI（ISTIC / CNKI）的题录来源，走 DOI 内容协商而非站点接口
+        self.assertEqual(doi_capable, {"crossref", "openalex", "semantic_scholar",
+                                       "pubmed", "arxiv", "doi_meta"})
         # 撤稿检测双源冗余：Crossref updated-by（Retraction Watch）+ OpenAlex is_retracted
         self.assertEqual({s.id for s in self.reg.with_capability("retraction")},
                          {"crossref", "openalex"})

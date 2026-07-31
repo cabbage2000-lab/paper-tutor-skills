@@ -22,7 +22,8 @@
       "kind": "api",
       "role": "core",
       "base_url": "https://api.openalex.org",
-      "capabilities": ["lookup_doi", "match_title", "search", "retraction"],
+      "capabilities": ["lookup_doi", "match_title", "search", "retraction",
+                       "references", "cited_by", "search_author"],
       "rate_limit": {"anonymous": {"min_interval_s": 1.0},
                      "with_credential": {"min_interval_s": 0.5}},
       "auth": {"key_env": null, "mailto_env": "PAPER_MAILTO"},
@@ -37,7 +38,7 @@
       "kind": "api",
       "role": "core",
       "base_url": "https://api.semanticscholar.org",
-      "capabilities": ["lookup_doi", "match_title", "search"],
+      "capabilities": ["lookup_doi", "match_title", "search", "references", "cited_by"],
       "rate_limit": {"anonymous": {"min_interval_s": 1.0},
                      "with_credential": {"min_interval_s": 0.1}},
       "auth": {"key_env": "SEMANTIC_SCHOLAR_API_KEY", "mailto_env": null},
@@ -103,8 +104,23 @@
       "auth": {"key_env": null, "mailto_env": null},
       "cache_ttl_days": 30,
       "probe": {"kind": "route", "arg": "10.1038"},
-      "coverage_zh": "路由设施：判别任意 DOI 的注册机构（Crossref / DataCite / ISTIC / 其他）",
+      "coverage_zh": "路由设施：判别任意 DOI 的注册机构（Crossref / DataCite / ISTIC / CNKI / 其他）",
       "docs_url": "https://www.doi.org/the-identifier/resources/factsheets/doi-resolution-documentation"
+    },
+    {
+      "id": "doi_meta",
+      "name_zh": "DOI 内容协商题录",
+      "kind": "api",
+      "role": "supplementary",
+      "base_url": "https://doi.org",
+      "capabilities": ["lookup_doi"],
+      "rate_limit": {"anonymous": {"min_interval_s": 1.0},
+                     "with_credential": {"min_interval_s": 1.0}},
+      "auth": {"key_env": null, "mailto_env": null},
+      "cache_ttl_days": 30,
+      "probe": {"kind": "lookup_doi", "arg": "10.11821/dlxb202001001"},
+      "coverage_zh": "中文 DOI 题录（走 DOI 全球解析的内容协商，非站点接口）——ISTIC 注册的中文期刊文献可取到标题/作者/刊名/卷期页/摘要；CNKI 注册的不回 CSL-JSON，落待人工核对",
+      "docs_url": "https://citation.crosscite.org/docs.html"
     },
     {
       "id": "cnki",
@@ -112,12 +128,12 @@
       "kind": "guided",
       "role": "supplementary",
       "base_url": null,
-      "capabilities": [],
+      "capabilities": ["import_export"],
       "rate_limit": null,
       "auth": null,
       "cache_ttl_days": null,
       "probe": null,
-      "coverage_zh": "中文学术文献总库——无免费开放 API，走检索方案生成 + 用户回填",
+      "coverage_zh": "中文学术文献总库——无免费开放 API，走检索方案生成 + 用户回填；官方导出引文（BibTeX / EndNote）可用 paper-search/scripts/parse_export.py 解析入表",
       "docs_url": "https://www.cnki.net"
     },
     {
@@ -126,12 +142,12 @@
       "kind": "guided",
       "role": "supplementary",
       "base_url": null,
-      "capabilities": [],
+      "capabilities": ["import_export"],
       "rate_limit": null,
       "auth": null,
       "cache_ttl_days": null,
       "probe": null,
-      "coverage_zh": "中文学术文献库——无免费开放 API，走检索方案生成 + 用户回填",
+      "coverage_zh": "中文学术文献库——无免费开放 API，走检索方案生成 + 用户回填；官方导出引文（BibTeX / EndNote）可用 paper-search/scripts/parse_export.py 解析入表",
       "docs_url": "https://www.wanfangdata.com.cn"
     }
   ]

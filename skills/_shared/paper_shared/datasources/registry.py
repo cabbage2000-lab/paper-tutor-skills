@@ -13,7 +13,20 @@ from typing import Any, Dict, List, Optional
 _DEFAULT_PATH = pathlib.Path(__file__).with_name("registry.json")
 _VALID_KINDS = {"api", "guided"}
 _VALID_ROLES = {"core", "supplementary"}
-_VALID_CAPS = {"lookup_doi", "lookup_arxiv_id", "match_title", "search", "retraction", "route"}
+_VALID_CAPS = {"lookup_doi", "lookup_arxiv_id", "match_title", "search", "retraction", "route",
+               # import_export：该源的**官方导出引文文件**可被解析入表（guided 源专用能力，
+               # 不是自动检索）。中文库无免费 API 且站内接口有 robots.txt 明示禁止，故走
+               # 「用户站内检索 → 官方导出 → paper-search/scripts/parse_export.py 解析」。
+               "import_export",
+               # 作者检索（paper-search 的 --find-author / --author-works）：按姓名取源的
+               # 作者实体候选，以及取某位作者的论文。目前只有 OpenAlex 提供免费的作者
+               # 实体端点（S2 有但要 key 且限流严），所以这一路是**单源**，覆盖声明要如实说。
+               "search_author",
+               # 滚雪球两向（paper-search 的 --snowball）：
+               #   references = 后向，取本文引了谁（补经典文献——年份降序恰恰把经典排到最末）
+               #   cited_by   = 前向，取谁引了本文（补最新跟进）
+               # 只给真能一次调用回题录的源；Crossref 的 reference 数组投递率不稳、且无前向，不给。
+               "references", "cited_by"}
 
 
 class RegistryError(Exception):

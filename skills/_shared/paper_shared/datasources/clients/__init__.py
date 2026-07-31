@@ -14,6 +14,7 @@ from .semantic_scholar import SemanticScholarClient
 from .arxiv import ArxivClient
 from .pubmed import PubMedClient
 from .eric import EricClient
+from .doi_meta import DoiMetaClient
 
 CLIENT_CLASSES: Dict[str, Type[SourceClient]] = {
     CrossrefClient.id: CrossrefClient,
@@ -22,6 +23,7 @@ CLIENT_CLASSES: Dict[str, Type[SourceClient]] = {
     ArxivClient.id: ArxivClient,
     PubMedClient.id: PubMedClient,
     EricClient.id: EricClient,
+    DoiMetaClient.id: DoiMetaClient,
 }
 
 
