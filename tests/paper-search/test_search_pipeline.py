@@ -663,6 +663,37 @@ class TestLookupPayload(unittest.TestCase):
             ref_id="s", input=Ref(id="s", doi="10.9/z"), doi_ra="Crossref", hits=[]))
         self.assertNotEqual(p["note"], miss["note"])
 
+    def test_cn_doi_with_metadata_has_no_manual_note(self):
+        """中文 DOI 取到题录 → 正常命中，不许再说「请人工核对」。
+
+        此前中文 DOI 那一档写在最前面且不带 `hit is None` 条件，于是 doi_meta 取到完整题录
+        时 payload 同时给出 found=true 与「元数据 API 不可达、请人工核对题录」——自相矛盾，
+        还把已经补全成功的条目退回人工。
+        """
+        for ra in ("ISTIC", "CNKI"):
+            ev = Evidence(ref_id="single", input=Ref(id="single", doi="10.11821/dlxb202001001"),
+                          doi_ra=ra,
+                          hits=[SourceHit(source="doi_meta",
+                                          metadata={"title": "理解地理“耦合”实现地理“集成”",
+                                                    "authors": ["宋长青"], "venue": "地理学报",
+                                                    "year": 2020},
+                                          fetched_at="2026-01-01T00:00:00Z")])
+            p = search.build_lookup_payload("10.11821/dlxb202001001", ev)
+            self.assertTrue(p["found"], ra)
+            self.assertEqual(p["metadata"]["venue"], "地理学报", ra)
+            self.assertIsNone(p["note"], ra)
+
+    def test_cn_doi_without_metadata_flagged_manual(self):
+        """取不到题录时行为不变：标人工核对，且措辞只声称「前缀已注册」。"""
+        for ra in ("ISTIC", "CNKI"):
+            ev = Evidence(ref_id="single", input=Ref(id="single", doi="10.3969/x"),
+                          doi_ra=ra, route_note=f"{ra} 注册", hits=[])
+            p = search.build_lookup_payload("10.3969/x", ev)
+            self.assertFalse(p["found"], ra)
+            self.assertIn("人工核对", p["note"], ra)
+            self.assertIn("前缀已注册", p["note"], ra)
+            self.assertNotIn("DOI 合法存在", p["note"], ra)
+
 
 class TestLookupCrossCheck(unittest.TestCase):
     """回填补全的交叉核验：DOI 查得到 ≠ 就是这一篇。堵「DOI 抄错一位 / 题录张冠李戴」。

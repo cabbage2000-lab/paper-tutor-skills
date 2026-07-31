@@ -9,7 +9,8 @@
 判定优先级（首条命中）——设计意图见 spec §4：
   0. manual_result.verified   → VERIFIED（人工核对确认，核对劳动沉淀）
   1. parse_status=unparsed    → PENDING_MANUAL（解析失败出口）
-  2. ISTIC / 无 DOI 中文       → PENDING_MANUAL（中文轨最先拦截，绝不进 NOT_FOUND）
+  2. 中文 DOI 无题录 / 无 DOI 中文 → PENDING_MANUAL（中文轨最先拦截，绝不进 NOT_FOUND）
+     中文 DOI（ISTIC / CNKI）**取到题录则不在此拦截**，照第 4/5 步正常核验
   3. doi_ra=not_registered    → NOT_FOUND（前缀未注册，DOI 不存在的最强信号）
   4. 有 hit 带 retraction      → RETRACTED（撤稿优先于存在性）
   5. 有 hit                    → 字段比对 → VERIFIED / METADATA_MISMATCH
@@ -26,6 +27,8 @@ from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "_shared"))
 from paper_shared.datasources.models import Evidence  # noqa: E402
+# 中文 DOI 注册机构名单在 routing（单一事实来源，硬规则 6）——新增一家中文 RA 只改那边
+from paper_shared.datasources.routing import CN_DOI_RA  # noqa: E402
 # 字段比对内核在共享层（paper-verify 与 paper-search 两个消费者，硬规则 6）。
 # 阈值（标题重叠 0.8 / 年份差 2）与作者姓候选集合的实现都在那边，改那里会同时改本模块的
 # 第 5 条判定——动之前先读 tests/paper-verify/test_judge.py 里的比对内核用例。
@@ -95,9 +98,17 @@ def judge(parsed, evidence: Evidence,
                             "解析失败出口：改贴 .bib 导出，或拆成单条 DOI/标题核验")
 
     # 2. 中文轨（最先拦截——合法中文文献绝不进 NOT_FOUND，硬约束⑤）
-    if evidence.doi_ra == "ISTIC":
+    #
+    # 关键条件是 `not evidence.hits`：中文 DOI 现在走 doi_meta 的内容协商，**取到题录就该
+    # 正常核验**（往下走第 4/5 步的撤稿检查与字段比对）。此前这里无条件拦截，于是即使拿到
+    # 了完整题录也照样落待人工核对——把已经核验成功的条目退回人工，是降级降得过早。
+    # 无 hit 时行为不变：仍落 PENDING_MANUAL，绝不进 NOT_FOUND。
+    if evidence.doi_ra in CN_DOI_RA and not evidence.hits:
+        # 只说「前缀已注册」：RA 判别是前缀级的，说成「DOI 合法存在」等于替一个可能编造的
+        # DOI 作存在性担保（实测编造后缀的前缀照样报 ISTIC）。判据精度必须如实。
         return StatusRecord(rid, "PENDING_MANUAL", [],
-                            "ISTIC（中文 DOI）注册：DOI 合法、元数据 API 不可达，待人工核对",
+                            f"{evidence.doi_ra}（中文 DOI）注册：DOI 前缀已注册、本条题录未取到，"
+                            "待人工核对",
                             "人工核对包：知网/万方检索方案 + manual_result 回填指引")
     if not parsed.doi and _is_cjk(parsed.title or ""):
         return StatusRecord(rid, "PENDING_MANUAL", [],

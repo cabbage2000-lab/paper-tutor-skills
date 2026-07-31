@@ -224,6 +224,87 @@ class TestJudgeSixStates(unittest.TestCase):
         self.assertNotEqual(rec.status, "NOT_FOUND")
 
 
+class TestChineseDoiWithMetadata(unittest.TestCase):
+    """中文 DOI 取到题录后照常核验——本次改动修的就是「降级降得过早」。
+
+    改动前第 2 条判定无条件拦截 ISTIC，于是 doi_meta 即使拿到完整 CSL-JSON 题录，条目也
+    照样落待人工核对：已经核验成功了还要请用户去知网手查一遍。现在只在**无 hit**时拦截。
+    """
+
+    def _cn_hit(self, **kw):
+        return _hit(source="doi_meta", doi="10.11821/dlxb202001001",
+                    title="理解地理“耦合”实现地理“集成”", year=2020,
+                    venue="地理学报", authors=["宋长青"], **kw)
+
+    def _cn_parsed(self, **kw):
+        base = dict(doi="10.11821/dlxb202001001", title="理解地理“耦合”实现地理“集成”",
+                    authors=["宋长青"], year=2020)
+        base.update(kw)
+        return _parsed(**base)
+
+    def test_istic_with_hit_verifies(self):
+        rec = judge.judge(self._cn_parsed(),
+                          _ev(doi_ra="ISTIC", doi="10.11821/dlxb202001001",
+                              hits=[self._cn_hit()], queries=[_q("doi_meta", "hit")]))
+        self.assertEqual(rec.status, "VERIFIED")
+        self.assertIn("doi_meta", rec.evidence_summary)
+
+    def test_istic_with_hit_mismatch_is_reported(self):
+        """题录取到了就要真比对——年份差太多必须报不符，不能一律放过。"""
+        rec = judge.judge(self._cn_parsed(year=1999),
+                          _ev(doi_ra="ISTIC", doi="10.11821/dlxb202001001",
+                              hits=[self._cn_hit()], queries=[_q("doi_meta", "hit")]))
+        self.assertEqual(rec.status, "METADATA_MISMATCH")
+
+    def test_istic_retraction_still_wins(self):
+        """撤稿优先于一切——中文条目也不例外。"""
+        rec = judge.judge(self._cn_parsed(),
+                          _ev(doi_ra="ISTIC", doi="10.11821/dlxb202001001",
+                              hits=[self._cn_hit(retraction={"type": "retraction"})]))
+        self.assertEqual(rec.status, "RETRACTED")
+
+    def test_istic_without_hit_still_pending(self):
+        """无 hit 时行为不变：仍落 PENDING_MANUAL，绝不 NOT_FOUND。"""
+        rec = judge.judge(self._cn_parsed(),
+                          _ev(doi_ra="ISTIC", doi="10.11821/dlxb202001001",
+                              queries=[_q("doi_meta", "miss")]))
+        self.assertEqual(rec.status, "PENDING_MANUAL")
+
+    def test_pending_summary_claims_prefix_only(self):
+        """判据精度：只说「前缀已注册」，不替可能编造的 DOI 担保存在性。
+
+        实测编造后缀 `10.11821/dlxb209999999` 的前缀照样报 ISTIC 且落本分支——此时对用户
+        说「DOI 合法存在」就是一句错话。
+        """
+        rec = judge.judge(_parsed(doi="10.11821/dlxb209999999", title="编造的中文文献",
+                                  authors=["无名"], year=2099),
+                          _ev(doi_ra="ISTIC", doi="10.11821/dlxb209999999",
+                              queries=[_q("doi_meta", "miss")]))
+        self.assertEqual(rec.status, "PENDING_MANUAL")
+        self.assertIn("前缀", rec.evidence_summary)
+        self.assertNotIn("DOI 合法存在", rec.evidence_summary)
+
+    def test_cnki_without_hit_never_not_found(self):
+        """CNKI 的内容协商回 HTML → 恒 miss。这条最容易被误判成编造，铁律必须守住。"""
+        p = _parsed(doi="10.16511/j.cnki.qhdxxb.2020.22.001", title="某某研究",
+                    authors=["王明"], year=2020)
+        rec = judge.judge(p, _ev(doi_ra="CNKI", doi="10.16511/j.cnki.qhdxxb.2020.22.001",
+                                 queries=[_q("doi_meta", "miss")]))
+        self.assertEqual(rec.status, "PENDING_MANUAL")
+        self.assertIn("CNKI", rec.evidence_summary)
+        self.assertIsNotNone(rec.exit_guidance)
+
+    def test_cnki_with_hit_verifies(self):
+        """个别知网 DOI 若能回题录，同样照常核验（不写死成必然 miss）。"""
+        p = _parsed(doi="10.16511/j.cnki.qhdxxb.2020.22.001", title="T",
+                    authors=["X"], year=2020)
+        rec = judge.judge(p, _ev(doi_ra="CNKI", doi="10.16511/j.cnki.qhdxxb.2020.22.001",
+                                 hits=[_hit(source="doi_meta",
+                                            doi="10.16511/j.cnki.qhdxxb.2020.22.001")],
+                                 queries=[_q("doi_meta", "hit")]))
+        self.assertEqual(rec.status, "VERIFIED")
+
+
 class TestCompareHelpers(unittest.TestCase):
     def test_title_overlap_subset_is_one(self):
         # 引用标题是源标题子集（省略副标题）→ 重叠系数 1.0，视为一致

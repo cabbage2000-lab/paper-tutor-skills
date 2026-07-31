@@ -17,7 +17,7 @@
 
 | 资源 | 服务对象 | 出处 |
 | --- | --- | --- |
-| 文献 API 客户端（arXiv、OpenAlex、Semantic Scholar、Crossref；按学科补 PubMed、ERIC），含 DOI 注册机构判别路由——`doi.org/ra/` 免费端点分流 Crossref / DataCite / ISTIC，ISTIC（中文 DOI）条目径直落待人工核对 | `/paper-verify`、`/paper-search` | [PRD·文献数据源](../../docs/prd/paper-tutor-skills-prd-v1.md) |
+| 文献 API 客户端（arXiv、OpenAlex、Semantic Scholar、Crossref；按学科补 PubMed、ERIC），含 DOI 注册机构判别路由——`doi.org/ra/` 免费端点分流 Crossref / DataCite / ISTIC / CNKI，中文 DOI 走 `doi_meta` 内容协商取题录，取不到才落待人工核对 | `/paper-verify`、`/paper-search` | [PRD·文献数据源](../../docs/prd/paper-tutor-skills-prd-v1.md) |
 | 数据源注册表：已接入各源的名称、端点、限流参数、覆盖声明，声明式统一维护；核验报告的"已查源清单"由此生成 | `/paper-verify`、`/paper-search` | PRD·文献数据源·配套机制 |
 | 工程约束实现：本地结果缓存（同一 DOI 不重复查）、分批 + 指数退避、断点续验、剩余时间预估 | 同上 | PRD·引用核验策略（API 限流是核心设计约束，非附录） |
 | 留痕写入器：`.paper/` 四级使用记录 + 产物人机分工页脚 | 全体 skill | PRD·披露与留痕 |

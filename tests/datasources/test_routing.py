@@ -32,12 +32,49 @@ class TestRouting(unittest.TestCase):
         self.assertEqual(plan, RoutePlan(doi_ra="Crossref",
                                          sources=["crossref", "openalex"], route_note=None))
 
-    def test_istic_route_no_sources_with_note(self):
+    def test_istic_routes_to_doi_meta(self):
+        """ISTIC（中文 DOI）走内容协商取题录——此前是空路由、整源跳过。
+
+        改动前这里断言 `sources == []`，依据是「注册机构未提供免费元数据 API」。那个断言
+        经实测为假：`10.11821/dlxb202001001` 的内容协商回完整 CSL-JSON（见 test_doi_meta）。
+        """
         t = _transport([FakeResponse(200, [{"DOI": "10.3969", "RA": "ISTIC"}])])
         plan = route("10.3969/j.issn.1000-0054.2020.01.001", t, self.cache)
         self.assertEqual(plan.doi_ra, "ISTIC")
-        self.assertEqual(plan.sources, [])
+        self.assertEqual(plan.sources, ["doi_meta"])
         self.assertIn("ISTIC", plan.route_note)
+
+    def test_cnki_is_a_registrant_not_unknown(self):
+        """知网自己就是 DOI 注册机构，不该落 unknown 走保守路由。
+
+        实测 `10.16511/j.cnki.qhdxxb.2020.22.001` 的 agency 为 CNKI。落 unknown 会去查
+        crossref/openalex——它们按定义不收录别家注册的 DOI，两次必然 miss，还会把
+        「英文库没有」混进中文条目的证据链。
+        """
+        t = _transport([FakeResponse(200, [{"DOI": "10.16511", "RA": "CNKI"}])])
+        plan = route("10.16511/j.cnki.qhdxxb.2020.22.001", t, self.cache)
+        self.assertEqual(plan.doi_ra, "CNKI")
+        self.assertEqual(plan.sources, ["doi_meta"])
+        self.assertIn("不作编造嫌疑处理", plan.route_note)
+
+    def test_cn_notes_claim_prefix_only_not_doi_existence(self):
+        """两条中文 note 只能声称「前缀已注册」，不得声称这一条 DOI 存在。
+
+        RA 判别是前缀级的：实测编造后缀 `10.11821/dlxb209999999` 的前缀照样报 ISTIC。
+        把 note 写成「DOI 合法存在」＝替一个可能编造的 DOI 作存在性担保，违反不编造底线。
+        这条断言是防措辞漂回去的锁。
+        """
+        from paper_shared.datasources.routing import CNKI_NOTE, ISTIC_NOTE
+        for note in (ISTIC_NOTE, CNKI_NOTE):
+            self.assertIn("前缀", note)
+            self.assertNotIn("DOI 合法存在", note)
+            self.assertNotIn("文献真实存在", note)
+
+    def test_cn_doi_ra_never_routes_to_english_sources(self):
+        """中文 RA 一律不叠加 crossref / openalex（省两次必然 miss 的请求）。"""
+        from paper_shared.datasources.routing import CN_DOI_RA, RA_ROUTES
+        for ra in CN_DOI_RA:
+            self.assertEqual(RA_ROUTES[ra], ["doi_meta"], ra)
 
     def test_datacite_route(self):
         t = _transport([FakeResponse(200, [{"DOI": "10.48550", "RA": "DataCite"}])])

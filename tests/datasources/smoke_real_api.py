@@ -25,6 +25,10 @@ KNOWN = {
     "arxiv": ("lookup_arxiv_id", "1706.03762"),
     "pubmed": ("lookup_doi", "10.1038/nature12373"),
     "eric": ("search", "education technology"),
+    # 中文 DOI 题录通路。样本是《地理学报》2020(1) 宋长青（ISTIC 注册）——中文轨唯一的
+    # 自动题录来源，且实测经 doi.org 代理到 ISTIC 自建服务（`122.115.55.36:8000`），
+    # 稳定性弱于 Crossref，正是最值得定期冒烟的一条。
+    "doi_meta": ("lookup_doi", "10.11821/dlxb202001001"),
 }
 
 OK = "\033[32m✓\033[0m"

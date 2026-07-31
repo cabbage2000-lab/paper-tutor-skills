@@ -32,12 +32,21 @@ TYPE_MAP: Dict[str, Dict[str, str]] = {
 }
 
 # 各源返回的 type 字符串 → canonical（_postfilter 归一用；归一不了返回 None，不误杀）
+#
+# CSL-JSON 方言（`article-journal` / `paper-conference` / `chapter`）由 doi_meta 引入：
+# 内容协商回的是 CSL 规范类型，与 Crossref 的 `journal-article` 恰好**词序相反**。缺了
+# 这几行，中文 DOI 条目的 type 会归一成 None——filters.type 的客户端兜底过滤据此「宁松
+# 勿误杀」放行，看着没坏，但 paper-search 加 `--type journal-article` 时中文条目就成了
+# 唯一不被类型筛选约束的一档，用户读到的命中集与声明的筛选条件不符。
 _TO_CANONICAL: Dict[str, str] = {
     "journal-article": "journal-article", "article": "journal-article",
     "journalarticle": "journal-article", "journal article": "journal-article",
+    "article-journal": "journal-article",
     "proceedings-article": "conference-paper", "conference": "conference-paper",
+    "paper-conference": "conference-paper",
     "preprint": "preprint", "posted-content": "preprint",
-    "book": "book", "book-chapter": "book-chapter", "review": "review",
+    "book": "book", "book-chapter": "book-chapter", "chapter": "book-chapter",
+    "review": "review",
     "dissertation": "thesis", "thesis": "thesis", "report": "report",
 }
 

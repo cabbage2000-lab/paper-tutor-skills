@@ -5,8 +5,8 @@
   --query      检索模式：调门面 search() → 跨源去重 / 排序 / 分页 / 覆盖组装。
   --snowball   滚雪球模式：调门面 related() 由一篇已知文献取参考文献（后向）与被引
                文献（前向）。输出与 --query 同形，可并进同一张笔记表。
-  --lookup-doi 回填模式：调门面 lookup() 查单个 DOI 元数据（中文回填补全用）；
-               ISTIC 中文 DOI 无元数据时如实标"人工核对"，绝不 NOT_FOUND。
+  --lookup-doi 回填模式：调门面 lookup() 查单个 DOI 元数据（中文回填补全用）；中文 DOI
+               （ISTIC / CNKI）走内容协商取题录，取不到时如实标"人工核对"，绝不 NOT_FOUND。
 
 去重 / 排序是 paper-search 层的「检索策略」（数据源模块 spec §1.1 归此层）；数据源门面只
 负责取证（各源各查到什么），本脚本负责规整。设计见 paper-search spec §2 / §4 / §8.6。
@@ -30,11 +30,14 @@ from paper_shared.datasources import works_by_author as ds_works_by_author  # no
 from paper_shared.datasources.clients.arxiv import usable_terms as arxiv_usable_terms  # noqa: E402
 from paper_shared.datasources.clients.base import canonical_type, normalize_orcid  # noqa: E402
 from paper_shared.datasources.models import Ref, normalize_doi   # noqa: E402
+from paper_shared.datasources.routing import CN_DOI_RA  # noqa: E402
 from paper_shared.matching import compare_fields, pick_best_hit  # noqa: E402
 
 # 跨源合并的元数据权威序（已刊元数据最权威）：crossref > openalex > s2 > arxiv > pubmed > eric
+# doi_meta 排在末位：内容协商题录字段少（无 ORCID / 机构 / 被引数），但它是中文 DOI 唯一的
+# 自动题录来源，同条被英文源也收录时让英文源的完整元数据优先。
 _SOURCE_RANK = {"crossref": 0, "openalex": 1, "semantic_scholar": 2,
-                "arxiv": 3, "pubmed": 4, "eric": 5}
+                "arxiv": 3, "pubmed": 4, "eric": 5, "doi_meta": 6}
 
 
 def _norm_title(title):
@@ -480,9 +483,13 @@ def date_window_warnings(sources, date_from, date_to, query=None):
 
 
 def build_lookup_payload(doi, evidence, ref=None):
-    """回填补全输出：查到则给元数据；查不到分三档如实说清证据强度——ISTIC 中文 DOI（合法但
-    元数据 API 不可达）、前缀未注册（不存在的强信号）、各源未命中（可能只是未收录）。三档
-    一律交人工核对、绝不 NOT_FOUND（paper-search spec 红线 3 / §8.4）。
+    """回填补全输出：查到则给元数据；查不到分三档如实说清证据强度——中文 DOI（ISTIC / CNKI，
+    前缀已注册但本条题录未取到）、前缀未注册（不存在的强信号）、各源未命中（可能只是未收录）。
+    三档一律交人工核对、绝不 NOT_FOUND（paper-search spec 红线 3 / §8.4）。
+
+    中文 DOI 现在走 doi_meta 的内容协商取题录，**取到就是正常命中**（ISTIC 实测可取到标题 /
+    作者 / 刊名 / 卷期页 / 摘要），因此那一档的 note 必须带 `hit is None` 条件——否则会对着
+    一条已补全的题录说「请人工核对」。
 
     `ref` 非空且带标题时，额外把手里的题录与命中元数据做一次交叉核验（共享内核
     `paper_shared.matching`，与 paper-verify 同一套阈值），堵的是「DOI 解析得开、指向的
@@ -505,14 +512,18 @@ def build_lookup_payload(doi, evidence, ref=None):
         field_notes = [n.to_dict() for n in notes]
         metadata_consistent = not any(n.severity == "mismatch" for n in notes)
     note = None
-    if evidence.doi_ra == "ISTIC":
-        note = "ISTIC 注册：DOI 合法、元数据 API 不可达，请人工核对题录（不是编造嫌疑）"
-    elif evidence.doi_ra == "not_registered":
+    if evidence.doi_ra == "not_registered":
         # 与下一档的区别：前缀未注册是「不存在」的强信号（路由压根不查任何源，见 routing.route），
         # 各源未命中很可能只是中文库未收录。两者都交人工核对（存在性判定归 paper-verify），
         # 但证据强度必须如实分开——共用同一句会把编造 DOI 与真实中文文献抹平。
         note = ("DOI 前缀未在任一注册机构注册（因此未查任何元数据源）：这是 DOI 不存在的强信号，"
                 "请人工核对来源；存在性判定请走 /paper-verify")
+    elif hit is None and evidence.doi_ra in CN_DOI_RA:
+        # 中文 DOI **未取到题录**才给这句。此前这一档写在最前面、不带 `hit is None` 条件，
+        # 于是 doi_meta 取到完整题录时 payload 会同时给出 found=true 与「元数据 API 不可达、
+        # 请人工核对题录」——自相矛盾，且把已经补全成功的条目退回人工。
+        note = (f"{evidence.doi_ra} 注册（中文 DOI）：DOI 前缀已注册、本条题录未取到，"
+                "元数据请人工填、DOI 照记，备注「人工核对」（不是编造嫌疑）")
     elif hit is None:
         note = "各开放源未命中：可能是中文库文献或元数据未收录，请人工核对，勿据此判定编造"
     elif metadata_consistent is False:

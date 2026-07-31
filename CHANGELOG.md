@@ -29,6 +29,38 @@
 
 ### 新增（Added）
 
+- **中文 DOI 的题录现在能自动取到了——新增 `doi_meta` 源（DOI 内容协商）**。此前
+  [`routing.py`](skills/_shared/paper_shared/datasources/routing.py) 断言「ISTIC（中文 DOI）注册机构
+  未提供免费元数据 API」，把中文 DOI **整源跳过**（`RA_ROUTES["ISTIC"] = []`）、径直落待人工核对。
+  **这个断言经实测为假**：DOI 全球解析系统本身提供内容协商——向 `https://doi.org/{doi}` 带
+  `Accept: application/vnd.citationstyles.csl+json` 请求，注册机构支持的话直接回 CSL-JSON。实测
+  `10.11821/dlxb202001001`（《地理学报》2020 年第 1 期，宋长青）拿到中文标题、作者、刊名
+  《地理学报》、卷 75 期 1 页 3，以及 381 字的完整中文摘要——字段齐到足以完成核验与笔记表填充。
+
+  于是**带 ISTIC DOI 的中文文献从「待人工核对」变成可 VERIFIED**，撤稿检查与逐字段比对也一并
+  适用。走的是 DOI 基础设施而不是站点接口，因此**不碰知网 / 万方的 robots.txt 与账号风险**，与
+  「不把站点 ToS 转嫁给每个安装者」那条既有取舍不冲突。
+
+  **`CNKI` 补进注册机构路由表**：知网自己就是一家 DOI 注册机构（实测
+  `10.16511/j.cnki.qhdxxb.2020.22.001` 的 agency 为 `CNKI`）。此前它落 `unknown` 走保守路由，去查
+  crossref / openalex——它们按定义不收录别家注册的 DOI，两次必然 miss，还把「英文库没有」混进
+  中文条目的证据链里，让报告读起来像查无此文。它的内容协商实测回**多重解析 HTML 选择页**、不回
+  CSL-JSON，故 `doi_meta` 对它多为 miss；非 JSON 响应一律按 **miss（该注册机构不支持内容协商）**
+  处理而不按 error——两者对判定的含义差着「查了没有」与「查不成」，混同会让知网条目在报告里
+  显示成网络故障。
+
+  措辞精度上有一处刻意的克制：两条 `route_note` 与判定摘要都只说「DOI **前缀**已注册」，
+  **不说「这条 DOI 合法存在」**。RA 判别是前缀级的，实测编造后缀的 `10.11821/dlxb209999999`
+  前缀照样报 ISTIC——说成「合法存在」等于替一个可能编造的引用作存在性担保，这比不说更糟。
+  完整 DOI 级的存在性判定要另走 handle API（`hdl.handle.net/api/handles/{doi}`，rc=1 存在 /
+  rc=100 不存在），本次不引入。守卫见
+  [`test_routing.py`](tests/datasources/test_routing.py) 与 [`test_judge.py`](tests/paper-verify/test_judge.py)
+  里的措辞断言（防漂回去）。
+
+  顺带补上 CSL-JSON 的类型方言：`article-journal` 与 Crossref 的 `journal-article` **词序恰好相反**，
+  此前不在归一表里，中文 DOI 条目的 type 会归一成 `None`，于是 `--type journal-article` 筛选时
+  它成了唯一不受类型约束的一档——命中集与声明的筛选条件不符。
+
 - **`/paper-search` 的中文轨从「逐条手抄」升级为「官方导出 + 自动解析」**——新增
   [`parse_export.py`](skills/paper-search/scripts/parse_export.py)：用户在知网 / 万方站内检索后，用站点自己的
   「导出引文」功能导出 BibTex / EndNote(RIS) 文件，交脚本解析成与 `search.py` 同形的 `results`，直接并入
@@ -221,6 +253,24 @@
   `paper-anchor` 与 `paper-daily` 都显式传 `--limit`，不受这次默认值变更影响。
 
 ### 修复（Fixed）
+
+- **中文 DOI 的降级降得过早——两处「已经核验成功了却仍退回人工」**。接上 `doi_meta` 后暴露出来：
+  取到题录这件事在两条链路上都没被认。
+
+  1. [`judge.py`](skills/paper-verify/scripts/judge.py) 的第 2 条判定**无条件**拦截 `doi_ra == "ISTIC"`，
+     位置在任何 hit 检查之前。于是 `doi_meta` 即使拿回完整 CSL-JSON 题录，条目也照样落
+     PENDING_MANUAL：明明核验成功了，还要请用户再去知网手查一遍。现在只在 **无 hit** 时拦截，
+     取到题录则照常走撤稿检查与字段比对。无 hit 时行为不变——仍落 PENDING_MANUAL，绝不
+     NOT_FOUND（误伤铁律未动）。
+  2. [`search.py`](skills/paper-search/scripts/search.py) 的 `build_lookup_payload()` 里，ISTIC 那一档写在
+     分支链最前面且不带 `hit is None` 条件，于是 `--lookup-doi` 会**同时**输出 `found=true`、完整
+     `metadata`、和一句「元数据 API 不可达，请人工核对题录」——自相矛盾。且它排在
+     `metadata_consistent is False` 之前，中文 DOI 题录对不上时也会被这句盖掉，用户看不到真正
+     要紧的「DOI 与题录张冠李戴」提示。
+
+  两处同构，成因也同一个：降级条件写死在「中文 DOI = 拿不到元数据」这个已经不成立的前提上。
+  中文 DOI 注册机构名单因此收进 `routing.CN_DOI_RA` 单一事实来源（硬规则 6），新增一家中文 RA
+  只改一处。
 
 - **`/paper-init` 生成的 README 少标两个命令的写入者，而它自带的自检又必然误报**——同一张表上的两个缺陷，
   真机跑一次就同时撞上：
