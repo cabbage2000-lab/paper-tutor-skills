@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import datetime
+import html
+import re
+import xml.etree.ElementTree as ET
 from typing import Any, Callable, Dict, List, Optional
 
 from ..cache import Cache
@@ -66,6 +69,135 @@ def restore_inverted_abstract(index: Optional[Dict[str, Any]]) -> Optional[str]:
     if not slots:
         return None
     return " ".join(slots[i] for i in sorted(slots))
+
+
+# ---- JATS 摘要清洗（Crossref 的 abstract 是 XML 片段，不是纯文本）----
+
+# 标签前缀：实测同一个字段里出现过 `jats:p`、无前缀的 `p`、以及 `ns3:p` 三种写法，
+# 且**没有一处声明 xmlns** —— 直接喂 ET.fromstring 必报 "unbound prefix"。
+# 因此统一把前缀剥掉，而不是去声明某个特定命名空间（前缀名是出版商任意取的）。
+_JATS_PREFIX = re.compile(r"<(/?)[A-Za-z][\w.-]*:")
+# 非 XML 标准实体（&nbsp; &mdash; …）会让解析直接失败，先转成字符；
+# XML 的五个标准实体必须留着，否则 &lt; 变成真 `<` 会把结构冲烂。
+_NON_XML_ENTITY = re.compile(r"&(?!(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)[a-zA-Z][a-zA-Z0-9]*;")
+# 标签形态的判据。要求**闭合的 `>` 且首字符是字母**，所以摘要里合法的数学比较
+# （`x < 5`、`a<b`、`p<0.05`）不会被当成标签。
+#
+# 有意**不用**贪婪的 `<[^>]*>`：在不良构数据上它会从数学比较符的 `<` 一路吃到下一个 `>`，
+# 把中间的正文静默吞掉——实测 `p < 0.05 with unclosed <jats:bold>` 会丢掉
+# "0.05 with unclosed"。静默残缺比留一个孤立的 `<` 有害得多：用户会把残缺摘要当完整的读。
+_RESIDUAL_TAG = re.compile(r"<\s*/?\s*[A-Za-z][\w:.-]*(?:\s[^<>]*)?/?>")
+_MAX_STRIP_ROUNDS = 3       # 病态输入的保险；出版商双重转义实测最多两层
+_ENTITY = re.compile(r"&(?:#\d+|#x[0-9a-fA-F]+|\w+);")
+# 「Abstract」这类词是标签、不是摘要内容，去掉；小节标题（Background / Methods…）要留。
+_ABSTRACT_LABELS = {"abstract", "graphical abstract", "summary", "摘要", "abstract:"}
+_LEADING_LABEL = re.compile(r"^(abstract|graphical abstract|summary|摘要)\s*[:：.]?\s+", re.I)
+
+
+def _flat_text(node: ET.Element) -> str:
+    """节点内全部文本折成单行。用 itertext() 而非 .text：正文里嵌着 <bold>/<sup>/<italic>
+    等行内标签，只取 .text 会在第一个子标签处截断，把摘要砍掉半句。"""
+    return " ".join("".join(node.itertext()).split())
+
+
+def _is_abstract_label(text: str) -> bool:
+    return text.strip().rstrip(":：.").lower() in _ABSTRACT_LABELS
+
+
+def _finalize_text(text: str) -> str:
+    """收尾清洗：反转义残余实体 + 剥残余标签，两者**交替**做到稳定。
+
+    必须交替、且不止一轮，因为出版商普遍双重转义，实测三种都真实存在：
+      - `&amp;amp;` 经 XML 解析只解到 `&amp;`，用户会在笔记表里看到字面 `&amp;`
+        （10.47310/jpms202514s0159）；
+      - `&amp;lt;.001` 解到 `&lt;`，本该显示成 `P < .001`（10.2196/preprints.65269）；
+      - `&lt;p&gt;` 反转义后变成字面 `<p>`，于是又要再剥一遍标签
+        （10.5539/hes.v6n3p72）。
+    只做一遍、或只做其中一件，这三条都会带着可见的转义残渣进笔记表。
+    """
+    for _ in range(_MAX_STRIP_ROUNDS):
+        before = text
+        if _ENTITY.search(text):
+            text = html.unescape(text)
+        text = _RESIDUAL_TAG.sub(" ", text)
+        if text == before:
+            break
+    return " ".join(text.split())
+
+
+def _meaningful(text: Optional[str]) -> Optional[str]:
+    """没有任何字母 / 汉字的「摘要」等同没有摘要。
+
+    实测有出版商投递 `<jats:p>.</jats:p>`——一个句点（10.18502/kss.v3i6.2443）。把它当摘要
+    交给三格起草档，等于请 AI 对着一个句点编方法学；如实标「无摘要，未起草」才是对的。
+    判据是「有没有词」这个客观事实，不是主观的长度阈值——`[^\\W\\d_]` 对汉字同样成立。
+    """
+    if not text or not re.search(r"[^\W\d_]", text):
+        return None
+    return text
+
+
+def _strip_tags(raw: str) -> Optional[str]:
+    """降级路径：XML 解析失败（数据本身不良构）时按正则剥标签。
+
+    只剥形态完整的标签，剥不掉的孤立 `<` **保留**而不是整条丢弃：它进 markdown 与 HTML
+    都不形成标签（无害），而它也可能就是正文的一部分。三种坏结果里排序是——静默丢内容
+    最坏，整条丢弃次之，留个孤立尖括号最轻。
+    """
+    return _LEADING_LABEL.sub("", _finalize_text(raw)) or None
+
+
+def clean_jats_abstract(raw: Optional[str]) -> Optional[str]:
+    """Crossref 的 `abstract`（JATS XML 片段）→ 纯文本。给不出干净结果就返回 None。
+
+    结构化摘要按 `<sec><title>Methods</title><p>…</p></sec>` 拼成 `Methods: …`
+    （与 PubMed 的 efetch 处理同一口径，两边产出形状一致）。顶层的 `<title>Abstract</title>`
+    丢掉——那是标签不是内容。
+    """
+    if not raw or not isinstance(raw, str) or not raw.strip():
+        return None
+    body = _NON_XML_ENTITY.sub(lambda m: html.unescape(m.group(0)), raw.strip())
+    body = _JATS_PREFIX.sub(r"<\1", body)
+    try:
+        # 片段常有多个并列根元素（title + 若干 p），必须包一层才是良构 XML
+        root = ET.fromstring(f"<root>{body}</root>")
+    except ET.ParseError:
+        return _meaningful(_strip_tags(raw))
+    parts: List[str] = []
+
+    def _add(raw_text: Optional[str]) -> None:
+        collapsed = " ".join((raw_text or "").split())
+        if collapsed:
+            parts.append(collapsed)
+
+    # root.text 与 child.tail 是**标签外的裸文本**，两者都必须收：
+    #   - 有出版商直接投递纯文本（一个标签都没有），只遍历子元素会把整段摘要丢成 None；
+    #   - 混合内容（`裸文本 <p>段</p> 又是裸文本`）同理会丢掉标签之间的句子。
+    _add(root.text)
+    for child in root:
+        tag = child.tag.lower()
+        if tag == "sec":
+            title_el = child.find("title")
+            label = ""
+            if title_el is not None:
+                label = _flat_text(title_el)
+                child.remove(title_el)      # 摘掉标题，剩下的才是这节正文
+            text = _flat_text(child)
+            if text:
+                parts.append(f"{label}: {text}"
+                             if label and not _is_abstract_label(label) else text)
+        elif tag == "title" and _is_abstract_label(_flat_text(child)):
+            pass                            # 「Abstract」是标签不是内容，丢掉
+        else:
+            _add(_flat_text(child))
+        _add(child.tail)
+    # 解析成功不等于清洗完成：XML 只解一层实体、也只认真正的标签，出版商的双重转义
+    # 会留下字面的 `<p>` 与 `&amp;`（见 _finalize_text 的三个实测案例）。
+    out = _finalize_text(" ".join(parts).strip())
+    if not out:
+        # 片段里只有一个「Abstract」标题、没有正文：等同该条没给摘要
+        return None
+    return _meaningful(_LEADING_LABEL.sub("", out))
 
 
 class SourceClient:

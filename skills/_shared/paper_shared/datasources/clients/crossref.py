@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from ..models import SourceHit, normalize_doi
 from ..transport import NotFoundError
-from .base import SourceClient, TYPE_MAP
+from .base import SourceClient, TYPE_MAP, clean_jats_abstract
 
 
 class CrossrefClient(SourceClient):
@@ -77,13 +77,16 @@ class CrossrefClient(SourceClient):
         if parts and parts[0]:
             year = parts[0][0]
         containers = msg.get("container-title") or []
-        # 摘要有意不取：Crossref 的 abstract 是 JATS XML 片段（<jats:p> 等标签混在文本里），
-        # 且出版商投递率低。以 crossref 为主源的条目由 dedup 从其他源补摘要（见 search.py）。
+        # 摘要是 JATS XML 片段，须清洗成纯文本（clean_jats_abstract；剥不干净则返回 None，
+        # 不把半截标签喂进笔记表）。投递率取决于出版商，给不出的条目仍由 dedup 从其他源补。
+        # 与 S2 不同，这里**不必动缓存键**：crossref 的 URL 没有 select 参数，返回的是全字段，
+        # abstract 本就躺在旧缓存的响应里（实测确认）。
         return {"title": titles[0] if titles else None, "authors": authors, "year": year,
                 "venue": containers[0] if containers else None,
                 "doi": normalize_doi(msg.get("DOI", "")) or None, "type": msg.get("type"),
                 # 源没给就是 None，不补 0（「零被引」≠「该源不给这个数」）
-                "cited_by_count": msg.get("is-referenced-by-count")}
+                "cited_by_count": msg.get("is-referenced-by-count"),
+                "abstract": clean_jats_abstract(msg.get("abstract"))}
 
     @staticmethod
     def _retraction(msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:

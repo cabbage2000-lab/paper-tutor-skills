@@ -7,7 +7,9 @@ import unittest
 
 from paper_shared.datasources.cache import Cache
 from paper_shared.datasources.clients import CLIENT_CLASSES
-from paper_shared.datasources.clients.base import restore_inverted_abstract
+from paper_shared.datasources.clients.base import (clean_jats_abstract as C,
+                                                   restore_inverted_abstract)
+from paper_shared.datasources.clients.crossref import CrossrefClient
 from paper_shared.datasources.clients.openalex import OpenAlexClient
 from paper_shared.datasources.clients.semantic_scholar import SemanticScholarClient
 from paper_shared.datasources.registry import Registry
@@ -99,6 +101,106 @@ class TestInvertedAbstract(unittest.TestCase):
 
     def test_non_dict_input(self):
         self.assertIsNone(restore_inverted_abstract("not an index"))
+
+
+class TestJatsAbstract(unittest.TestCase):
+    """Crossref 的 abstract 是 JATS XML 片段。全部用例取自真实响应形态（DOI 见注释）。"""
+
+    def test_simple_paragraph(self):
+        self.assertEqual(C("<jats:p>E-commerce websites are widely used.</jats:p>"),
+                         "E-commerce websites are widely used.")
+
+    def test_prefix_is_not_always_jats(self):
+        """实测同一字段出现过 jats:p、无前缀的 p、以及 ns3:p 三种写法，且都不声明 xmlns
+        ——直接喂 ET.fromstring 会报 unbound prefix。所以统一剥前缀，不声明某个命名空间。"""
+        for raw in ("<jats:p>Body text.</jats:p>", "<p>Body text.</p>",
+                    "<ns3:p>Body text.</ns3:p>"):
+            self.assertEqual(C(raw), "Body text.")
+
+    def test_inline_tags_do_not_truncate(self):
+        # 只取 .text 会在第一个行内标签处截断，把摘要砍掉半句
+        self.assertEqual(C("<jats:p>Ratio <jats:italic>k</jats:italic> at <jats:sup>2</jats:sup> m.</jats:p>"),
+                         "Ratio k at 2 m.")
+
+    def test_abstract_label_dropped_body_kept(self):
+        # 「Abstract」是标签不是内容（实测 61/240 条带它）
+        self.assertEqual(C("<jats:title>Abstract</jats:title>\n<jats:p>Real body.</jats:p>"),
+                         "Real body.")
+
+    def test_only_abstract_label_is_no_abstract(self):
+        self.assertIsNone(C("<jats:title>Abstract</jats:title>"))
+
+    def test_structured_sections_keep_their_titles(self):
+        """结构化摘要拼成 `Methods: …`，与 PubMed efetch 同一口径（10.1093/tropej/fmab009）。"""
+        raw = ("<jats:title>Abstract</jats:title><jats:sec><jats:title>Introduction</jats:title>"
+               "<jats:p>Birth asphyxia may cause impairment.</jats:p></jats:sec>"
+               "<jats:sec><jats:title>Objective</jats:title>"
+               "<jats:p>To assess music therapy.</jats:p></jats:sec>")
+        self.assertEqual(C(raw), "Introduction: Birth asphyxia may cause impairment. "
+                                 "Objective: To assess music therapy.")
+
+    def test_bare_text_is_not_lost(self):
+        """有出版商直接投递纯文本。只遍历子元素会把整段摘要丢成 None。"""
+        self.assertEqual(C("Just plain text, no markup."), "Just plain text, no markup.")
+        self.assertEqual(C("Lead. <jats:p>Middle.</jats:p> Trail."), "Lead. Middle. Trail.")
+
+    def test_double_escaped_tag(self):
+        """10.5539/hes.v6n3p72：出版商把 HTML 的 <p> 转义成 &lt;p&gt; 塞进 <jats:p>。
+        XML 解析忠实还原成字面 "<p>"（语义上正确），但字面标签会破 markdown 表格、
+        进 HTML 视图会真的插进 DOM，所以要在输出边界再剥一道。"""
+        self.assertEqual(C("<jats:p>&lt;p&gt;The main aim is a model.&lt;/p&gt;</jats:p>"),
+                         "The main aim is a model.")
+
+    def test_double_escaped_entities(self):
+        # 10.47310/jpms202514s0159（&amp;amp;）与 10.2196/preprints.65269（&amp;lt;）
+        self.assertEqual(C("<jats:p>Background &amp;amp; Objectives: ok.</jats:p>"),
+                         "Background & Objectives: ok.")
+        self.assertEqual(C("<jats:p>Correlation (P &amp;lt;.001) held.</jats:p>"),
+                         "Correlation (P <.001) held.")
+
+    def test_math_comparators_survive(self):
+        """摘要里的 `p < 0.05` 是正文，不是标签——曾用「含任何 `<` 就判脏」，会整条丢掉。"""
+        self.assertEqual(C("<jats:p>Significant at p &lt; 0.05 here.</jats:p>"),
+                         "Significant at p < 0.05 here.")
+
+    def test_malformed_fallback_keeps_content(self):
+        """降级路径不许静默吞正文。贪婪的 `<[^>]*>` 会从 `<` 一路吃到下一个 `>`，
+        把 "0.05 with unclosed" 整段吞掉——静默残缺比留个孤立尖括号有害得多。"""
+        out = C("<jats:p>Significant at p < 0.05 with unclosed <jats:bold>bold")
+        self.assertIn("0.05", out)
+        self.assertIn("unclosed", out)
+        self.assertNotIn("jats:", out)
+
+    def test_punctuation_only_is_no_abstract(self):
+        """10.18502/kss.v3i6.2443 投递的 abstract 就是一个句点。把它当摘要交给三格起草档
+        等于请 AI 对着句点编方法学。判据是「有没有词」，不是主观长度阈值。"""
+        self.assertIsNone(C("<jats:p>.</jats:p>"))
+        self.assertIsNone(C("<jats:p>  --- 123 ---  </jats:p>"))
+
+    def test_cjk_counts_as_meaningful(self):
+        self.assertEqual(C("<jats:p>本文研究技术接受模型。</jats:p>"), "本文研究技术接受模型。")
+
+    def test_empty_inputs(self):
+        for bad in (None, "", "   \n  ", 123):
+            self.assertIsNone(C(bad))
+
+    def test_crossref_metadata_wires_it_up(self):
+        client, _ = make(CrossrefClient, "crossref",
+                         [FakeResponse(200, {"message": {
+                             "DOI": "10.1/a", "title": ["T"], "author": [],
+                             "issued": {"date-parts": [[2020]]}, "type": "journal-article",
+                             "is-referenced-by-count": 7,
+                             "abstract": "<jats:p>Clean body here.</jats:p>"}})],
+                         self.tmp.name)
+        hit = client.lookup_doi("10.1/a")
+        self.assertEqual(hit.metadata["abstract"], "Clean body here.")
+        self.assertEqual(hit.metadata["cited_by_count"], 7)
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmp.cleanup()
 
 
 class TestOpenAlexSnowball(unittest.TestCase):
