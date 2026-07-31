@@ -16,6 +16,9 @@ sys.path.insert(0, str(_REPO / "skills" / "paper-verify" / "scripts"))
 import judge  # noqa: E402
 import parse_refs  # noqa: E402
 from paper_shared.datasources.models import Evidence, Ref, SourceHit, SourceQuery  # noqa: E402
+# 字段比对内核在共享层（paper-verify 与 paper-search 共用）。本文件测它，是因为 verify 的
+# 第 5 条判定直接架在这些阈值上——阈值一变，六态判定就变。
+from paper_shared import matching  # noqa: E402
 
 
 def _parsed(rid="r1", doi=None, title="T", authors=None, year=2020, venue=None,
@@ -224,30 +227,30 @@ class TestJudgeSixStates(unittest.TestCase):
 class TestCompareHelpers(unittest.TestCase):
     def test_title_overlap_subset_is_one(self):
         # 引用标题是源标题子集（省略副标题）→ 重叠系数 1.0，视为一致
-        self.assertEqual(judge._title_overlap("AI in Education", "AI in Education and Learning"), 1.0)
+        self.assertEqual(matching.title_overlap("AI in Education", "AI in Education and Learning"), 1.0)
 
     def test_title_overlap_disjoint_is_zero(self):
-        self.assertEqual(judge._title_overlap("Deep Learning", "Quantum Computing"), 0.0)
+        self.assertEqual(matching.title_overlap("Deep Learning", "Quantum Computing"), 0.0)
 
     def test_surname_candidates_comma_form_is_exact(self):
         # 有逗号 → 逗号前即姓，候选唯一
-        self.assertEqual(judge._surname_candidates("Smith, John"), {"smith"})
-        self.assertEqual(judge._surname_candidates("王明, 李华"), {"王明"})
+        self.assertEqual(matching.surname_candidates("Smith, John"), {"smith"})
+        self.assertEqual(matching.surname_candidates("王明, 李华"), {"王明"})
 
     def test_surname_candidates_drops_initials(self):
         # 缩写必是名 → 剔除后候选精确，given-first / family-first 都对
-        self.assertEqual(judge._surname_candidates("AJ Wakefield"), {"wakefield"})
-        self.assertEqual(judge._surname_candidates("Wakefield AJ"), {"wakefield"})
-        self.assertEqual(judge._surname_candidates("A. J. Wakefield"), {"wakefield"})
+        self.assertEqual(matching.surname_candidates("AJ Wakefield"), {"wakefield"})
+        self.assertEqual(matching.surname_candidates("Wakefield AJ"), {"wakefield"})
+        self.assertEqual(matching.surname_candidates("A. J. Wakefield"), {"wakefield"})
 
     def test_surname_candidates_keeps_short_cjk_romanized(self):
         # 中文罗马化姓多为 2 字符，不得当成缩写丢掉（故按大写判断而非长度）
-        self.assertIn("li", judge._surname_candidates("Li Wang"))
-        self.assertIn("wang", judge._surname_candidates("Li Wang"))
+        self.assertIn("li", matching.surname_candidates("Li Wang"))
+        self.assertIn("wang", matching.surname_candidates("Li Wang"))
 
     def test_surname_candidates_full_names_ambiguous(self):
         # 两个都是全名 → 顺序无从判断，两者皆为候选
-        self.assertEqual(judge._surname_candidates("Yann LeCun"), {"yann", "lecun"})
+        self.assertEqual(matching.surname_candidates("Yann LeCun"), {"yann", "lecun"})
 
 
 if __name__ == "__main__":
