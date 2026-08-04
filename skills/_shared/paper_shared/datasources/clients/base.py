@@ -230,6 +230,37 @@ def normalize_orcid(raw: Optional[str]) -> Optional[str]:
     return m.group(1).upper() if m else None
 
 
+# ---- 开放获取（OA）可得性 ----
+
+# `metadata["oa"]` 的固定六键。三源同形是硬要求：呈现层与跨源合并
+# （paper-search·_merge_oa）都按键名读，某源少写一个键就会静默取到 None——看着像
+# 「这个源没给」，其实是提取漏了，而两者对用户的含义差着「拿不到」与「没查」。
+OA_KEYS = ("status", "url", "url_kind", "version", "host", "license")
+
+
+def oa_record(**fields: Any) -> Dict[str, Any]:
+    """组一条开放获取可得性记录。缺项一律 None，**绝不猜**。
+
+    - `status`：源给的 OA 状态（gold / green / hybrid / bronze / closed）。
+      **`None` 表示该源没给这个信息，与 `"closed"` 严格区分**——「没查到开放版本」与
+      「确认没有开放版本」是两件事，混同会让用户放弃本来能拿到的文献（同
+      cited_by_count 不补 0 的既有立场）。调用方判「该源未给出」用 `oa is None`。
+    - `url` / `url_kind`：合法开放版本的直达链接，以及它是 PDF 还是落地页
+      （`pdf` / `landing`；源只给了链接却没说是哪种时为 None）。
+    - `version`：`publishedVersion` / `acceptedVersion` / `submittedVersion`。
+      **必须与状态一起陈列**——实测 `10.1056/NEJMoa2034577` 的 OA 版是投稿版而非最终
+      发表版，只说「这篇是 OA」会让用户拿投稿版当发表版引。
+    - `host`：`publisher` / `repository` / `pmc` / `preprint`。
+    - `license`：源给的许可证串（如 `cc-by`），原样透传、不归一。
+
+    未知键直接抛错而不是静默丢弃：拼错键名（如 `licence`）会让整列凭空消失。
+    """
+    unknown = sorted(set(fields) - set(OA_KEYS))
+    if unknown:
+        raise ValueError(f"oa_record 收到未知键 {unknown}，合法键为 {list(OA_KEYS)}")
+    return {k: fields.get(k) for k in OA_KEYS}
+
+
 def author_details_or_empty(details: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """全员既无 ORCID 又无机构时收敛成 `[]`，否则原样返回。
 

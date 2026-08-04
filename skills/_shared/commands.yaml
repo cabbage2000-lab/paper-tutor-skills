@@ -116,6 +116,17 @@
   # 已知差异：场景 5「不排序」在 Claude Code/Opus 侧有执行偏离（2 次稳定替排序、违反
   # 红线 1），Codex 侧正确遵守——非 skill 设计缺陷，待加强 Claude 侧话术力度。
   # 场景 7 断网声明级因测试方法局限未可靠验证。详见 tests/paper-search/。
+  # 2026-08-04 增开放获取（OA）可得性陈列（医学检索增强第一批）：结果行多 oa / oa_source
+  # 两字段（六键契约见 clients/base.py·oa_record），笔记表多「全文获取」列。
+  # 三条别推翻：① **只陈列链接、绝不下载**——边界条目 no-paywall-circumvention 是本功能
+  # 的前置条件（先立边界后上功能，因为上线后第一个请求大概率就是「加个 Sci-Hub 链接」）；
+  # ② OA 是陈列列**不是排序键、不是阅读优先级**（同被引数，红线 1）；③ 源没给 OA 字段时
+  # `oa=null`（未知），**绝不写成 closed**——混同会让用户放弃本来能拿到的文献。
+  # 跨源合并按**信息完整度**而非源权威序（有链接 > 无链接，publishedVersion > accepted >
+  # submitted）：Crossref 权威序最高却压根不给 OA 字段，按权威序取整列会消失。
+  # 已知项：④ 医学检索第二批（PubMed 原生检索语法 / 日级时间窗 / 证据类型下推 [pt] /
+  # MeSH 两步走）未做；PubMed 是否提为 core 源、是否改元数据权威序本批**不动**（改权威序
+  # 影响全学科，需独立评估）。
 
 - name: paper-screen
   phase: A
@@ -460,6 +471,15 @@
   # 内联时须转义 </，否则 config 注释里的 </script> 提前闭合标签、整份 config 静默失效
   # （四层色全回落默认主题、页面照样出，极难自查——实际踩过）。② 文件名 report_html.py
   # 不叫 render_html.py——paper-search 已占该模块名，pytest 同进程会被 sys.modules 顶替。
+  # 2026-08-04 撤稿检测增第三源 PubMed（零额外请求：pubtype 快路径在 esummary 里、
+  # CommentsCorrections 详情搭 efetch 摘要那趟车）。信息量超过前两源：给出撤稿声明的
+  # 期刊卷期页 / DOI / PMID（OpenAlex 只有布尔标记，Crossref 有日期无声明刊期）。
+  # 两条别推翻：① RefType 只认 `…In`（本文被撤稿），`RetractionOf` 是「本文就是那份声明」
+  # ——读反则撤稿态永不触发（同 crossref 的 update-to / updated-by 坑）；② 关注声明
+  # （ExpressionOfConcernIn）**不进 retraction、不新增第七态**：SourceHit.retraction 非空即被
+  # judge.py 判 RETRACTED，把「期刊存疑、尚未定论」说成「已撤稿」是替期刊下结论。它落在
+  # metadata.expression_of_concern，六态判定一字未改。
+  # 已知项：⑤ 关注声明目前只在脚本输出 JSON 的证据链里，未进 MD / HTML 报告渲染。
 
 - name: paper-format
   phase: D
