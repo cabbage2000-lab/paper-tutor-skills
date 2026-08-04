@@ -26,6 +26,7 @@ Paper-Tutor-Skills positions AI as a **tutor and coach**, not an executor of res
 | Scaffold a standard research directory | Produce drafts end-to-end without human confirmation |
 | Structure outlines, polish language | Help evade AI detection, issue ethical waivers |
 | Generate human-machine division-of-labor records | Accept others' manuscripts under review |
+| Show open-access status and legal access routes | Provide paywall-circumvention routes |
 
 "Not writing for you" is not a limitation — it is a commitment to research integrity. Faced with requests like "just write a paper for me," Paper-Tutor-Skills will first empathize with your goal, then explain the risks in your own language, and finally offer a first step with visible results in 5 minutes — set up the directory, organize your materials, start from topic clarification.
 

@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from ..models import SourceHit, normalize_doi
 from ..transport import NotFoundError
-from .base import SourceClient
+from .base import SourceClient, oa_record
 
 _ATOM_NS = "http://www.w3.org/2005/Atom"
 _ARXIV_NS = "http://arxiv.org/schemas/atom"
@@ -214,6 +214,14 @@ class ArxivClient(SourceClient):
         cat_el = entry.find(f"{{{_ARXIV_NS}}}primary_category")
         category = cat_el.get("term") if cat_el is not None else None
 
+        # 全文链接：Atom 里 arXiv 自己给了 PDF 的 <link title="pdf">，用它而不是自己拼
+        # （拼 URL 就是在猜路径；title 属性判定不到时退回 id 那条落地页 URL）。
+        pdf_url = None
+        for link in entry.findall(f"{{{_ATOM_NS}}}link"):
+            if (link.get("title") or "").strip().lower() == "pdf" and link.get("href"):
+                pdf_url = link.get("href")
+                break
+
         # Atom 的 summary 就是 arXiv 摘要，但带硬换行与缩进（XML 里是排版过的多行文本），
         # 折成单行空白再存，否则进 markdown 表格会把一格撑成多行、把表打散。
         summary = _text("summary")
@@ -222,7 +230,7 @@ class ArxivClient(SourceClient):
         return {"id": short, "full_id": arxiv_id_full, "title": _text("title"),
                 "authors": authors, "published": published, "year": year, "date": date,
                 "doi": normalize_doi(doi) if doi else None,
-                "category": category, "abstract": abstract}
+                "category": category, "abstract": abstract, "pdf_url": pdf_url}
 
     @staticmethod
     def _metadata(raw: Dict[str, Any]) -> Dict[str, Any]:
@@ -232,4 +240,22 @@ class ArxivClient(SourceClient):
         return {"title": raw.get("title"), "authors": raw.get("authors") or [],
                 "year": raw.get("year"), "date": raw.get("date"), "venue": None,
                 "doi": raw.get("doi"), "type": "preprint",
-                "abstract": raw.get("abstract")}
+                "abstract": raw.get("abstract"), "oa": ArxivClient._oa(raw)}
+
+    @staticmethod
+    def _oa(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """arXiv 上的东西**恒为开放获取**（green / 预印本）——这是平台性质，不是响应里的
+        某个字段，所以此处的 status 是唯一一处「不来自响应」的 OA 取值，理由写在这里。
+
+        `version` 记 `submittedVersion`：arXiv **不透出**这份稿子是否已通过同行评审
+        （即使 `journal_ref` 有值，作者上传的也可能仍是投稿版），所以按预印本惯例取最
+        保守的一档。宁可让用户多核对一次版本，也不能把投稿版说成最终发表版。
+
+        链接优先 Atom 给的 PDF；没有（旧条目 / 结构变动）则退到落地页 URL，两者都拿不到
+        就只报状态、不给链接。
+        """
+        url, kind = raw.get("pdf_url"), "pdf"
+        if not url:
+            url, kind = raw.get("full_id"), "landing"
+        return oa_record(status="green", host="preprint", version="submittedVersion",
+                         url=url or None, url_kind=kind if url else None)

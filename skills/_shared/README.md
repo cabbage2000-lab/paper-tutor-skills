@@ -23,7 +23,7 @@
 | 留痕写入器：`.paper/` 四级使用记录 + 产物人机分工页脚 | 全体 skill | PRD·披露与留痕 |
 | 命令主清单 `commands.yaml`：全部 paper 命令的名称 / 阶段 / 定位 / 落盘目录 / 发布状态 / 使用指引，声明式统一维护 | `paper-help`、`paper-init` | 本仓库·paper-help spec |
 | 外部工具链探测 [`paper_shared/toolchain.py`](paper_shared/toolchain.py)：pandoc / xelatex / 中文字体族名探测 + 三平台安装指引。两边各写一份必然漂移——doctor 说 pandoc 可用、typeset 说不可用，用户无从判断哪个对 | `paper-typeset`（转换前探测）、`paper-doctor`（体检项） | 本仓库·系统综述与风格校准与出版链三块补齐设计 §7.2 / §7.5 |
-| 边界拒绝清单：A 类产品边界 8 条 + B 类拒绝的机制 4 条，每条带审查判据、依据、出口指引与同步锚点；新功能提案的评审准绳 | 全体 skill | [PRD·边界即产品](../../docs/prd/paper-tutor-skills-prd-v1.md) |
+| 边界拒绝清单：A 类产品边界 9 条 + B 类拒绝的机制 4 条，每条带审查判据、依据、出口指引与同步锚点；新功能提案的评审准绳 | 全体 skill | [PRD·边界即产品](../../docs/prd/paper-tutor-skills-prd-v1.md) |
 
 ## 技术栈
 

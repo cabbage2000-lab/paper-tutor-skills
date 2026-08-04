@@ -68,12 +68,31 @@ class SourceQuery:
 
 @dataclass
 class SourceHit:
-    """一个源的命中：规范化元数据 + 裁剪后的原始响应（供 verify 逐字段比对）。"""
+    """一个源的命中：规范化元数据 + 裁剪后的原始响应（供 verify 逐字段比对）。
+
+    `metadata` 是自由 Dict（各源给什么留什么），但下列键有跨源契约、呈现层按键名读：
+
+    | 键 | 含义 | 缺省语义 |
+    | --- | --- | --- |
+    | title / authors[] / year / venue / doi / type | 题录 | None = 该源未给 |
+    | date | 日级日期 YYYY-MM-DD（目前仅 arXiv） | None = 该源无日级粒度 |
+    | cited_by_count | 被引数 | **不设键 / None = 未知，不是零被引** |
+    | abstract | 摘要纯文本 | None = 该源未给 |
+    | author_details[] | 作者 ORCID / 机构（见各 client 的 _author_details） | [] = 各源都没给标识 |
+    | oa | 开放获取可得性六键（见 clients.base.oa_record） | **None = 该源未给出，不是 closed** |
+    | pubtypes[] | 源给的完整出版类型数组（目前仅 PubMed，证据类型标签） | 不设键 = 该源无此概念 |
+    | expression_of_concern | 关注声明（撤稿的中间态，仅 PubMed） | 不设键 = 没查到或没查过 |
+
+    关注声明**有意不进 `retraction`**：那个字段非空即被 paper-verify 判为已撤稿，
+    把「期刊对该文存疑、尚未定论」说成「已撤稿」是替期刊下结论。
+    """
     source: str
-    metadata: Dict[str, Any]   # title / authors[] / year / venue / doi / type
+    metadata: Dict[str, Any]   # 契约键见类文档
     fetched_at: str            # ISO 8601（UTC）
-    # 撤稿标记：Crossref updated-by（Retraction Watch）/ OpenAlex is_retracted。
-    # 键：type / label / date_parts / source / doi，source 缺失表示源未给出溯源。
+    # 撤稿标记：Crossref updated-by（Retraction Watch）/ OpenAlex is_retracted /
+    # PubMed 的 pubtype "Retracted Publication" 与 CommentsCorrections RetractionIn。
+    # 键：type / label / date_parts / source / doi，source 缺失表示源未给出溯源；
+    # PubMed 另带 notice_pmid（撤稿声明自己的 PMID）。
     retraction: Optional[Dict[str, Any]] = None
     raw: Dict[str, Any] = field(default_factory=dict)
     from_cache: bool = False   # 本次命中是否来自本地缓存（供 stats 缓存命中率统计）

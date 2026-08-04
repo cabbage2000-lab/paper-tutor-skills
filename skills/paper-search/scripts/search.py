@@ -81,6 +81,44 @@ def _merge_cited_by(hits):
     return best, src
 
 
+# OA 版本的信息完整度序（越大越可靠）。判据是「点开拿到的是不是最终版」这个客观事实，
+# 与源的元数据权威性无关——所以 _merge_oa 不按 _SOURCE_RANK 挑，只用它平局兜底。
+_OA_VERSION_RANK = {"publishedversion": 3, "acceptedversion": 2, "submittedversion": 1}
+
+
+def _oa_score(oa):
+    """(有没有链接, 版本完整度) —— 元组比较，前者优先。
+
+    有链接的一律胜过没链接的：OA 状态说「理论上开放」，链接才是「现在能点开」。
+    """
+    return (1 if oa.get("url") else 0,
+            _OA_VERSION_RANK.get(str(oa.get("version") or "").strip().lower(), 0))
+
+
+def _merge_oa(hits):
+    """开放获取可得性跨源取**信息最完整**的那条，并记下来源源名。
+
+    与 _merge_cited_by（取最大值）、_merge_abstract（按权威序取第一个非空）都不同：
+    OA 的价值在「能不能点开、点开是不是最终版」，跟元数据权威不权威无关——Crossref
+    权威序最高却压根不给 OA 字段，按权威序取会让整列消失。故按信息完整度挑：
+    有链接 > 无链接；同为有链接则 publishedVersion > accepted > submitted > 未知；
+    再平局按源权威序（sorted 保证，结果可复现）。
+
+    `oa` 为 None（该源未给出）的 hit 不参与竞争——它与「确认没有开放版本」是两件事，
+    让它参与就会用「未知」盖掉另一个源真给出的链接。全源都没给 → 返回 (None, None)，
+    呈现层据此写「未知（各源未给出）」而**不是 closed**。
+    """
+    best, src, score = None, None, None
+    for h in sorted(hits, key=lambda x: _SOURCE_RANK.get(x.source, 99)):
+        oa = h.metadata.get("oa")
+        if not oa:
+            continue
+        s = _oa_score(oa)
+        if score is None or s > score:
+            best, src, score = oa, h.source, s
+    return best, src
+
+
 def _merge_abstract(hits):
     """摘要按权威序取第一个非空值。
 
@@ -142,6 +180,7 @@ def dedup_hits(items):
         h = g["primary"]
         m = h.metadata
         cited, cited_src = _merge_cited_by(g["hits"])
+        oa, oa_src = _merge_oa(g["hits"])
         abstract, abstract_src = _merge_abstract(g["hits"])
         author_details, author_details_src = _merge_author_details(g["hits"])
         # 滚雪球方向：同一篇可能既在后向又在前向出现（互引），两向都要留，不二选一
@@ -162,6 +201,11 @@ def dedup_hits(items):
             "venue": m.get("venue"), "doi": m.get("doi"), "type": m.get("type"), "url": _url(m),
             # 被引数与它的来源库：null = 各源都没给这个数（不是零被引）
             "cited_by_count": cited, "cited_by_source": cited_src,
+            # 开放获取可得性（能不能合法拿到全文）与它的来源库。六键见
+            # paper_shared.datasources.clients.base.oa_record。**null = 各源都没给出
+            # （不是「没有开放版本」）**；status="closed" 才是源明确说没有。
+            # 这是陈列列、不是排序键，也不是阅读优先级——同 cited_by_count（红线 1）。
+            "oa": oa, "oa_source": oa_src,
             "abstract": abstract, "abstract_source": abstract_src,
             "sources": sorted(g["sources"], key=lambda s: _SOURCE_RANK.get(s, 99)),
             "primary_source": h.source, "from_cache": h.from_cache, "retraction": h.retraction,

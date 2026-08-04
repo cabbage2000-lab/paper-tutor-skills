@@ -19,9 +19,11 @@ class TestRegistry(unittest.TestCase):
         # doi_meta：中文 DOI（ISTIC / CNKI）的题录来源，走 DOI 内容协商而非站点接口
         self.assertEqual(doi_capable, {"crossref", "openalex", "semantic_scholar",
                                        "pubmed", "arxiv", "doi_meta"})
-        # 撤稿检测双源冗余：Crossref updated-by（Retraction Watch）+ OpenAlex is_retracted
+        # 撤稿检测三源冗余：Crossref updated-by（Retraction Watch）+ OpenAlex is_retracted
+        # + PubMed（pubtype "Retracted Publication" 与 CommentsCorrections RetractionIn）。
+        # 医学是撤稿重灾区，而前两源在中文与医学期刊上的覆盖都不如 PubMed。
         self.assertEqual({s.id for s in self.reg.with_capability("retraction")},
-                         {"crossref", "openalex"})
+                         {"crossref", "openalex", "pubmed"})
 
     def test_guided_sources_have_no_endpoint(self):
         guided = self.reg.guided_sources()

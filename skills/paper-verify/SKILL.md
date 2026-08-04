@@ -139,7 +139,8 @@ python3 scripts/format_check.py < refs.txt     # stdin 进、格式问题 JSON �
 | 编造 DOI 前缀（10.9999 等） | `not_registered` → 「未找到（疑似不存在）」+ 证据链 + 出口 |
 | 编造 Crossref DOI 号码 | 注册机构自证不存在 → 「疑似不存在」 |
 | 元数据不符（年份 / 作者 / 标题） | 「元数据不符」+ 逐字段标注；venue / type 仅提示不升态 |
-| 已撤稿 | 「已撤稿」+ 撤稿数据来源（如实取自响应：Crossref 的 Retraction Watch 带撤稿日期，OpenAlex 仅布尔标记）；投稿前必处理 |
+| 已撤稿 | 「已撤稿」+ 撤稿数据来源（如实取自响应：Crossref 的 Retraction Watch 带撤稿日期，OpenAlex 仅布尔标记，PubMed 给出撤稿声明的期刊卷期页 / DOI / PMID 但不给结构化撤稿日期）；投稿前必处理 |
+| 期刊出了关注声明（Expression of Concern，医学常见） | **不是撤稿态**——期刊对该文存疑、尚未定论，判成「已撤稿」是替期刊下结论。六态不变（按其余判据照常落 VERIFIED 等）；信号在脚本输出 JSON 的证据链里（PubMed 命中的 `evidence.hits[].metadata.expression_of_concern`，带声明的期刊卷期页 / DOI / PMID），**目前不进 HTML 报告**，要用就从 JSON 读、作附加标记如实转述 + 提示投稿前留意，处理与否归用户 |
 | 查不成（网络 / 超时） | 「无法核实」；网络恢复后重跑（断点续验跳过已完成） |
 | 用户人工核对回填 | 填 `manual_result` → 重跑升级为「已核实」（核对劳动沉淀） |
 | 非文献引用（法条 / 判例 / 古籍 / 标准） | 单独标"非文献引用，须人工核对"，不进 API 核验 |

@@ -292,7 +292,8 @@ def to_result(entry: Dict[str, Any], source: str) -> Dict[str, Any]:
 
     `date` 恒为 None：导出格式只给到年，日级日期给不出就是 null（同 search.py，不用
     year 凑）。`retraction` 恒为 None：导出文件不含撤稿信息，「没查过」不等于「没被撤稿」，
-    撤稿判定归 /paper-verify。"""
+    撤稿判定归 /paper-verify。`oa` 同理恒为 None：站内导出题录不含开放获取状态，
+    「没查过」不等于「拿不到全文」——绝不因此把中文条目呈现成 closed。"""
     return {
         "title": entry.get("title"), "authors": entry.get("authors") or [],
         "year": entry.get("year"), "date": None,
@@ -302,6 +303,7 @@ def to_result(entry: Dict[str, Any], source: str) -> Dict[str, Any]:
         "pages": entry.get("pages"),
         "sources": [source], "primary_source": source,
         "from_cache": False, "retraction": None,
+        "oa": None, "oa_source": None,
         "coverage_mode": "user_export",
     }
 

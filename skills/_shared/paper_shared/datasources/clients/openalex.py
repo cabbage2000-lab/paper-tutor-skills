@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from ..models import AuthorCandidate, SourceHit, normalize_doi
 from ..transport import NotFoundError
 from .base import (SourceClient, TYPE_MAP, author_details_or_empty, normalize_orcid,
-                   restore_inverted_abstract)
+                   oa_record, restore_inverted_abstract)
 
 
 # `filter=openalex_id:A|B|C` 的 OR 上限（OpenAlex 对 filter 里的管道分隔取值限 50 个）
@@ -216,7 +216,50 @@ class OpenAlexClient(SourceClient):
                 # 是两件事，抹平了会让笔记表把未知说成已知。
                 "cited_by_count": w.get("cited_by_count"),
                 "abstract": restore_inverted_abstract(w.get("abstract_inverted_index")),
-                "author_details": OpenAlexClient._author_details(w)}
+                "author_details": OpenAlexClient._author_details(w),
+                # 开放获取可得性（能不能合法拿到全文）。None = 该源未给出，≠ closed。
+                "oa": OpenAlexClient._oa(w)}
+
+    # location.source.type → 统一的 host 取值。**`best_oa_location` 里没有 `host_type`
+    # 这个键**（2026-08-04 对 10.1056/NEJMoa2034577 的真实响应逐键看过），凭记忆写它
+    # 会静默拿到 None，于是「出版商还是仓储」整列消失。归一不了的返回 None（未知），
+    # 不硬塞一个值——用户据此判断「点开是正式网站还是机构库」，猜错比留空更糟。
+    _OA_HOST_BY_SOURCE_TYPE = {"repository": "repository", "journal": "publisher",
+                               "conference": "publisher", "book series": "publisher",
+                               "ebook platform": "publisher"}
+
+    @staticmethod
+    def _oa(w: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """`open_access` + `best_oa_location` → 统一的 OA 记录。**零额外请求**——这两块
+        本来就在响应里，此前被 _metadata 与 _trim 一起丢掉了。
+
+        两处实测得来的必须：
+
+        1. **链接要两级降级 `pdf_url → landing_page_url`**。实测 `pdf_url` 经常是 null 而
+           `landing_page_url` 有值（NEJM 那条即是），只取 pdf_url 会让大量真有开放版本的
+           文献显示成「无链接」。两级都空时退到 `open_access.oa_url`，但那时源没说它是
+           PDF 还是落地页，故 `url_kind` 留 None（不假装知道）。
+        2. **`version` 必须一起带出来**。同一条实测的 OA 版是 `submittedVersion`（投稿版，
+           不是最终发表版）——只报「是 OA」会让用户拿投稿版当发表版引。
+
+        两块都缺 → None（该源未给出），绝不写成 closed。
+        """
+        oa = w.get("open_access") or {}
+        best = w.get("best_oa_location") or {}
+        if not oa and not best:
+            return None
+        url, kind = best.get("pdf_url"), "pdf"
+        if not url:
+            url, kind = best.get("landing_page_url"), "landing"
+        if not url:
+            url, kind = oa.get("oa_url"), None
+        raw_type = (best.get("source") or {}).get("type") or best.get("raw_type")
+        return oa_record(status=oa.get("oa_status"), url=url,
+                         url_kind=kind if url else None,
+                         version=best.get("version"),
+                         host=OpenAlexClient._OA_HOST_BY_SOURCE_TYPE.get(
+                             str(raw_type or "").strip().lower()),
+                         license=best.get("license"))
 
     @staticmethod
     def _author_details(w: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -263,6 +306,9 @@ class OpenAlexClient(SourceClient):
     def _trim(w: Dict[str, Any]) -> Dict[str, Any]:
         # abstract_inverted_index 有意不进 raw：它是全文体积的倒排表，而还原后的纯文本
         # 已经在 metadata.abstract 里，留两份只是把缓存撑大。
+        # open_access / best_oa_location 必须在白名单里：raw 是 verify 逐字段比对的取证
+        # 底本，OA 结论的原始依据不留在 raw 里，用户就无从复核「这个链接是哪来的」。
         keep = ("id", "doi", "display_name", "publication_year", "type",
-                "authorships", "primary_location", "is_retracted", "cited_by_count")
+                "authorships", "primary_location", "is_retracted", "cited_by_count",
+                "open_access", "best_oa_location")
         return {k: w[k] for k in keep if k in w}

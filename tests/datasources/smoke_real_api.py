@@ -92,6 +92,69 @@ def main() -> int:
     except Exception as e:
         print(f"  {FAIL} {'openalex':20s} author endpoints → {type(e).__name__}: {e}")
         exit_code = 1
+
+    # 开放获取（OA）与撤稿信号单独走一趟：两者都从「已经拿回来、但曾被丢弃的字段」里提取
+    # （OpenAlex 的 open_access / best_oa_location，PubMed 的 pubtype / CommentsCorrections），
+    # 所以源一改字段路径就会**静默变空**——单元测试跑的是 fixture，抓不到这种漂移。
+    #
+    # 本机注意：eutils 经本机代理（127.0.0.1:7897）不通（curl exit 35 / SSL handshake 失败），
+    # 跑这一段须直连：`no_proxy='*' python3 tests/datasources/smoke_real_api.py`。
+    def _oa_probe(src_id, label, fn, expect):
+        nonlocal exit_code
+        try:
+            oa = fn()
+            missing = [k for k in expect if not (oa or {}).get(k)]
+            note = "" if not missing else f"  ← 缺 {missing}，字段路径可能已漂移"
+            print(f"  {OK if not missing else FAIL} {src_id:20s} {label} → {oa}{note}")
+            if missing:
+                exit_code = 1
+        except Exception as e:
+            print(f"  {FAIL} {src_id:20s} {label} → {type(e).__name__}: {e}")
+            exit_code = 1
+
+    def _client(src_id):
+        cfg = registry.get(src_id)
+        iv = ((cfg.rate_limit or {}).get("anonymous") or {}).get("min_interval_s", 1.0)
+        c = CLIENT_CLASSES[src_id](cfg, transport, cache, Throttle(iv), fresh=True)
+        env = (cfg.auth or {}).get("key_env")
+        if env:
+            c.api_key = os.environ.get(env)
+        return c
+
+    # 10.1056/NEJMoa2034577：实测 pdf_url 为 null、landing_page_url 有值，且开放版是
+    # **投稿版**——正是「链接要两级降级」与「版本必须一起陈列」两条的来源样本。
+    _oa_probe("openalex", "oa(10.1056/NEJMoa2034577)",
+              lambda: _client("openalex").lookup_doi("10.1056/NEJMoa2034577").metadata["oa"],
+              ("status", "url", "url_kind", "version", "host"))
+    # 同一篇在 PubMed 侧有 PMC 全文（PMC7745181）→ green / pmc
+    _oa_probe("pubmed", "oa(PMC 全文)",
+              lambda: _client("pubmed").lookup_doi("10.1056/NEJMoa2034577").metadata["oa"],
+              ("status", "url", "host"))
+    _oa_probe("arxiv", "oa(1706.03762)",
+              lambda: _client("arxiv").lookup_arxiv_id("1706.03762").metadata["oa"],
+              ("status", "url", "url_kind", "version", "host"))
+
+    # PMID 42371203 是一条**真撤稿**文献（2026-08-04 实测）：pubtype 含 "Retracted
+    # Publication"，CommentsCorrections 的 RetractionIn 给出撤稿声明的刊期、DOI 与 PMID。
+    # 撤稿声明本身（PMID 42507066）带的是 RetractionOf，绝不能被判成「已撤稿」——方向
+    # 读反则撤稿态永不触发，故两条一起探。
+    try:
+        hits = _client("pubmed").search("42371203[uid]", limit=1)
+        r = hits[0].retraction if hits else None
+        ok = bool(r and r.get("doi") and r.get("notice_pmid"))
+        print(f"  {OK if ok else FAIL} {'pubmed':20s} retraction(42371203) → {r}"
+              f"{'' if ok else '  ← 撤稿详情未取到，CommentsCorrections 路径可能已变'}")
+        if not ok:
+            exit_code = 1
+        notice = _client("pubmed").search("42507066[uid]", limit=1)
+        clean = bool(notice) and notice[0].retraction is None
+        print(f"  {OK if clean else FAIL} {'pubmed':20s} 方向陷阱(42507066 是撤稿声明本身) → "
+              f"{'未被误判为已撤稿' if clean else '被误判成已撤稿——RefType 方向读反了'}")
+        if not clean:
+            exit_code = 1
+    except Exception as e:
+        print(f"  {FAIL} {'pubmed':20s} retraction → {type(e).__name__}: {e}")
+        exit_code = 1
     return exit_code
 
 
