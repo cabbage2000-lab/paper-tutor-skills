@@ -20,3 +20,12 @@ docs/reports/
 docs/reviews/
 docs/specs/
 docs/superpowers/
+
+# Skillhub 发布相关（本地工具，不入库）
+scripts/publish_to_skillhub.py
+scripts/add_skillhub_metadata.py
+scripts/fix_skillhub_metadata.py
+scripts/validate_skills.py
+tests/test_validate_skills.py
+docs/SKILLHUB_IMPLEMENTATION_SUMMARY.md
+docs/adr/
