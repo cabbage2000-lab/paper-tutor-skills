@@ -75,6 +75,32 @@ skills/
 
 宿主的 skills 目录各不相同，**装错位置的表现是命令一个都不出现**（不是报错，所以很难自查）：Claude Code 读 `~/.claude/skills/` 与项目级 `.claude/skills/`；Codex 读 `~/.codex/skills/` 与项目级 `.codex/skills/`、`.agents/skills/`，**不读 `.claude/skills/`**。散装安装用 `sync_skills.py --target <目录>`（本地脚本，不入库）。
 
+### Skillhub 分发（第四渠道）
+
+Skillhub（skillhub.cn）是国内的 skill 社区，与前三个宿主的核心差异：
+
+| 差异点 | 说明 |
+| --- | --- |
+| 元数据来源 | 只从 SKILL.md frontmatter 读，不读 `.*-plugin/` 清单 |
+| 安装粒度 | 一次只发一个 skill 文件夹，无"整体安装"概念 |
+| 搜索机制 | 只有 `slug` 和 `displayName` 参与召回，中文不分词，前缀匹配 >> 中间子串 |
+
+上架准备：
+
+- 24 个 `skills/paper-*/SKILL.md` 写入 `slug` / `displayName` / `version` / `summary`
+- `slug` 必须与目录名逐字相同（CLI 安装落盘为 `<install_root>/<slug>/`，只有 slug 与目录名一致，跨 skill 引用才解析得到）
+- `displayName` 以「学术辅导」开头、四字连续不被分隔符打断（用 `·`）——这是唯一的检索杠杆
+- `version` 由 `validate_skill_versions` 钉在 `.claude-plugin/plugin.json` 的 version 上
+- 发布前用 `skillhub publish skills/<name> --dry-run` 预检
+
+已知限制：
+
+- 平台没有"整体安装"机制，用户只装部分 skill 会导致跨 skill 引用断链。summary 里写明警告，但平台卡片展示的是 description 而非 summary，故断链警告同时写进 description
+- `skillhub install` 加了 `--namespace` 会多套一层 `@<handle>/` 目录，宿主发现不了。装到宿主目录**一律不带 `--namespace`**
+- slug 一经发布不再改动（全网唯一 + 安装目录名，改了会断链）
+
+决策依据与实测细节见 [ADR 0001](docs/adr/0001-skillhub-distribution-and-frontmatter-metadata.md)。
+
 ### 发版
 
 **开版本骨架**（`chore: 开 x.y.z 版本骨架`）：把 `CHANGELOG.md` 的段落标题定为 `## [x.y.z] — 待定`，段落里放一块含 `RELEASE-BLOCKER` 哨兵的 HTML 注释，并同步下面第 2 步的九处版本号。骨架期一路往段落里累加条目，CI 照常绿。

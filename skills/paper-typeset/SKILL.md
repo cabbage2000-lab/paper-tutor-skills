@@ -1,6 +1,10 @@
 ---
 name: paper-typeset
 description: Paper 出版链命令（Markdown → LaTeX / DOCX / PDF 转换管线 + GB/T 7714-2015 国标著录）。当用户要把正文转成 Word 投稿、要生成 .tex、要出 PDF、要参考文献按国标格式渲染，或说"投稿要 Word 版""帮我转成 LaTeX""参考文献要国标格式""导出 docx""这个 md 怎么变成能投的稿"时使用——即使用户只说"转个格式""出个 PDF"也应使用。行为铁律：只换容器、绝不改一个字（不"顺手润色"）；转换后对 .tex 做正文汉字序列逐字比对，.docx/.pdf 是二进制、**明说无法字符级校验**、只校验源文件 md5 未变，绝不谎称校验过；环境缺失（pandoc/xelatex/中文字体）一律输出「未生成什么·原因·安装指引·可手工执行的完整命令」四件套，**绝不假装成功、绝不用模型生成一个"看起来像"的产物**；CSL 路径写错报错而非静默跳过（跳过等于产出非国标著录）。不做期刊/高校排版模板库（PRD §448，指路官网）、不改写正文、不做查重降重、不替用户决定投什么格式。由 /paper-submit 主流程引导进入，亦可独立调用。
+slug: paper-typeset
+displayName: 学术辅导·出版转换
+version: 0.1.8
+summary: 学术辅导套件的一员，需与其他 paper-* skill 同级安装。Markdown 转 LaTeX/DOCX/PDF。
 ---
 
 # paper-typeset：出版链（转换管线 + 国标著录）

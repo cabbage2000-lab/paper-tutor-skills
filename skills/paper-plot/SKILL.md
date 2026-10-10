@@ -1,6 +1,10 @@
 ---
 name: paper-plot
 description: Paper 绘图代码生成命令（内建于 paper-figure，可独立调用）。当用户要生成绘图代码、plot 代码、画图代码、matplotlib 代码、ggplot2 代码、帮我生成图表代码、帮我写画图脚本、生成柱状图代码、散点图代码、折线图代码、箱线图代码、误差线图代码、直方图代码、热图代码，或说"帮我画个图""帮我写段代码画柱状图""给我一个 matplotlib 脚本"也触发——即使用户只说"画图""plot""代码画图"也应使用。行为铁律：仅 v1.0 P0 7 类图（柱状/条形算 1 类：柱状/条形/折线/散点/箱线/误差线/直方图/热图）× matplotlib + ggplot2；选库让用户拍板（先问 matplotlib/ggplot2/别的，得到答复才生成）；配色取自公开色板（Okabe-Ito/ColorBrewer/viridis，非 AI 原创）；真实数据或显式占位符（PAPER_PLACEHOLDER），绝不编看似真实的研究数据；确认前零落盘。"帮我画 KM 曲线""帮我画 ROC""帮我画森林图""帮我画 TikZ"走让路说明（v1.1+）；"帮我编一组示例数据"走三段式拒绝（处 2 死线）。
+slug: paper-plot
+displayName: 学术辅导·绘图代码
+version: 0.1.8
+summary: 学术辅导套件的一员，需与其他 paper-* skill 同级安装。生成 matplotlib/ggplot2 绘图代码。
 ---
 
 # paper-plot：绘图代码生成（内建于 paper-figure，可独立调用）
