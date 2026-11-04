@@ -442,7 +442,7 @@ def author_works_warnings(orcid):
 
 
 def _search_filters(args):
-    """年份 / 类型筛选（检索模式与作者模式共用）。日级时间窗不在此列——那是 /paper-daily
+    """年份 / 类型筛选（检索模式与作者模式共用）。日级时间窗不在此列——那是 /paper-research 每日追踪
     的新发轨专属，且只有 arXiv 支持，加进作者轨会静默 0 命中。"""
     filters = {}
     if args.year_from is not None:
@@ -540,7 +540,7 @@ def build_lookup_payload(doi, evidence, ref=None):
     却是另一篇」——DOI 抄错一位、或题录张冠李戴时都会这样，光看 `found=true` 发现不了。
 
     **这里只陈列比对结果，不判态**：`field_notes` 原样给宿主转述，出口指引仍是
-    `/paper-verify`。存在性判定不归本命令（红线 3），加了比对也不归。
+    `/paper-check 引用核验`。存在性判定不归本命令（红线 3），加了比对也不归。
     """
     hits = evidence.hits
     # 多源命中时按题录选最匹配的那条，而不是取 hits[0]（各源题录可能差异很大）；
@@ -561,7 +561,7 @@ def build_lookup_payload(doi, evidence, ref=None):
         # 各源未命中很可能只是中文库未收录。两者都交人工核对（存在性判定归 paper-verify），
         # 但证据强度必须如实分开——共用同一句会把编造 DOI 与真实中文文献抹平。
         note = ("DOI 前缀未在任一注册机构注册（因此未查任何元数据源）：这是 DOI 不存在的强信号，"
-                "请人工核对来源；存在性判定请走 /paper-verify")
+                "请人工核对来源；存在性判定请走 /paper-check 引用核验")
     elif hit is None and evidence.doi_ra in CN_DOI_RA:
         # 中文 DOI **未取到题录**才给这句。此前这一档写在最前面、不带 `hit is None` 条件，
         # 于是 doi_meta 取到完整题录时 payload 会同时给出 found=true 与「元数据 API 不可达、
@@ -573,7 +573,7 @@ def build_lookup_payload(doi, evidence, ref=None):
     elif metadata_consistent is False:
         note = ("DOI 查得到，但你给的题录与源元数据对不上（见 field_notes）：常见成因是 DOI "
                 "抄错一位、或题录与 DOI 张冠李戴。请核对这条 DOI 的来源后再决定是否入表；"
-                "存在性判定请走 /paper-verify")
+                "存在性判定请走 /paper-check 引用核验")
     return {"doi": doi, "doi_ra": evidence.doi_ra, "route_note": evidence.route_note,
             "found": hit is not None, "metadata": hit.metadata if hit else None,
             # null = 未比对（没给 --title 或没查到），与 false（比对了且不一致）严格区分

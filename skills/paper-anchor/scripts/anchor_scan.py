@@ -169,7 +169,7 @@ def scan(docs: List[Tuple[str, str]]) -> Dict:
             "未检出任何锚点链接或行内引用形态。若本文使用全脚注制（`[^1]`）或尾注，"
             "本脚本认不出，引用密度一项须声明「不可用」，不得据此说正文没有引用。")
     if any("纯结构占位" in ln for s in stats for ln in s.existing_warnings):
-        notes.append("检出 `⚠️ 纯结构占位` 标记——来自 /paper-outline 的大纲产物，"
+        notes.append("检出 `⚠️ 纯结构占位` 标记——来自 /paper-write 大纲 的大纲产物，"
                      "指该要点当时未挂锚点。")
     if bq_only:
         notes.append(
@@ -260,7 +260,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         d = pathlib.Path(args.dir)
         if not d.is_dir():
             print(f"读不到目录：{args.dir}")
-            print("请确认路径正确；manuscript/ 尚无正文则先用 /paper-draft 起草。")
+            print("请确认路径正确；manuscript/ 尚无正文则先用 /paper-write 分段写作 起草。")
             return 3
         paths.extend(sorted(d.glob("*.md")))
     if not paths:

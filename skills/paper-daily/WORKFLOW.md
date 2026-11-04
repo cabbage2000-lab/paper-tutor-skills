@@ -1,18 +1,12 @@
----
-name: paper-daily
-description: >-
-  Paper 每日学术雷达命令（抢发检测 + 新发泛读）。当用户手头有研究想法（RQ / 方法 / 想投的会议）、想确认是不是已被人抢发、或想每天泛读该方向新发论文时使用——即使用户只说"今天 arXiv 有什么新论文""这个方向最近有什么新论文""我被人抢发了吗""这个 idea 还能做吗""最近一周有什么新论文""PaperFlow 那种 daily 推送""每日学术日报""抢发检测""新发泛读"也应使用。双轨设计：arXiv 自动轨（确定性、可复现）+ 用户多源补充轨（arXiv RSS / 邮件订阅 / Twitter / PaperFlow daily 输出 / 同事推送，粘贴格式自由）。行为铁律：高/中/低相关度标签是辅助陈列标签、非价值判断（不打分、不排序、不挑"最该读"）；抢发命中不夸大、不替用户下定论（每条标概念比对依据、末尾疑问句式交回用户）；真实 API 为准、断网显式声明降级（不静默用模型记忆顶替、不编造文献/DOI）；覆盖方式必声明、中文缺口必提示（英文库没检索到 ≠ 没人研究过）；确认前零落盘。"帮我挑今天最该读的""这个方向已经被抢发了对吧""告诉我哪篇最重要"走三段式转化或拒绝。
-slug: paper-daily
-displayName: 学术辅导·每日进展
-version: 0.1.8
-summary: 学术辅导套件的一员，需与其他 paper-* skill 同级安装。研究日志与进展追踪。
----
+> 内部流程 `paper-daily`，由 `/paper-research 每日追踪` 进入；不注册为独立命令。
+> 相对路径以本文件所在目录为基准；脚本使用绝对路径调用，工作目录保持用户研究项目。
+> 留痕继续使用 `paper-daily` 标识；对外指引使用公开入口和中文任务。
 
 # paper-daily：每日学术雷达（抢发检测 + 新发泛读）
 
 帮用户每天做两件事：**确认手头的研究想法是不是已被人抢发** + **泛读该方向的新发论文**。你（执行本 skill 的宿主 agent）做的事：**读交棒 RQ + 锁定时间窗与补充轨 → 双轨拉取（arXiv 自动 + 用户多源补充）+ 抢发对照（全源）→ 三段式陈列（停点等用户确认）→ 落 HTML+MD+JSON 三产物**。
 
-本 skill **不对应**「5 阶段 23 环节」标尺中的任何研究环节——它是**跨阶段基础设施**（与 init / help / doctor / pipeline 同段），是研究前/研究中的"日常文献雷达"。**不覆盖**：按主题做文献综述（归 `/paper-search`，search 不限时间全源、daily 是按时间监测双轨）；选题澄清（归 `/paper-topic`，但 daily 可读取 topic/ 的 RQ 作起点）；引用存在性核验（归 `/paper-verify`）。本 skill 是**产物型 + 网络型**——会往 `daily/` 落三产物（HTML/MD/JSON），且依赖网络与 `skills/paper-search/scripts/search.py`。
+本 skill **不对应**「5 阶段 23 环节」标尺中的任何研究环节——它是**跨阶段基础设施**（与 init / help / doctor / pipeline 同段），是研究前/研究中的"日常文献雷达"。**不覆盖**：按主题做文献综述（归 `/paper-research 检索文献`，search 不限时间全源、daily 是按时间监测双轨）；选题澄清（归 `/paper-research 选题`，但 daily 可读取 topic/ 的 RQ 作起点）；引用存在性核验（归 `/paper-check 引用核验`）。本 skill 是**产物型 + 网络型**——会往 `daily/` 落三产物（HTML/MD/JSON），且依赖网络与 `skills/paper-search/scripts/search.py`。
 
 **核心立场（这条决定本 skill 长什么样）**：抢发判断与研究取舍是研究者主权的核心。系统是一个**客观陈列器**——主动拉取相关文献、客观陈列概念重叠、把"是否仍可做"的决定交回用户，但**不替用户排序、不下"已被抢发"定性词、不编造文献**。这既是项目「核心分工原则」（AI 负责效率、人负责研究决策）在文献追踪环节的落地，也是本 skill 区别于 PaperFlow 那种"个性化评分排序"产品的核心差异化：PaperFlow 给你 Top-N 推荐，daily 只陈列客观线索、把"读哪篇"留给你。
 
@@ -39,9 +33,9 @@ summary: 学术辅导套件的一员，需与其他 paper-* skill 同级安装�
 ## 会话开始（读长期记忆与交棒，非停点）
 
 1. 若存在 `project.paper.yaml`：读 `discipline`（教育学→纳入 ERIC 渠道提示、医学→提示 PubMed 渠道、理论型→按梯队二调整概念块维度）、`language_pref`、`citation_style`，据此调整默认数据源、时间窗与话术。
-2. 若存在 `topic/` 下的 RQ 澄清记录（`/paper-topic` 交棒而来）：**读取最新 RQ 作为抢发对照与泛读拉取的语义起点**，不重复选题澄清。
+2. 若存在 `topic/` 下的 RQ 澄清记录（`/paper-research 选题` 交棒而来）：**读取最新 RQ 作为抢发对照与泛读拉取的语义起点**，不重复选题澄清。
 3. 若两者皆有 → 默认沿用 RQ，显示给用户确认。
-4. 两者皆无 → **直接进入第 1 步询问 RQ**（不强求用户先跑 `/paper-topic`，日报入口要轻）。
+4. 两者皆无 → **直接进入第 1 步询问 RQ**（不强求用户先跑 `/paper-research 选题`，日报入口要轻）。
 5. 目录约定是增强不是依赖——三者皆缺时 skill 照常工作，只是第 1 步要主动问 RQ。
 
 ## 两停点流程（确认前不拉取 / 不落盘）
@@ -52,7 +46,7 @@ summary: 学术辅导套件的一员，需与其他 paper-* skill 同级安装�
 
 ```text
 请提供今日日报的三件套：
-  ① RQ / 研究想法 / 关键词（一句话即可，允许从 /paper-topic 交棒）
+  ① RQ / 研究想法 / 关键词（一句话即可，允许从 /paper-research 选题 交棒）
   ② 时间窗（默认「今日」，可改「最近 N 天」，N ≤ 14）
   ③（可选）你今天从其他渠道刷到的新发：
      - arXiv RSS / 邮件订阅 / Twitter / PaperFlow daily 输出 / 同事推送
@@ -65,7 +59,7 @@ summary: 学术辅导套件的一员，需与其他 paper-* skill 同级安装�
 
 **默认值与边界**：
 - ① **RQ 缺失**（用户未提供、且 `topic/` 也无交棒）→ **不启动**，反问"想关注什么方向？"；不输出空日报。
-- ② 时间窗默认 **今日**；用户填"最近 N 天"则按天筛选（N 上限 14、超过则建议改用 `/paper-search` 做主题回顾）。
+- ② 时间窗默认 **今日**；用户填"最近 N 天"则按天筛选（N 上限 14、超过则建议改用 `/paper-research 检索文献` 做主题回顾）。
 - ③ 补充轨为空 → 仅跑自动轨，日报如实标"今日无用户补充"。
 
 ### 第 2 步 · 双轨拉取 + 抢发对照（非停点，纯执行）
@@ -142,10 +136,10 @@ crossref / openalex 等源，脚本会提醒它们在窗口下必然 0 命中—
 ║ 每条：标题 / 作者 / 来源徽章 / 链接 / 高|中|低徽章
 
 ╚══ 🎯 下一步行动 ══════════════════
- ╠ 抢发命中（高相关 ≥ 1）→ 建议进入 /paper-topic 重审 RQ？
- ╠ 高相关新发 ≥ 1 → 建议进入 /paper-search 深检？
+ ╠ 抢发命中（高相关 ≥ 1）→ 建议进入 /paper-research 选题 重审 RQ？
+ ╠ 高相关新发 ≥ 1 → 建议进入 /paper-research 检索文献 深检？
  ╠ 全部低相关 → 建议照常推进研究？
- ╚ 中文缺口 → 建议进入 /paper-search 中文引导轨？
+ ╚ 中文缺口 → 建议进入 /paper-research 检索文献 中文引导轨？
  （程序化陈列、非 AI 拍板；每条疑问句式）
 
 ⏸ 等待确认：今日日报落盘 daily/
@@ -163,9 +157,9 @@ crossref / openalex 等源，脚本会提醒它们在窗口下必然 0 命中—
 | `daily/YYYY-MM-DD.html` | 同内容 + 样式（复制 `references/报告样式模板.html` 为起点、替换占位符） |
 | `daily/.paper/YYYY-MM-DD.json` | 留痕：输入 RQ / 时间窗 / 双轨检索参数 / 抢发命中 + DOI / 新发条目 + DOI / 覆盖声明 / 高/中/低判定依据 / 用户补充轨原文 |
 
-**目录自建约定**：`daily/` 是 infra 跨阶段命令的产物目录、**不在 `/paper-init` 建的研究项目骨架里**（与 init/help/doctor 同属工作台辅助设施、不预建；详见 paper-init「两种布局」段末的设计说明）。落盘前先 `test -d daily/ || mkdir -p daily/.paper/`——目录不存在则自建（含 `daily/.paper/` 留痕子目录）；自建后随 git 入库（不写进 `.gitignore`，与 `.paper/` 同款约束）。
+**目录自建约定**：`daily/` 是 infra 跨阶段命令的产物目录、**不在 `/paper-help 建项目` 建的研究项目骨架里**（与 init/help/doctor 同属工作台辅助设施、不预建；详见 paper-init「两种布局」段末的设计说明）。落盘前先 `test -d daily/ || mkdir -p daily/.paper/`——目录不存在则自建（含 `daily/.paper/` 留痕子目录）；自建后随 git 入库（不写进 `.gitignore`，与 `.paper/` 同款约束）。
 
-**落盘位置规则**：在 `/paper-init` 建的标准项目目录里运行 → 落 `<项目根>/daily/`；在普通目录里运行（无标准骨架）→ 落当前目录的 `daily/`、并向用户说明位置（与 outline/draft 等研究命令的"目录约定是增强不是依赖"原则一致）。
+**落盘位置规则**：在 `/paper-help 建项目` 建的标准项目目录里运行 → 落 `<项目根>/daily/`；在普通目录里运行（无标准骨架）→ 落当前目录的 `daily/`、并向用户说明位置（与 outline/draft 等研究命令的"目录约定是增强不是依赖"原则一致）。
 
 **入库约定**：三个文件均随 git 入库（CLAUDE.md·硬规则 5：`.paper/` 留痕绝不写进 `.gitignore`）。
 
@@ -188,7 +182,7 @@ crossref / openalex 等源，脚本会提醒它们在窗口下必然 0 命中—
 
 | 场景 | 触发条件 | 降级行为 | 用户可见提示 |
 |---|---|---|---|
-| **F1. search.py 不存在** | `skills/paper-search/scripts/search.py` 缺失 | 完全降级，仅用户补充轨；抢发检测整段省略 | 顶部 banner：`⚠️ 自动轨不可用：检索脚本缺失。今日仅运行用户补充轨。建议用 /paper-doctor 体检。` |
+| **F1. search.py 不存在** | `skills/paper-search/scripts/search.py` 缺失 | 完全降级，仅用户补充轨；抢发检测整段省略 | 顶部 banner：`⚠️ 自动轨不可用：检索脚本缺失。今日仅运行用户补充轨。建议用 /paper-help 环境体检 体检。` |
 | **F2. 网络全断** | search.py 返回 `network_status=offline` 或所有源全 timeout | 同 F1 | `⚠️ 今日自动轨不可用：网络不通。今日仅运行用户补充轨。` |
 | **F3. 部分源失败** | search.py 返回 `network_status=degraded`（取值只有 `ok` / `degraded` / `offline`） | **不降级**，覆盖声明段如实标各源命中数与状态 | 概览段：`arXiv: ✅ 25 / Crossref: ⚠️ timeout / OpenAlex: ✅ 8` |
 | **F4. 时间窗内 0 新发** | 自动轨返回 0 条 | **不扩窗、不去掉时间窗**；先查 `warnings`（词太多 / 加了不给日期的源），排除后如实报 0 | 自动轨顶部：`今日 arXiv 自动轨 0 篇新发`（若 warnings 非空，一并原文呈现） |
@@ -199,17 +193,17 @@ crossref / openalex 等源，脚本会提醒它们在窗口下必然 0 命中—
 | **F9. 文件冲突** | 同日已有产物 | 询问"覆盖 / 追加版本号 / 取消"，默认追加版本号 | `已存在 daily/YYYY-MM-DD.md。选: [覆盖 / 追加为 v2 / 取消]?` |
 | **F10. search.py 报错（非网络）** | 脚本异常退出、JSON 解析失败 | 同 F1，完全降级到"仅用户补充轨" | `⚠️ 自动轨不可用：脚本异常退出（<错误码>）。今日仅运行用户补充轨。` |
 
-**完全降级时（F1/F2/F10）产物结构收缩**：抢发检测整段省略、顶部插 `<div class="fallback-banner">` 醒目警示、补充轨照跑、行动段改为"是否先跑 /paper-doctor" + "用户补充有高相关 → 是否进 /paper-search 深检？"。完整降级版 MD 模板见 `references/日报产物模板.md` §1 末尾。
+**完全降级时（F1/F2/F10）产物结构收缩**：抢发检测整段省略、顶部插 `<div class="fallback-banner">` 醒目警示、补充轨照跑、行动段改为"是否先跑 /paper-help 环境体检" + "用户补充有高相关 → 是否进 /paper-research 检索文献 深检？"。完整降级版 MD 模板见 `references/日报产物模板.md` §1 末尾。
 
 **错误恢复路径**：
 
 | 错误 | 用户该怎么办 |
 |---|---|
-| F1（脚本缺失） | `/paper-doctor` 体检 → 重装 / 更新 paper-search |
+| F1（脚本缺失） | `/paper-help 环境体检` 体检 → 重装 / 更新 paper-search |
 | F2（断网） | 等网络恢复重跑；或仅依赖用户补充轨出当日报告 |
 | F4（时间窗内 0 新发） | 先看 `warnings`：词太多就换 2-5 个核心词重试；加了不给日期的源就只留 arXiv。都排除后就是当期确实没有新发，照常出报 |
 | F5（补充解析失败） | 用户重新格式化输入（每行一篇、用 DOI 或 arXiv ID 最稳） |
-| F8（概念块拆分失败） | 回 `/paper-topic` 重审 RQ，把方向说清楚 |
+| F8（概念块拆分失败） | 回 `/paper-research 选题` 重审 RQ，把方向说清楚 |
 
 **与 paper-search 降级路径的关系**：daily **直接复用、不另起一套**——`search.py` 的 `network_status` 字段是单一信号源、daily 直接读不做二次判断；失败时的"明确标注降级、不静默顶替"原则完全继承自 paper-search 红线 3 + paper-verify 代码层约束。用户从 search 切到 daily 时，失败语义不变。
 
@@ -241,13 +235,13 @@ crossref / openalex 等源，脚本会提醒它们在窗口下必然 0 命中—
 
 **上游（读）**：
 - `project.paper.yaml` → `discipline` / `language_pref` / `citation_style`（调整数据源与话术）
-- `topic/` 下的 RQ 澄清记录（`/paper-topic` 交棒而来）→ RQ 起点
+- `topic/` 下的 RQ 澄清记录（`/paper-research 选题` 交棒而来）→ RQ 起点
 - 用户当轮直接提供 RQ / 想法 / 关键词 → 也可作为起点
 - `skills/paper-search/scripts/search.py` → 抢发对照轨 + 新发自动轨的检索引擎（不改其源码）
 
 **下游（写 + 推荐出口）**：
 - `daily/YYYY-MM-DD.md` + `daily/YYYY-MM-DD.html` + `daily/.paper/YYYY-MM-DD.json`（三产物）
-- 「下一步行动」段引导：`/paper-search`（深检某篇高相关）/ `/paper-topic`（抢发命中重审 RQ）/ `/paper-doctor`（自动轨不可用时排查环境）
+- 「下一步行动」段引导：`/paper-research 检索文献`（深检某篇高相关）/ `/paper-research 选题`（抢发命中重审 RQ）/ `/paper-help 环境体检`（自动轨不可用时排查环境）
 
 ## 测试与已知观察项
 

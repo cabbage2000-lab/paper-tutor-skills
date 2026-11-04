@@ -332,7 +332,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     src = pathlib.Path(args.input)
     if not src.is_file():
         print(f"读不到输入文件：{src}")
-        print("请确认路径正确；manuscript/ 尚无正文则先用 /paper-draft 起草。")
+        print("请确认路径正确；manuscript/ 尚无正文则先用 /paper-write 分段写作 起草。")
         return EXIT_INPUT
 
     formats: List[str] = []

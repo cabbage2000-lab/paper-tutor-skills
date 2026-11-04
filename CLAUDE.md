@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-Paper-Tutor-Skills 是一套装进编程智能体的**学术辅导** agent skills，简体中文优先，面向中文研究生与科研工作者。v0.1.0 起提供 25 个命令入口 / 23 个 skill 目录，覆盖学术研究 5 阶段全生命周期。
+Paper-Tutor-Skills 是一套装进编程智能体的**学术辅导** agent skills，简体中文优先，面向中文研究生与科研工作者。当前合并为 5 个公开入口，原有能力作为内部流程保留，覆盖学术研究 5 阶段全生命周期。
 
 核心分工：**AI 负责效率（检索、整理、核对、结构化），人负责研究决策（想法、判断、数据、结论）**。
 
@@ -24,38 +24,44 @@ python3 -m pytest tests/paper-verify -q
 # 真实 API 冒烟（打 Crossref / OpenAlex 等真实端点，有网络与配额依赖，按需手工跑）
 python3 -m pytest tests/datasources/smoke_real_api.py -q
 
-# 把 skills/ 镜像同步安装到本地测试项目（幂等；本地开发脚本，不入库）
-python3 sync_skills.py --list                                   # 干跑，只打印计划
-python3 sync_skills.py                                          # 同步全部
-python3 sync_skills.py --skill paper-init --target <skills 目录>  # 选择性同步
+# 成套安装/升级；先预览，再备份并替换本套件的旧目录
+python3 scripts/install_skills.py --target <skills目录> --dry-run
+python3 scripts/install_skills.py --target <skills目录>
+python3 scripts/validate_commands.py
 ```
 
 本机无 `python` 别名，一律用 `python3`；若环境装了 pytest-asyncio 须补 `-p no:asyncio`。CI 配置见 [`.github/workflows/tests.yml`](.github/workflows/tests.yml)（push / PR 触发，只跑 pytest，无覆盖率门与 lint 门）。
 
 ## 架构
 
+当前采用[五入口设计](docs/command-consolidation.md)：`commands.yaml` 只登记五个公开入口，`workflows.yaml` 登记内部能力；原能力正文移入 `WORKFLOW.md`，脚本位置与留痕 ID 保持不变。新增能力优先合入已有入口，禁止额外注册旧命令别名。升级使用 `scripts/install_skills.py`，避免残留旧 `SKILL.md`。
+
 **`skills/` 是分发单元**——整目录成套安装。skill 之间以相对路径（`../_shared/...`）互引，单个 skill 拆出去会断链。
 
 ```text
 skills/
-├── paper-<word>/          # 一个 skill 一个目录，目录名 = 命令名去斜杠
+├── paper-<entry>/         # 五个公开入口；help/submit 同时含内部流程
 │   ├── SKILL.md           # 必需：frontmatter（name、description）+ 行为指令
 │   ├── references/        # 按需：分层加载的详细规则（核验协议、话术库、格式规则）
 │   ├── scripts/           # 按需：本 skill 专用的确定性脚本
 │   └── assets/            # 按需：模板等静态资源
-└── _shared/               # 唯一的非 skill 目录（下划线前缀 = 永不放 SKILL.md）
-    ├── commands.yaml      # 命令主清单（单一事实来源）
+├── paper-<capability>/   # 内部能力，不暴露额外命令
+│   ├── WORKFLOW.md       # 行为指令，无技能 frontmatter
+│   └── scripts/ 等        # 保留原脚本与参考资料
+└── _shared/               # 共享层，不放 SKILL.md
+    ├── commands.yaml      # 五个公开入口
+    ├── workflows.yaml     # 内部能力、状态、路由与历史留痕 ID
     ├── paper_shared/      # Python 包根
     │   ├── datasources/   # 文献 API 客户端 + 缓存 / 分批退避 / DOI 注册机构路由
     │   └── toolchain.py   # pandoc / xelatex / 中文字体探测（doctor 与 typeset 共用）
     └── references/        # 跨 skill 权威定义（见下「共享约定」）
 ```
 
-`_shared/` 的准入规则：**至少两个 skill 使用**的资源才进来，单 skill 专用的留在自己的 `scripts/` / `references/`。
+`_shared/` 的准入规则：**至少两个入口或内部流程使用**的资源才进来，单 skill 专用的留在自己的 `scripts/` / `references/`。
 
 数据源层已接入 arXiv、OpenAlex、Semantic Scholar、Crossref、PubMed、ERIC，DOI 按注册机构分流（Crossref / DataCite / ISTIC；ISTIC 即中文 DOI，径直落「待人工核对」）。
 
-其余目录：`tests/` 与 skills 平行（每个 skill 一个子目录 + `fixtures/` 共享语料）；`evals/` 放裸模型对比记录；`scripts/` 放仓库级工具（`extract_changelog_notes.py`）；入库的文档只有 `docs/prd/`（产品定位与设计理念，权威）与 `docs/examples/`。
+其余目录：`tests/` 与 skills 平行（每个 skill 一个子目录 + `fixtures/` 共享语料）；`evals/` 放裸模型对比记录；`scripts/` 放仓库级工具（发布说明提取、五入口校验、成套安装升级）；对外文档包括 `docs/prd/`、`docs/examples/` 与 `docs/command-consolidation.md`。
 
 ### 插件分发（Claude Code 与 Codex）
 
@@ -66,14 +72,14 @@ skills/
 | Claude Code | `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` | `/plugin marketplace add cabbage2000-lab/paper-tutor-skills` |
 | Codex | `.codex-plugin/plugin.json` + `.agents/plugins/marketplace.json` | `codex plugin marketplace add cabbage2000-lab/paper-tutor-skills` |
 
-这是**增量增强、不替换任何东西**：`skills/` 散装主体原样保留，其他宿主照常按 SKILL.md 装载——与硬规则 3 的跨宿主中立不冲突。
+插件与目录安装共用同一份 `skills/` 分发包，其他宿主照常按 SKILL.md 装载——与硬规则 3 的跨宿主中立不冲突。
 
 - **plugin 根 = 仓库根**，所以 `skills/` 天然在正确位置。两个 `.*-plugin/` 目录里**只放清单文件**，skill 内容绝不能塞进去（官方明确的坑，放错则一个 skill 都加载不到）。
 - **两套清单不能合并**：格式实打实不同——Codex 的 plugin.json 多要 `skills: "./skills/"` 指针与一整块 `interface`（`displayName` / `shortDescription` / `longDescription` / `developerName` / `category` / `capabilities` / `defaultPrompt` 全必填），marketplace 条目的 `source` 是对象且必带 `policy`。四份清单的公共字段由 [`tests/test_plugin_manifest.py`](tests/test_plugin_manifest.py) 守住不漂。
-- **`skills/_shared` 会让官方预检脚本报错，但不影响真实安装**——Codex 的 `plugin-creator/validate_plugin.py` 只跳过 `.` 开头的目录，遇到无 SKILL.md 的 `_shared` 会判 `skill '_shared' is missing 'SKILL.md'`。运行时摄取（`codex plugin add`）与 skill 加载器都只认含 SKILL.md 的目录，`_shared` 被静默忽略，23 个 skill 全部正常加载（2026-07-28 实测 codex-cli 0.145.0）。**因此不要为了讨好预检脚本去给 `_shared` 改名或补 SKILL.md**——那会同时踩中硬规则 2 与硬规则 6，换来的只是一个预检脚本的绿灯。
-- **plugin name 取 `paper-tutor`**，命令因此呈现为 `/paper-tutor:paper-init`——前缀与命令名都带 paper，确实啰嗦。更简洁的 `/paper:init` 需要把 23 个 skill 目录改名为 `init`/`verify` 等，牵动硬规则 2（`name` = 目录名 = 命令名）、主清单、两个 README 与全部内部引用。**权衡结论：不值得，保持 `paper-tutor`。** 要推翻这个结论，得连同上述几处一起改。
+- **`skills/_shared` 会让官方预检脚本报错，但不影响真实安装**——Codex 的 `plugin-creator/validate_plugin.py` 只跳过 `.` 开头的目录，遇到无 SKILL.md 的 `_shared` 会判 `skill '_shared' is missing 'SKILL.md'`。运行时摄取（`codex plugin add`）与 skill 加载器都只认含 SKILL.md 的目录，`_shared` 被静默忽略，当时的 23 个 skill 全部正常加载（2026-07-28 实测 codex-cli 0.145.0）。**因此不要为了讨好预检脚本去给 `_shared` 改名或补 SKILL.md**——那会同时踩中硬规则 2 与硬规则 6，换来的只是一个预检脚本的绿灯。
+- **plugin name 保持 `paper-tutor`**，例如 `/paper-tutor:paper-check`。插件描述与 README 统一展示五个公开入口。
 
-宿主的 skills 目录各不相同，**装错位置的表现是命令一个都不出现**（不是报错，所以很难自查）：Claude Code 读 `~/.claude/skills/` 与项目级 `.claude/skills/`；Codex 读 `~/.codex/skills/` 与项目级 `.codex/skills/`、`.agents/skills/`，**不读 `.claude/skills/`**。散装安装用 `sync_skills.py --target <目录>`（本地脚本，不入库）。
+宿主的 skills 目录各不相同，**装错位置的表现是命令一个都不出现**（不是报错，所以很难自查）：Claude Code 读 `~/.claude/skills/` 与项目级 `.claude/skills/`；Codex 读 `~/.codex/skills/` 与项目级 `.codex/skills/`、`.agents/skills/`，**不读 `.claude/skills/`**。散装安装用 `python3 scripts/install_skills.py --target <目录>`（入库工具，含升级备份）。
 
 ### Skillhub 分发（第四渠道）
 
@@ -87,7 +93,7 @@ Skillhub（skillhub.cn）是国内的 skill 社区，与前三个宿主的核心
 
 上架准备：
 
-- 24 个 `skills/paper-*/SKILL.md` 写入 `slug` / `displayName` / `version` / `summary`
+- 5 个公开入口的 `skills/paper-*/SKILL.md` 写入 `slug` / `displayName` / `version` / `summary`
 - `slug` 必须与目录名逐字相同（CLI 安装落盘为 `<install_root>/<slug>/`，只有 slug 与目录名一致，跨 skill 引用才解析得到）
 - `displayName` 以「学术辅导」开头、四字连续不被分隔符打断（用 `·`）——这是唯一的检索杠杆
 - `version` 由 `validate_skill_versions` 钉在 `.claude-plugin/plugin.json` 的 version 上
@@ -118,7 +124,7 @@ Skillhub（skillhub.cn）是国内的 skill 社区，与前三个宿主的核心
 
 | 测试 | 守什么 |
 | --- | --- |
-| [`test_manifest_consistency.py`](tests/test_manifest_consistency.py) | `commands.yaml` ↔ skill 目录 ↔ SKILL.md 的 `name` ↔ 两个根 README 的命令表，四处一致；README 正文与**安装提示词**里的各种「N 个」算得对；`skills/README.md` 不得另存命令清单表格 |
+| [`test_manifest_consistency.py`](tests/test_manifest_consistency.py) | 公开入口 ≤5；内部能力完整归属；流程链接、元数据与 README 一致；历史留痕继续解析 |
 | [`test_shared_conventions.py`](tests/test_shared_conventions.py) | 四层内容标注符号、学科三梯队、留痕契约字段在全仓库不漂移，其中的产品立场不被改写 |
 | [`test_boundary_registry.py`](tests/test_boundary_registry.py) | 边界拒绝清单 ↔ README 不做表 ↔ PRD 边界条目三处不背离，同步锚点真实存在 |
 | [`test_plugin_manifest.py`](tests/test_plugin_manifest.py) | 两宿主四份清单 ↔ `_shared/VERSION` ↔ **两个根 README** ↔ CHANGELOG 最新版本，版本号与描述处处一致；Codex 的 `skills` 指针与 `interface` 必填字段符合官方摄取口径；两个 `.*-plugin/` 里只放清单文件 |
@@ -126,9 +132,9 @@ Skillhub（skillhub.cn）是国内的 skill 社区，与前三个宿主的核心
 
 ## 硬规则
 
-1. **`commands.yaml` 是单一事实来源**——新增或发布命令只改它；`paper-help` 的命令总表、`paper-init` 的发布映射表都从它推导。别处不得另存第二份命令清单（第二份真相必然漂移）；改了主清单须同步 `README.md` 与 `README.en.md` 的命令表。
-2. **每个 skill 必须有非空 SKILL.md**——空文件会被宿主误识别为可用 skill。frontmatter `name` = 目录名 = 命令名：`paper-` 前缀 + 单个学术熟词，基础设施命令取工程熟词。一个 skill 可暴露多个命令入口（`paper-format` / `paper-claim` 内建于 `paper-verify`），这类内建子命令在主清单里必须写 `builtin_in: <宿主命令名>`。
-3. **跨宿主中立**——核心路径只依赖通用 agent skills 标准：SKILL.md frontmatter + `references/` 分层加载 + 标准库脚本。宿主专有能力（结构化提问工具、hooks、子 agent 编排、斜杠命令语法）只能作**可选增强**，且必须写明纯文本降级路径，工具不可用或用户拒绝时行为一致——先例见 [`paper-init`](skills/paper-init/SKILL.md) 与 [`paper-help`](skills/paper-help/SKILL.md) 的提问路径。目标宿主：Claude Code / Codex / WorkBuddy，验证项见 [`tests/跨宿主验证清单.md`](tests/跨宿主验证清单.md)。
+1. **公开入口与内部能力分层登记**——`commands.yaml` 只登记最多五个公开入口；`workflows.yaml` 登记能力及状态、路由、产物目录和稳定留痕 ID。新增能力须归入一个现有入口，并同步相关文档与测试。
+2. **只有公开入口放 SKILL.md**——frontmatter name = slug = 目录名。原能力正文使用 WORKFLOW.md，不带 frontmatter；脚本与资源目录保持稳定。共用流程由 workflows.yaml 的 workflow/builtin_in 表达，不注册新的命令或旧别名。
+3. **跨宿主中立**——核心路径只依赖通用 agent skills 标准：SKILL.md frontmatter + `references/` 分层加载 + 标准库脚本。宿主专有能力（结构化提问工具、hooks、子 agent 编排、斜杠命令语法）只能作**可选增强**，且必须写明纯文本降级路径，工具不可用或用户拒绝时行为一致——先例见 [`paper-init`](skills/paper-init/WORKFLOW.md) 与 [`paper-help`](skills/paper-help/WORKFLOW.md) 的提问路径。目标宿主：Claude Code / Codex / WorkBuddy，验证项见 [`tests/跨宿主验证清单.md`](tests/跨宿主验证清单.md)。
 4. **核验类 skill 的降级必须明标**（代码层红线）——API 失败时显式标注「未核验」「待人工核对」，绝不静默用模型记忆顶替。偷偷编造会让使用者学错，这条不接受权衡。
 5. **`.paper/` 与 `project.paper.yaml` 绝不写进 `.gitignore`**——指 `paper-init` 为用户研究项目生成的 `.gitignore`。`.paper/` 是人机分工的过程证据，只能在使用当时留下、事后无法重构；`project.paper.yaml` 是后续全体命令的长期记忆。
 6. **跨 skill 共享约定不重复定义**——下列概念的权威定义在 `_shared/references/`，自己的 SKILL.md 里引用即可，不要重述、也不要列举同辈 skill 的名字（否则每加一个 skill 要改 N 处）：[四层内容标注](skills/_shared/references/四层内容标注.md)（👤/📋/🪞/❓）、[学科三梯队](skills/_shared/references/学科三梯队.md)、[留痕契约](skills/_shared/references/留痕契约.md)、[报告组件库](skills/_shared/references/报告组件库.md)。
@@ -140,7 +146,7 @@ Skillhub（skillhub.cn）是国内的 skill 社区，与前三个宿主的核心
 1. 用 skill-creator 生成骨架——**不手工预建空目录**。
 2. 实现：SKILL.md 写行为指令，详细规则下沉到 `references/` 分层加载，确定性逻辑进 `scripts/`。SKILL.md 中声明本 skill 覆盖研究生命周期的哪些环节、明确不覆盖哪些。
 3. 写最小 pytest 单测：只测核心确定性逻辑（解析、路由、格式化等纯函数），秒级跑完。**不追覆盖率**——LLM 能力在提升，重测试的边际收益递减。
-4. 过发布门，翻 `commands.yaml` 的 `status` 为 `released`，与实现同一次提交。
+4. 过发布门，翻内部能力 `workflows.yaml` 的 `status` 为 `released`，与实现同一次提交。
 
 ### 发布门（三条全过才发布）
 
@@ -148,7 +154,7 @@ Skillhub（skillhub.cn）是国内的 skill 社区，与前三个宿主的核心
 | --- | --- |
 | 单测 | 核心确定性逻辑有 pytest 单测且通过 |
 | happy path | 至少一条真实 API / 真实输入手工走通 |
-| 主清单同步 | `commands.yaml` 的 `status` 翻为 `released`，全量测试通过 |
+| 主清单同步 | `workflows.yaml` 的 `status` 翻为 `released`，全量测试通过 |
 
 量化门槛（虚构检出率等）、过程中立性门、`evals/` 的裸模型对比不是发布门的必要条件，按需补；已有记录留在 `evals/` 与各 skill 的测试目录里，作样板参考。
 

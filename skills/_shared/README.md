@@ -17,11 +17,11 @@
 
 | 资源 | 服务对象 | 出处 |
 | --- | --- | --- |
-| 文献 API 客户端（arXiv、OpenAlex、Semantic Scholar、Crossref；按学科补 PubMed、ERIC），含 DOI 注册机构判别路由——`doi.org/ra/` 免费端点分流 Crossref / DataCite / ISTIC / CNKI，中文 DOI 走 `doi_meta` 内容协商取题录，取不到才落待人工核对 | `/paper-verify`、`/paper-search` | [PRD·文献数据源](../../docs/prd/paper-tutor-skills-prd-v1.md) |
-| 数据源注册表：已接入各源的名称、端点、限流参数、覆盖声明，声明式统一维护；核验报告的"已查源清单"由此生成 | `/paper-verify`、`/paper-search` | PRD·文献数据源·配套机制 |
+| 文献 API 客户端（arXiv、OpenAlex、Semantic Scholar、Crossref；按学科补 PubMed、ERIC），含 DOI 注册机构判别路由——`doi.org/ra/` 免费端点分流 Crossref / DataCite / ISTIC / CNKI，中文 DOI 走 `doi_meta` 内容协商取题录，取不到才落待人工核对 | `/paper-check 引用核验`、`/paper-research 检索文献` | [PRD·文献数据源](../../docs/prd/paper-tutor-skills-prd-v1.md) |
+| 数据源注册表：已接入各源的名称、端点、限流参数、覆盖声明，声明式统一维护；核验报告的"已查源清单"由此生成 | `/paper-check 引用核验`、`/paper-research 检索文献` | PRD·文献数据源·配套机制 |
 | 工程约束实现：本地结果缓存（同一 DOI 不重复查）、分批 + 指数退避、断点续验、剩余时间预估 | 同上 | PRD·引用核验策略（API 限流是核心设计约束，非附录） |
 | 留痕写入器：`.paper/` 四级使用记录 + 产物人机分工页脚 | 全体 skill | PRD·披露与留痕 |
-| 命令主清单 `commands.yaml`：全部 paper 命令的名称 / 阶段 / 定位 / 落盘目录 / 发布状态 / 使用指引，声明式统一维护 | `paper-help`、`paper-init` | 本仓库·paper-help spec |
+| 公开清单 `commands.yaml`：五个入口；内部清单 `workflows.yaml`：能力状态 / 产物目录 / 留痕 ID / 路由，分层维护 | `paper-help`、`paper-init` | 本仓库·paper-help spec |
 | 外部工具链探测 [`paper_shared/toolchain.py`](paper_shared/toolchain.py)：pandoc / xelatex / 中文字体族名探测 + 三平台安装指引。两边各写一份必然漂移——doctor 说 pandoc 可用、typeset 说不可用，用户无从判断哪个对 | `paper-typeset`（转换前探测）、`paper-doctor`（体检项） | 本仓库·系统综述与风格校准与出版链三块补齐设计 §7.2 / §7.5 |
 | 边界拒绝清单：A 类产品边界 9 条 + B 类拒绝的机制 4 条，每条带审查判据、依据、出口指引与同步锚点；新功能提案的评审准绳 | 全体 skill | [PRD·边界即产品](../../docs/prd/paper-tutor-skills-prd-v1.md) |
 

@@ -1,11 +1,6 @@
----
-name: paper-init
-description: 为研究项目搭建标准科研工作目录的脚手架命令。当用户要开始一个新研究项目或新论文、想初始化或规范科研项目的目录结构、要搭多项目科研工作区，或提到 paper-init、科研工作目录时使用——即使用户只是说"帮我建个放论文材料的文件夹"也应使用。行为铁律：一轮提问，方案确认前零创建；只建目录骨架加 README 加 .gitignore 加 project.paper.yaml（项目信息配置，长期记忆），可选为用户选定的宿主生成项目配置文件；不建留痕目录、不生成任何研究内容。目标目录里已有 .paper/ 的进行中项目不适用本 skill。
-slug: paper-init
-displayName: 学术辅导·项目初始化
-version: 0.1.8
-summary: 学术辅导套件的一员，需与其他 paper-* skill 同级安装。为研究项目搭建标准科研工作目录的脚手架命令。
----
+> 内部流程 `paper-init`，由 `/paper-help 建项目` 进入；不注册为独立命令。
+> 相对路径以本文件所在目录为基准；脚本使用绝对路径调用，工作目录保持用户研究项目。
+> 留痕继续使用 `paper-init` 标识；对外指引使用公开入口和中文任务。
 
 # paper-init：科研工作目录脚手架
 
@@ -22,7 +17,7 @@ summary: 学术辅导套件的一员，需与其他 paper-* skill 同级安装�
 
 ## 何时不做
 
-- **目标目录里发现 `.paper/`**：这是进行中的 Paper-Tutor-Skills 项目。向用户说明这一点，建议直接用对应子命令续作（留痕与进度都在 `.paper/` 里），然后就此打住——不提问、不呈现方案、不创建任何东西。
+- **目标目录里发现 `.paper/`**：这是进行中的 Paper-Tutor-Skills 项目。向用户说明这一点，建议直接用对应内部流程续作（留痕与进度都在 `.paper/` 里），然后就此打住——不提问、不呈现方案、不创建任何东西。
 - **用户只想用某个单点能力**（查文献、核引用、聊选题），没打算建目录：不要把本 skill 当前置步骤强加给用户。
 - **与科研项目无关的目录整理**：本 skill 不适用，按普通任务处理。
 - **"建好目录后直接帮我写一篇论文"类请求**：目录照建；代写部分不做，走三段式转化——先共情目标（赶时间、想先看到成果），再用用户自己的语言讲清风险（AI 代写的文稿经不起答辩追问与学术诚信核查，署名责任在用户），最后给一个 5 分钟内可见成果的第一步（把标准目录建好、把已有材料归位，再从选题澄清起步）。绝不代生成研究想法与正文。
@@ -101,7 +96,7 @@ test -e <目标位置>/<CLAUDE.md 或 AGENTS.md>         # 用户选了宿主时
 
 ```text
 ✅ 科研工作目录就绪：<实际路径>
-接下来对我说：<取"命令发布映射表"中第一条已发布命令的交接语>
+接下来对我说：<取"命令发布映射表"中最贴近用户当前阶段的已发布任务交接语>
 （.paper/ 留痕目录将在你首次使用任一 paper 命令时自动创建）
 ```
 
@@ -137,7 +132,7 @@ git 建在工作区根而非每项目各建：研究历史集中一处，跨项�
 
 **向既有工作区追加新项目**：呈现现有内容清单 → 确认后只新建缺失的项目子目录及其 README。**绝不编辑既有的工作区 README**——哪怕只是想把新项目加进项目清单，那也是修改既有文件，违反红线 3；正确做法是把建议补充的清单行打印在对话里，请用户自行粘贴。
 
-**infra 类产物目录不预建**：`/paper-daily` 这类跨阶段 infra 命令有自己的产物目录（`daily/`），但**不预建在初始骨架里**——infra 产物是可选的（用户可能从不需要做抢发检测），预建会让每个新项目都背一个空目录；首次使用时由对应命令自建（见 paper-daily SKILL.md「目录自建约定」）。研究阶段产物目录（topic/ literature/ manuscript/ review/ submission/）则相反——是研究项目的核心分区、必预建。
+**infra 类产物目录不预建**：`/paper-research 每日追踪` 这类跨阶段 infra 命令有自己的产物目录（`daily/`），但**不预建在初始骨架里**——infra 产物是可选的（用户可能从不需要做抢发检测），预建会让每个新项目都背一个空目录；首次使用时由对应命令自建（见 paper-daily SKILL.md「目录自建约定」）。研究阶段产物目录（topic/ literature/ manuscript/ review/ submission/）则相反——是研究项目的核心分区、必预建。
 
 ### 方案呈现用的预览树示例（单项目）
 
@@ -148,59 +143,35 @@ git 建在工作区根而非每项目各建：研究历史集中一处，跨项�
 ├── project.paper.yaml          ← 本次创建（项目信息配置，长期记忆）
 ├── CLAUDE.md / AGENTS.md     ← 本次创建（仅当用户选了宿主；否则不建）
 ├── topic/                    ← 本次创建（空目录）
-│   └── RQ澄清记录.md          ← 由 /paper-topic 会话创建——本次不建
+│   └── RQ澄清记录.md          ← 由 /paper-research 选题 会话创建——本次不建
 ├── literature/               ← 本次创建
-│   ├── 文献笔记表.md           ← 由 /paper-search 会话创建——本次不建
+│   ├── 文献笔记表.md           ← 由 /paper-research 检索文献 会话创建——本次不建
 │   └── pdfs/                  ← 收 PDF 全文（不入 git）——本次不建
 ├── data/                     ← 本次创建（原始数据，你本人维护，AI 不进场）
 ├── analysis/                 ← 本次创建（分析脚本与结果，你本人维护，AI 不进场）
 ├── manuscript/               ← 本次创建（大纲、草稿、摘要的落点）
 ├── review/                   ← 本次创建
-│   └── 引用核验报告.md         ← 由 /paper-verify 会话创建——本次不建
+│   └── 引用核验报告.md         ← 由 /paper-check 引用核验 会话创建——本次不建
 ├── submission/               ← 本次创建（投稿材料的落点）
 └── .paper/                     ← 使用留痕与进度——各 paper 命令会话自动创建，本次不建
 ```
 
 ## 命令发布映射表
 
-README 写入者列、README"下一步"、交接语，三处**只准从本表推导**。发布状态以本表为准，不要靠探测目录或凭记忆猜测哪些命令可用。
+此处的“映射表”指从[内部能力清单](../_shared/workflows.yaml)即时派生的视图，不再维护一份静态表。
 
-> **命令主清单**在 [`_shared/commands.yaml`](../_shared/commands.yaml)（单一事实来源，记录全部命令的名称 / 阶段 / 定位 / 状态）。本表是 paper-init 专用的**派生呈现**——额外承载落盘目录、README"下一步"行、交接语这三个 paper-init 产物专属字段。状态列须与主清单一致：主清单是 `released` 的本表写"已发布"，其余写"未发布"。
-
-| 命令 | 落盘目录 | 发布状态 | README"下一步"行（已发布时用） | 交接语（已发布时用） |
-| --- | --- | --- | --- | --- |
-| /paper-topic | topic/ | 已发布 | 只有模糊方向：对助手说"用 /paper-topic 帮我澄清选题" | 用 /paper-topic 澄清选题，落盘目录用 <项目目录路径> |
-| /paper-search | literature/ | 已发布 | 已有 RQ 要查文献："用 /paper-search 检索「你的 RQ」" | 用 /paper-search 检索文献，落盘目录用 <项目目录路径> |
-| /paper-screen | literature/ | 已发布 | 要做系统综述、需要 PRISMA 筛选记录："用 /paper-screen 建筛选台账 + 出流程图" | 用 /paper-screen 做系统综述筛选，落盘目录用 <项目目录路径> |
-| /paper-method | topic/ | 已发布 | 有 RQ 要定方法："用 /paper-method 参谋方法-RQ 匹配 / 涉人伦理提示" | 用 /paper-method 参谋研究设计，落盘目录用 <项目目录路径> |
-| /paper-verify（含 /paper-format、/paper-claim） | review/ | 已发布 | 已有草稿要自查："用 /paper-verify 核验草稿引用" | 用 /paper-verify 核验草稿引用，落盘目录用 <项目目录路径> |
-| /paper-proposal | topic/ | 已发布 | 有 RQ+文献+方法要组装开题："用 /paper-proposal 组装开题报告草案" | 用 /paper-proposal 组装开题报告，落盘目录用 <项目目录路径> |
-| /paper-import | literature/ | 已发布 | 有知网/Zotero 题录要整理："用 /paper-import 整理题录 + 核对草稿一致性" | 用 /paper-import 整理题录，落盘目录用 <项目目录路径> |
-| /paper-outline | manuscript/ | 已发布 | 文献读得差不多要搭骨架："用 /paper-outline 起草论文大纲" | 用 /paper-outline 起草大纲，落盘目录用 <项目目录路径> |
-| /paper-draft | manuscript/ | 已发布 | 有大纲要逐段写正文："用 /paper-draft 分段共写正文" | 用 /paper-draft 分段共写正文，落盘目录用 <项目目录路径> |
-| /paper-style | manuscript/ | 已发布 | 各章文风要查一致性、或想把自己的写作风格存成基线："用 /paper-style 校准全文风格" | 用 /paper-style 校准全文风格，落盘目录用 <项目目录路径> |
-| /paper-logic | manuscript/ | 已发布 | 初稿成形要查论证链："用 /paper-logic 检查 RQ→方法→结果→结论 对应" | 用 /paper-logic 检查论证链，落盘目录用 <项目目录路径> |
-| /paper-anchor | literature/ | 未发布 | 导师或审稿人说某段缺文献支撑："用 /paper-anchor 定位零引用段 + 定向找支撑" | 用 /paper-anchor 补文献支撑，落盘目录用 <项目目录路径> |
-| /paper-abstract | manuscript/ | 已发布 | 正文写完要凝练摘要："用 /paper-abstract 从正文提炼摘要" | 用 /paper-abstract 提炼摘要，落盘目录用 <项目目录路径> |
-| /paper-figure | manuscript/ | 已发布 | 有图要查或没图要建议："用 /paper-figure 做图表诊断或设计建议" | 用 /paper-figure 做图表诊断或建议，落盘目录用 <项目目录路径> |
-| /paper-plot | manuscript/ | 已发布 | 要生成绘图代码："用 /paper-plot 生成 matplotlib/ggplot2 代码" | 用 /paper-plot 生成绘图代码，落盘目录用 <项目目录路径> |
-| /paper-review | review/ | 已发布 | 投稿/答辩前预演评审："用 /paper-review 模拟多视角评审" | 用 /paper-review 模拟评审，落盘目录用 <项目目录路径> |
-| /paper-revise | review/ | 已发布 | 收到审稿意见要逐条修订并写回复信："用 /paper-revise 起草修订对照表 + 逐点回复信" | 用 /paper-revise 起草修订与回复，落盘目录用 <项目目录路径> |
-| /paper-disclose | submission/ | 已发布 | 要生成 AI 使用说明："用 /paper-disclose 汇编 .paper/ 留痕" | 用 /paper-disclose 汇编 AI 使用说明，落盘目录用 <项目目录路径> |
-| /paper-daily | daily/ | 已发布 | 有研究想法想抢发检测 / 泛读新发："用 /paper-daily 拉双轨（抢发对照 + 新发自动）" | 用 /paper-daily 跑每日雷达，落盘目录用 <项目目录路径> |
-| /paper-submit | submission/ | 已发布 | 论文写完要投稿、要整理投稿材料清单："用 /paper-submit 整理投稿 checklist + 期刊要求陈列 + cover letter 骨架" | 用 /paper-submit 整理投稿准备，落盘目录用 <项目目录路径> |
-| /paper-typeset | submission/ | 已发布 | 期刊要 Word/LaTeX/PDF 版稿件、或参考文献要按国标渲染："用 /paper-typeset 转格式 + 国标著录" | 用 /paper-typeset 转投稿格式，落盘目录用 <项目目录路径> |
-
-维护说明：某命令通过发布门时，其发布任务须在同一次提交里把 `_shared/commands.yaml` 中该命令的 `status` 翻转为 `released`，并同步把本表对应状态格翻转为"已发布"（见 skills/README·发布联动）。主清单是权威，本表状态列与其对齐。**新增命令（无论是否已发布）同样须在那次提交里补进本表**，落盘目录、"下一步"行、交接语一并预填——这样发布时只需改一个状态格。漏补的代价不止本表不准：README 的"谁写入"列只准从本表推导，本表漏一条，真机生成的 README 就在对应目录行漏标一个写入者（paper-style / paper-typeset 自 v0.1.0 首发起就没进过本表、paper-anchor 同样漏了，直到 v0.1.7 才补）。[`tests/test_manifest_consistency.py`](../../tests/test_manifest_consistency.py) 现在机械守着本表与主清单在命令集合、落盘目录、发布状态三处一致。
-
-**"下一步"列一律不含尖括号**——需要读者自己填的占位符写成「你的 RQ」这类中文引号形态。本列会被整句抄进 README 正文，而 README 实例化的自检是 `grep '[<>]' README.md` 期望零命中；列里留一个"故意不替换"的尖括号，既让自检必然误报，也让实例化时分不清哪个该替换（本表原先的 `<你的 RQ>` 就同时踩了这两条）。交接语列不受此限：它只打印在对话里、不进 README，`<项目目录路径>` 本就该替换成真实路径。
+- 对每个 `dir` 非空的能力，读取 `name`、`dir`、`status`、`entry`、`request_zh`。`released` 为已发布，其余为未发布；不要靠目录是否存在猜测发布状态。
+- README“谁写入”列按 `dir` 分组，用“公开入口 + 中文任务”展示；同一个入口去重，必要时在括号内补充任务。例如 literature/ 写 `/paper-research（检索、导入、筛选）`。未发布能力不列为可用写入者。
+- README“下一步”只给一个最贴近用户当前阶段的已发布任务，并附 `/paper-help 看进度`；不要把二十多项能力重新排成待办列表。
+- 交接语用 `entry + request_zh + 实际项目路径`。不要求用户知道内部 ID，不自动执行下一阶段。
+- 需要读者自己填的内容使用「你的研究问题」等中文引号，不留尖括号；正文不应含任何尖括号，继续用 `grep '[<>]' README.md` 自检。
 
 ## README 模板（单项目版）
 
 实例化规则：
 
 - 尖括号项全部替换为真实值；`<按映射表：X目录>` 表示查上表——把该目录中状态为"已发布"的命令依次填入，一条都没有则填"（后续版本）"；data/、analysis/、.paper/ 三行的"谁写入"列是固定文案；新增的"为什么这样分"列全部固定、不查表；
-- "下一步"小节：每条已发布命令占一行（用映射表里的"下一步"行）；一条已发布命令都没有时，整节换成模板内注明的降级两行；
+- "下一步"小节：按上述映射规则只呈现一个相关任务和查看进度入口；
 - 日期用探测到的真实日期；
 - **写完通读一遍**：确认没有残留尖括号、没有待填空白（可用 `grep '[<>]' README.md` 自检，正文不应含任何尖括号）。
 
@@ -336,7 +307,7 @@ Paper 是 AI 辅导员，不是 AI 代笔：不代生成研究想法与正文、
 | 情形 | 处理 |
 | --- | --- |
 | 目标目录已存在且非空 | 方案中呈现现有内容清单；确认后只补缺失部分，既有文件一律不动 |
-| 目标目录里有 `.paper/` | 进行中的 Paper-Tutor-Skills 项目：说明情况、建议用对应子命令续作，就此打住 |
+| 目标目录里有 `.paper/` | 进行中的 Paper-Tutor-Skills 项目：说明情况、建议用对应内部流程续作，就此打住 |
 | README / .gitignore 已存在 | 保留原文件一字不动，仅提示用户自行核对 |
 | `project.paper.yaml` 已存在 | 保留原文件一字不动，仅提示用户自行核对（红线 3） |
 | 用户第 1 步项目信息全留空 | `project.paper.yaml` 照建，字段为空字符串占位，后续可手工补 |

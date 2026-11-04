@@ -2,7 +2,7 @@
 
 > 本目录不写 pytest（提示词型 skill、无确定性逻辑可测）：行为验收靠人工跑 [`模拟用户回答脚本.md`](./模拟用户回答脚本.md)、对照本清单校验。与 `tests/paper-review/` / `tests/paper-abstract/` 同构。
 >
-> 设计权威：`docs/superpowers/specs/2026-07-26-paper-revise-design.md`；行为权威：`skills/paper-revise/SKILL.md`。
+> 设计权威：`docs/superpowers/specs/2026-07-26-paper-revise-design.md`；行为权威：`skills/paper-revise/WORKFLOW.md`。
 
 ## 验收场景
 

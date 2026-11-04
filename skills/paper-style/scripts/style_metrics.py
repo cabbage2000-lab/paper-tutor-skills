@@ -328,7 +328,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         d = pathlib.Path(args.dir)
         if not d.is_dir():
             print(f"读不到目录：{args.dir}")
-            print("请确认路径正确；manuscript/ 尚无正文则先用 /paper-draft 起草。")
+            print("请确认路径正确；manuscript/ 尚无正文则先用 /paper-write 分段写作 起草。")
             return 3
         paths.extend(sorted(d.glob("*.md")))
     if not paths:

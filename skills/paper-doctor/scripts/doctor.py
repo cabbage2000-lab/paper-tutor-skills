@@ -187,14 +187,14 @@ def check_cache():
 
 
 def check_typeset_toolchain() -> List[Dict[str, Any]]:
-    """pandoc / xelatex / 中文字体三项——服务 `/paper-typeset` 的格式转换。
+    """pandoc / xelatex / 中文字体三项——服务 `/paper-submit 排版导出` 的格式转换。
 
     探测实现在 `_shared/paper_shared/toolchain.py`，本函数只做契约适配：两边各写
     一份探测必然漂移（doctor 说 pandoc 可用、typeset 说不可用，用户无从判断哪个对）。
 
     **status 用 `warn` 而非 `fail`**：在 doctor 的语义里 `fail` = 核验根本跑不起来，
     会让 `compute_overall` 短路成 `blocked`。而这三项只影响转格式——没装 pandoc
-    时 `/paper-verify`、`/paper-search` 照常工作，把整体体检判成 blocked 是误报。
+    时 `/paper-check 引用核验`、`/paper-research 检索文献` 照常工作，把整体体检判成 blocked 是误报。
     同理本组**不参与 `compute_overall`**（照 `check_cache` 的先例，见 run_all 注释）。
 
     延迟 import：`_shared` 不可导入时 doctor 仍须能出报告——那是 blocked 态能落地
@@ -210,7 +210,7 @@ def check_typeset_toolchain() -> List[Dict[str, Any]]:
         return [{"check": "typeset_toolchain", "status": "warn",
                  "detail": f"探测层不可导入：{type(e).__name__}: {e}",
                  "fix": "确认 skills/_shared/paper_shared/toolchain.py 存在；"
-                        "该组只影响 /paper-typeset 转格式，不影响引用核验与检索"}]
+                        "该组只影响 /paper-submit 排版导出 转格式，不影响引用核验与检索"}]
     out: List[Dict[str, Any]] = []
     for key in ("pandoc", "xelatex"):
         r = probe[key]
@@ -281,7 +281,7 @@ def run_all(transport=None, cache=None):
     # cache fail 不阻塞核验（顶多慢/重复请求），故不改 overall，只在报告层标 fail。
 
     # typeset 工具链同理、且更明确：pandoc / xelatex / 中文字体缺失只让
-    # /paper-typeset 产不出对应格式，引用核验与检索完全不受影响。故本组
+    # /paper-submit 排版导出 产不出对应格式，引用核验与检索完全不受影响。故本组
     # **不进 compute_overall**，且用 warn 而非 fail（fail 会短路成 blocked）。
     typeset = check_typeset_toolchain()
 

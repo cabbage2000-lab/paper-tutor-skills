@@ -279,12 +279,12 @@
       <!-- 完全降级时改写为：
       <li><b>自动轨</b>：❌ 不可用</li>
       <li><b>用户补充</b>：<Z> 篇</li>
-      <li><b>⚠️ 抢发检测本次无法生成</b>（依赖自动轨全源检索）→ 建议：用 /paper-doctor 排查环境后重跑</li>
+      <li><b>⚠️ 抢发检测本次无法生成</b>（依赖自动轨全源检索）→ 建议：用 /paper-help 环境体检 排查环境后重跑</li>
       -->
     </ul>
     <div class="gap-notice mt-4 px-5 py-4 bg-l2-bg border-l-[3px] border-l2 text-ink-soft text-[0.92rem] leading-[1.75]">
       <div class="font-sans text-[10px] tracking-[0.12em] text-l2 font-bold mb-[0.35rem]">⚠️ 中文缺口提示</div>
-      英文库没检索到 ≠ 没人研究过。本次未纳入中文库自动检索，如研究涉中文语境，请用 <code>/paper-search</code> 走中文引导轨（知网/万方）补检。
+      英文库没检索到 ≠ 没人研究过。本次未纳入中文库自动检索，如研究涉中文语境，请用 <code>/paper-research 检索文献</code> 走中文引导轨（知网/万方）补检。
     </div>
   </section>
 
@@ -383,11 +383,11 @@
     </div>
     <div class="action-card activated">
       <div class="action-trigger font-sans text-[10px] tracking-[0.12em] text-l4 font-bold mb-[0.3rem]">🚨 触发条件：scoop_high ≥ 1</div>
-      <div class="action-text text-ink">是否进入 <code>/paper-topic</code> 重审 RQ？</div>
+      <div class="action-text text-ink">是否进入 <code>/paper-research 选题</code> 重审 RQ？</div>
     </div>
     <div class="action-card activated">
       <div class="action-trigger font-sans text-[10px] tracking-[0.12em] text-l4 font-bold mb-[0.3rem]">📖 触发条件：digest_high ≥ 1</div>
-      <div class="action-text text-ink">是否进入 <code>/paper-search</code> 对该篇做深检？</div>
+      <div class="action-text text-ink">是否进入 <code>/paper-research 检索文献</code> 对该篇做深检？</div>
     </div>
     <div class="action-card">
       <div class="action-trigger font-sans text-[10px] tracking-[0.12em] text-ink-faint font-bold mb-[0.3rem]">🟢 触发条件：all_low</div>
@@ -395,7 +395,7 @@
     </div>
     <div class="action-card activated">
       <div class="action-trigger font-sans text-[10px] tracking-[0.12em] text-l4 font-bold mb-[0.3rem]">📚 触发条件：chinese_gap</div>
-      <div class="action-text text-ink">是否进入 <code>/paper-search</code> 走中文引导轨补检？</div>
+      <div class="action-text text-ink">是否进入 <code>/paper-research 检索文献</code> 走中文引导轨补检？</div>
     </div>
   </section>
 

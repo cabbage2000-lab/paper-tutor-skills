@@ -260,7 +260,7 @@ def test_全部SKILL的产物字段不含空白():
     中间不留空格；`.html` 是 `.md` 的机械投影，不必进这个字段。
     """
     bad = []
-    for skill_md in sorted((REPO_ROOT / "skills").glob("*/SKILL.md")):
+    for skill_md in sorted(p for p in (REPO_ROOT / "skills").glob("*/*.md") if p.name in {"SKILL.md", "WORKFLOW.md"}):
         for lineno, line in enumerate(
                 skill_md.read_text(encoding="utf-8").splitlines(), 1):
             m = _PRODUCT_FIELD.match(line)

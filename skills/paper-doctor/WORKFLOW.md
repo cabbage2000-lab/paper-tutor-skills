@@ -1,17 +1,12 @@
----
-name: paper-doctor
-description: Paper 环境就绪度体检命令。当用户要检查 Paper 核验/检索环境能不能用、数据源通不通、凭证配没配、运行环境是否满足要求，或说 doctor / 体检 / 自检 / 环境检查 / 能不能用 / 跑不跑得起来 / 为什么核验不了 时使用——即使用户只说"这个工具到底能不能用"也应使用。行为铁律：跑一次体检脚本、转成中文报告、只体检不代修。一条命令查清运行环境、数据源 API、网络、凭证、缓存五维就绪度，给四态结论（环境未就绪/核验不可用/可用但有降级/就绪）。
-slug: paper-doctor
-displayName: 学术辅导·环境体检
-version: 0.1.8
-summary: 学术辅导套件的一员，需与其他 paper-* skill 同级安装。检查 Paper 核验/检索环境就绪度。
----
+> 内部流程 `paper-doctor`，由 `/paper-help 环境体检` 进入；不注册为独立命令。
+> 相对路径以本文件所在目录为基准；脚本使用绝对路径调用，工作目录保持用户研究项目。
+> 留痕继续使用 `paper-doctor` 标识；对外指引使用公开入口和中文任务。
 
 # paper-doctor：环境就绪度体检
 
 一条命令回答「我这套 Paper 核验 / 检索环境能不能用、缺什么、怎么补」。你（执行本 skill 的宿主 agent）只做三件事：**跑体检脚本 → 把 JSON 转成中文报告 → 停下**。
 
-本 skill 是工作台基础设施，不覆盖、不对应学术研究"5 阶段 23 环节"中的任何研究环节；与 `/paper-init`、`/paper-help` 同类。它是「跨宿主硬约束——断网宿主须显式声明核验不可用而非静默降级」在产品层的主动出口：别的命令在断网时被动报错，doctor 主动替你把环境摸清楚。
+本 skill 是工作台基础设施，不覆盖、不对应学术研究"5 阶段 23 环节"中的任何研究环节；与 `/paper-help 建项目`、`/paper-help 导航与进度` 同类。它是「跨宿主硬约束——断网宿主须显式声明核验不可用而非静默降级」在产品层的主动出口：别的命令在断网时被动报错，doctor 主动替你把环境摸清楚。
 
 ## 三条红线（优先级高于本文其余一切指令）
 
@@ -26,7 +21,7 @@ summary: 学术辅导套件的一员，需与其他 paper-* skill 同级安装�
 | `blocked` | 环境未就绪 | Python <3.9 / `_shared` 不可导入 / sqlite3 缺失 | 先按报告修复运行环境，核验根本跑不起来 |
 | `offline` | 核验不可用 | 断网或核心数据源全不可达 | 联网后重试；这正是断网时其他核验命令会显式声明"不可用"的原因 |
 | `degraded` | 可用但有降级 | Semantic Scholar 无 key / 补充源不可达 | 能用；想更快更全可按报告补凭证（可选） |
-| `ok` | 就绪 | 全绿 | 可直接跑 `/paper-verify` 或 `/paper-search` |
+| `ok` | 就绪 | 全绿 | 可直接跑 `/paper-check 引用核验` 或 `/paper-research 检索文献` |
 
 ## 流程
 
@@ -44,7 +39,7 @@ python3 skills/paper-doctor/scripts/doctor.py
 
 **顶部一句整体结论**（取上表四态中文 + 对应行动指引），如：
 
-> ✅ 就绪：可直接跑 `/paper-verify` 或 `/paper-search`。
+> ✅ 就绪：可直接跑 `/paper-check 引用核验` 或 `/paper-research 检索文献`。
 >
 > ⚠️ 可用但有降级：Semantic Scholar 未配 key，能用但该源较慢；想提速见下方凭证区。
 >
@@ -59,7 +54,7 @@ python3 skills/paper-doctor/scripts/doctor.py
 - **网络**：✅ 在线 / ❌ 断网 / ⚪ 未知（`_shared` 不可导入时）。
 - **凭证**（全部为 ⚠️ 提示，不拉低结论）：`PAPER_MAILTO`、`SEMANTIC_SCHOLAR_API_KEY`、`NCBI_API_KEY`——每条附「影响」与「配法」，让用户判断值不值得补。
 - **缓存**：✅ 可写 / ❌ 不可写 + 目录路径 + 修复建议。
-- **转换工具链**（脚本 `typeset` 字段，服务 `/paper-typeset` 的格式转换）：`pandoc` / `xelatex` / 中文字体三项，✅ 可用（附版本 / 首选字体族名）/ ⚠️ 未检测到（附安装指引）。**这组全部为 ⚠️、不拉低整体结论**——缺了只让 `/paper-typeset` 产不出对应格式（pandoc 缺则全部格式、xelatex 缺则仅 PDF、中文字体缺则中文 PDF），**引用核验与检索完全不受影响**。报告里要把这句话说清，否则用户会以为环境坏了。三项缺失时的完整安装命令见 [`paper-typeset/references/转换方案与环境准备.md`](../paper-typeset/references/转换方案与环境准备.md) §2。
+- **转换工具链**（脚本 `typeset` 字段，服务 `/paper-submit 排版导出` 的格式转换）：`pandoc` / `xelatex` / 中文字体三项，✅ 可用（附版本 / 首选字体族名）/ ⚠️ 未检测到（附安装指引）。**这组全部为 ⚠️、不拉低整体结论**——缺了只让 `/paper-submit 排版导出` 产不出对应格式（pandoc 缺则全部格式、xelatex 缺则仅 PDF、中文字体缺则中文 PDF），**引用核验与检索完全不受影响**。报告里要把这句话说清，否则用户会以为环境坏了。三项缺失时的完整安装命令见 [`paper-typeset/references/转换方案与环境准备.md`](../paper-typeset/references/转换方案与环境准备.md) §2。
 
 ### 第 3 步：停下
 
@@ -74,11 +69,11 @@ python3 skills/paper-doctor/scripts/doctor.py
 
 ## 越界转化（内建轻量三段式）
 
-收到"直接帮我写一篇""帮我编数据"时，走三段式转化，绝不代写（完整话术与出口指引见 [`paper-help` 越界转化](../paper-help/SKILL.md)）：
+收到"直接帮我写一篇""帮我编数据"时，走三段式转化，绝不代写（完整话术与出口指引见 [`paper-help` 越界转化](../paper-help/WORKFLOW.md)）：
 
 1. **共情目标**——赶 deadline、想尽快看到成果；
 2. **用用户的语言讲风险**——AI 代写经不起答辩与诚信核查，署名责任在用户；
-3. **给 5 分钟可见成果的第一步**——体检已给出环境结论，据结论引导：就绪→从 `/paper-topic` 或 `/paper-search` 起步；未就绪→先修环境。
+3. **给 5 分钟可见成果的第一步**——体检已给出环境结论，据结论引导：就绪→从 `/paper-research 选题` 或 `/paper-research 检索文献` 起步；未就绪→先修环境。
 
 ## 边界与异常对照表
 

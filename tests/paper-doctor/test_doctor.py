@@ -308,15 +308,14 @@ class TestCLIMain(unittest.TestCase):
 
 class TestSkillMdStructure(unittest.TestCase):
     def test_skill_md_exists_and_has_frontmatter(self):
-        skill_path = _REPO / "skills" / "paper-doctor" / "SKILL.md"
-        self.assertTrue(skill_path.exists(), "skills/paper-doctor/SKILL.md 应存在")
+        skill_path = _REPO / "skills" / "paper-doctor" / "WORKFLOW.md"
+        self.assertTrue(skill_path.exists(), "skills/paper-doctor/WORKFLOW.md 应存在")
         text = skill_path.read_text(encoding="utf-8")
-        self.assertTrue(text.startswith("---\n"), "SKILL.md 须以 frontmatter 开头")
-        self.assertIn("name: paper-doctor", text)
-        self.assertIn("description:", text)
+        self.assertIn("内部流程 `paper-doctor`", text)
+        self.assertFalse((skill_path.parent / "SKILL.md").exists())
 
     def test_skill_md_has_redlines_and_report(self):
-        text = (_REPO / "skills" / "paper-doctor" / "SKILL.md").read_text(encoding="utf-8")
+        text = (_REPO / "skills" / "paper-doctor" / "WORKFLOW.md").read_text(encoding="utf-8")
         # 三条红线关键词
         self.assertIn("只体检不代修", text)
         self.assertIn("脚本真实结果", text)

@@ -746,7 +746,7 @@ class TestLookupCrossCheck(unittest.TestCase):
         fields = {n["field"] for n in p["field_notes"]}
         self.assertIn("title", fields)
         self.assertIn("year", fields)          # 年份差 2 也升 mismatch
-        self.assertIn("/paper-verify", p["note"])
+        self.assertIn("/paper-check 引用核验", p["note"])
         # 红线：本命令只陈列，不判态、不判编造
         for banned in ("NOT_FOUND", "VERIFIED", "MISMATCH", "编造"):
             self.assertNotIn(banned, p["note"])

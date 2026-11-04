@@ -272,12 +272,13 @@ def test_codex_marketplace条目结构合规(
 
 
 def test_plugin根布局正确():
-    """仓库根即 plugin 根，skills/ 在根下且每个子目录含 SKILL.md（_shared 除外）。"""
+    """仓库根即 plugin 根；公开入口含 SKILL.md，内部能力含 WORKFLOW.md。"""
     skills_dir = REPO_ROOT / "skills"
     assert skills_dir.is_dir(), "仓库根缺 skills/——plugin 根布局要求 skills/ 在根"
     missing = [
         d.name
         for d in sorted(skills_dir.iterdir())
-        if d.is_dir() and not d.name.startswith("_") and not (d / "SKILL.md").is_file()
+        if d.is_dir() and not d.name.startswith("_")
+        and not (d / "SKILL.md").is_file() and not (d / "WORKFLOW.md").is_file()
     ]
-    assert not missing, f"这些 skill 目录缺 SKILL.md，插件加载时会被跳过：{missing}"
+    assert not missing, f"这些包目录既无公开入口也无内部流程：{missing}"

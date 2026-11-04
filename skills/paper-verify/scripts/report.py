@@ -28,7 +28,7 @@ PRIORITY_STATUSES = ("NOT_FOUND", "RETRACTED", "METADATA_MISMATCH")
 NETWORK_BANNER = {
     "offline": ("核验不可用：核心数据源全不可达（疑似断网）",
                 "本次未取得有效 API 响应，报告中的判定不足以支撑任何存在性结论。"
-                "建议先跑 /paper-doctor 排查网络，再重跑核验。"),
+                "建议先跑 /paper-help 环境体检 排查网络，再重跑核验。"),
     "degraded": ("部分降级：有数据源未查成",
                  "标「无法核实」的条目是「没查成」而非「查了没有」，与「疑似不存在」性质不同。"
                  "网络恢复后重跑即可（断点续验会跳过已完成条目）。"),

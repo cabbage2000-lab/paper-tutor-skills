@@ -238,7 +238,7 @@ class TestDegradeBanner(unittest.TestCase):
         h = report_html.build_html(_payload(network_status="offline"))
         self.assertIn("network_status=offline", h)
         self.assertIn("核验不可用", h)
-        self.assertIn("paper-doctor", h)
+        self.assertIn("/paper-help 环境体检", h)
 
     def test_degraded横幅区分没查成与查了没有(self):
         h = report_html.build_html(_payload(network_status="degraded"))
